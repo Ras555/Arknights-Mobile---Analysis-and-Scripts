@@ -1,0 +1,5 @@
+[tool.mutmut]
+source_paths = ["lib", "app"]
+# Informational log lines are skipped, since mutating their text doesn't change
+# behaviour. Warnings, errors, print() and raise lines are still mutated.
+do_not_mutate_patterns = ['logger\.info\(']
