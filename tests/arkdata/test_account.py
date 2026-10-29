@@ -8,7 +8,6 @@ import pytest
 import arkdata.sources.account as account
 from arkdata.sources.account import filter_operators, format_operator_data
 
-
 # format_operator_data
 
 def _char(char_id, potential=0, level=1, phase=0, favor=0, skill=1):

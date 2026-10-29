@@ -4,7 +4,6 @@ import pytest
 
 from arkdata.calculations.stage import count_enemy_spawns, load_stage_enemies
 
-
 # count_enemy_spawns
 
 def test_count_enemy_spawns():

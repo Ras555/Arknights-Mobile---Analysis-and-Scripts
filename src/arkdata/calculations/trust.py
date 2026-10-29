@@ -7,7 +7,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-28
+Last Modified: 2026-10-29
 Last Modified by: Claude
 '''
 
@@ -43,7 +43,8 @@ def calculate_trust(favor_point: int) -> float:
     if favor_point > max_favor_point:
         logger.error('Favor point %s exceeds the maximum of %s. Capping trust at 200.', favor_point, max_favor_point)
         return 200
-    if favor_point == max_favor_point: return 200
+    if favor_point == max_favor_point:
+        return 200
 
     last_milestone = None
     for milestone, favor in TRUST_MILESTONES.items():

@@ -7,13 +7,14 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-28
+Last Modified: 2026-10-29
 Last Modified by: Claude
 '''
 
 # Imports
 
 import logging
+from collections.abc import Mapping
 
 import arkprts
 import pandas as pd
@@ -37,15 +38,15 @@ async def login(email) -> arkprts.Client:
     await auth.login_with_email_code(email)
     return arkprts.Client(auth=auth, assets=False)
 
-def format_operator_data(operator_data: dict) -> pd.DataFrame:
+def format_operator_data(operator_data: Mapping) -> pd.DataFrame:
     '''
     Converts arkprts' {char_key: character} roster into a DataFrame with
     one row per operator: id, potential, level, phase, trust, skill_level.
     '''
-    operator_data = [{'id': op.char_id, 'potential': op.potential_rank,
+    rows = [{'id': op.char_id, 'potential': op.potential_rank,
         'level': op.level, 'phase': op.evolve_phase, 'trust': calculate_trust(op.favor_point), 'skill_level': op.main_skill_lvl}
         for op in operator_data.values()]
-    return pd.DataFrame(operator_data, columns=ROSTER_COLUMNS)
+    return pd.DataFrame(rows, columns=ROSTER_COLUMNS)
 
 
 async def retrieve_operator_info(client: arkprts.Client) -> pd.DataFrame:
@@ -65,7 +66,10 @@ async def retrieve_raw_data(client: arkprts.Client) -> dict:
     return await client.get_raw_data()
 
 
-def filter_operators(operator_df: pd.DataFrame, min_phase = None, max_phase = None, min_level = None, max_level = None, min_potential = None, max_potential = None, rarity = None) -> pd.DataFrame:
+def filter_operators(
+    operator_df: pd.DataFrame, min_phase = None, max_phase = None, min_level = None, max_level = None,
+    min_potential = None, max_potential = None, rarity = None,
+) -> pd.DataFrame:
     '''
     Returns the rows of operator_df within every given (inclusive) phase,
     level, and potential bound. Bounds left as None aren't applied.

@@ -6,7 +6,6 @@ import pytest
 from arkdata.sources.hella_api import HellaAPIError
 from arknights_calc.flows.stats import OperatorStatsProcessor
 from arknights_calc.storage import Storage
-
 from factories import make_operator_data
 
 

@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 import pytest
 
@@ -8,7 +7,8 @@ from arknights_calc.settings import Settings
 
 
 def _settings(tmp_path, email='me@example.com'):
-    return Settings(project_root=tmp_path, user_email=email, ref_dir=tmp_path / 'ref', io_dir=tmp_path / 'io', log_dir=tmp_path / 'logs')
+    return Settings(project_root=tmp_path, user_email=email, ref_dir=tmp_path / 'ref', io_dir=tmp_path / 'io',
+                    log_dir=tmp_path / 'logs')
 
 
 # parse_args
@@ -106,7 +106,10 @@ def fake_main_setup(monkeypatch, tmp_path):
 
 def test_main_sets_up_and_runs_step(tmp_path, fake_processors, fake_main_setup):
     assert cli.main(['matchups', '--stage', 'main_01-07']) == 0
-    assert fake_main_setup == [('reconfigure', {'encoding': 'utf-8', 'errors': 'replace'}), ('logging', tmp_path / 'logs' / 'arknights.log')]
+    assert fake_main_setup == [
+        ('reconfigure', {'encoding': 'utf-8', 'errors': 'replace'}),
+        ('logging', tmp_path / 'logs' / 'arknights.log'),
+    ]
     assert ('matchups', 'main_01-07') in fake_processors
 
 
@@ -128,3 +131,12 @@ def test_dunder_main_exits_with_main_return_code(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         runpy.run_module('arknights_calc', run_name='__main__')
     assert exc.value.code == 3
+
+
+def test_main_skips_reconfigure_when_stdout_is_not_a_text_wrapper(tmp_path, monkeypatch, fake_processors):
+    import io
+    monkeypatch.setattr(cli, 'load_settings', lambda: _settings(tmp_path))
+    monkeypatch.setattr(cli, 'setup_logging', lambda log_file: None)
+    monkeypatch.setattr(cli.sys, 'stdout', io.StringIO())
+    assert cli.main(['stats']) == 0
+    assert 'stats' in fake_processors
