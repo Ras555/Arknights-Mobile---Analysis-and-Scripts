@@ -9,7 +9,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-28
+Last Modified: 2026-10-29
 Last Modified by: Claude
 '''
 
@@ -20,7 +20,7 @@ import logging
 import pandas as pd
 
 from arkdata.calculations.operator_stats import OperatorStats
-from arkdata.sources.hella_api import fetch_operator_data, HellaAPIError
+from arkdata.sources.hella_api import HellaAPIError, fetch_operator_data
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-10-28
+Last Modified: 2026-10-29
 Last Modified by: Claude
 '''
 
@@ -18,7 +18,7 @@ import logging
 
 import pandas as pd
 
-from arkdata.sources.account import login, retrieve_operator_info, retrieve_raw_data, filter_operators
+from arkdata.sources.account import filter_operators, login, retrieve_operator_info, retrieve_raw_data
 
 logger = logging.getLogger(__name__)
 

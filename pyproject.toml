@@ -15,9 +15,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Development tools, pinned so pre-commit, CI and every machine give the same results.
 dev = [
-    "pytest",
-    "mutmut",
+    "mutmut==3.8.1",
+    "mypy==2.4.1",
+    "pandas-stubs==3.0.5.260914",
+    "pre-commit==4.7.0",
+    "pytest==9.2.0",
+    "ruff==0.17.3",
 ]
 
 [project.scripts]
@@ -36,3 +41,24 @@ source_paths = ["src"]
 # Informational log lines are skipped, since mutating their text doesn't change
 # behaviour. Warnings, errors, print() and raise lines are still mutated.
 do_not_mutate_patterns = ['logger\.info\(']
+
+# ruff is used for linting only (no auto-formatting), so the code keeps its own layout.
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/W: pycodestyle errors and warnings, F: pyflakes (unused imports, undefined names), I: import sorting,
+# B: bugbear (likely bugs), UP: pyupgrade (outdated syntax), SIM: simplifications.
+select = ["E", "W", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["arkdata", "arknights_calc", "factories"]
+
+# Type checks src/ (the tests are not type checked).
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true

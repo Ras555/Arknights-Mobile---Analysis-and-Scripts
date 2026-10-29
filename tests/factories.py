@@ -8,7 +8,6 @@ import copy
 
 from arkdata.calculations.enemy_stats import EnemyStats
 
-
 # Stats shared by every keyframe. Values that change between level 1 and
 # max level are overridden per keyframe in make_operator_data.
 BASE_OPERATOR_STATS = {
@@ -52,7 +51,9 @@ def make_operator_data(
             {'buff': {'attributes': {'attributeModifiers': [{'attributeType': 'COST', 'formulaItem': 'ADDITION', 'value': -1}]}}},
             {'buff': {'attributes': {'attributeModifiers': [{'attributeType': 'ATK', 'formulaItem': 'ADDITION', 'value': 20}]}}},
             {'buff': None},
-            {'buff': {'attributes': {'attributeModifiers': [{'attributeType': 'MAX_HP', 'formulaItem': 'ADDITION', 'value': 100}]}}},
+            {'buff': {'attributes': {'attributeModifiers': [
+                {'attributeType': 'MAX_HP', 'formulaItem': 'ADDITION', 'value': 100},
+            ]}}},
             {'buff': {'attributes': {'attributeModifiers': [{'attributeType': 'DEF', 'formulaItem': 'ADDITION', 'value': 10}]}}},
         ]
     if favor_end is None:
@@ -103,7 +104,10 @@ def make_enemy_data(name='Test Enemy', damage_type=('PHYSIC',), level_overrides=
         levels.append({
             'level': level,
             'enemyData': {
-                'attributes': {**{key: undefined(0) for key in base}, **{key: defined(value) for key, value in attributes.items()}},
+                'attributes': {
+                    **{key: undefined(0) for key in base},
+                    **{key: defined(value) for key, value in attributes.items()},
+                },
                 'applyWay': undefined(),
                 'motion': undefined(),
             },

@@ -5,7 +5,6 @@ import pytest
 
 from arknights_calc.flows.matchups import StageMatchupProcessor, choose_stage_variant, print_matchup_tables
 from arknights_calc.storage import Storage
-
 from factories import make_enemy_stats, operator_stats_row
 
 
@@ -108,7 +107,8 @@ def test_processor_run_saves_outputs_and_prints_tables(tmp_path, capsys):
 
 def test_processor_asks_for_stage_id_when_not_given(tmp_path):
     _write_operator_stats(tmp_path)
-    processor, fetched = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}], stage_id='tough_06-09')], inputs=[' main_06-09 '])
+    stages = [_stage([{'useDb': True, 'id': 'e1'}], stage_id='tough_06-09')]
+    processor, fetched = _processor(tmp_path, stages, inputs=[' main_06-09 '])
     processor.run()
     assert processor.input_func.prompts == ['Enter a stage id (e.g. main_01-07): ']
     assert fetched == ['main_06-09']
@@ -139,8 +139,10 @@ def test_print_matchup_tables_formatting(capsys):
                               'magicResistance': 0, 'damage_type': 'PHYSICAL', 'apply_way': 'MELEE',
                               'attack_interval': 1.23456, 'dps': 8.1}])
     matchups = pd.DataFrame([
-        {'operator_name': 'Zeta', 'enemy_name': 'Wolf', 'enemy_level': 0, 'operator_dps_to_enemy': 12.345, 'enemy_dps_to_operator': 6.789},
-        {'operator_name': 'Alpha', 'enemy_name': 'Wolf', 'enemy_level': 0, 'operator_dps_to_enemy': 1.0, 'enemy_dps_to_operator': 2.0},
+        {'operator_name': 'Zeta', 'enemy_name': 'Wolf', 'enemy_level': 0,
+         'operator_dps_to_enemy': 12.345, 'enemy_dps_to_operator': 6.789},
+        {'operator_name': 'Alpha', 'enemy_name': 'Wolf', 'enemy_level': 0,
+         'operator_dps_to_enemy': 1.0, 'enemy_dps_to_operator': 2.0},
     ])
     print_matchup_tables(enemy_df, matchups)
     out = capsys.readouterr().out
@@ -187,7 +189,8 @@ def test_processor_missing_damage_type_error_names_file(tmp_path, caplog):
     with caplog.at_level(logging.ERROR):
         processor.run('main_06-09')
     assert [r.levelno for r in caplog.records] == [logging.ERROR]
-    assert caplog.records[0].getMessage() == f"{_stats_file(tmp_path)} is missing columns ['damage_type']. Rerun the stats step first."
+    expected = f"{_stats_file(tmp_path)} is missing columns ['damage_type']. Rerun the stats step first."
+    assert caplog.records[0].getMessage() == expected
 
 
 def test_skipped_enemy_and_no_enemies_logged_as_warnings(tmp_path, caplog):

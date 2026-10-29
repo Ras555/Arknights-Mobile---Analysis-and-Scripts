@@ -8,7 +8,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-28
+Last Modified: 2026-10-29
 Last Modified by: Claude
 '''
 
@@ -174,7 +174,9 @@ class OperatorStats:
     operator_data isn't given, it is fetched from the HellaAPI.
     '''
 
-    def __init__(self, operator_id: str, level: int, phase: int, potential: int, trust: int = 0, operator_data: dict | None = None):
+    def __init__(
+        self, operator_id: str, level: int, phase: int, potential: int, trust: int = 0, operator_data: dict | None = None,
+    ):
         self.operator_id = operator_id
         self.level = level
         self.phase = phase

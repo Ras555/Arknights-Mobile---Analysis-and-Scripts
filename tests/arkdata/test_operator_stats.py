@@ -4,10 +4,14 @@ import pytest
 
 import arkdata.calculations.operator_stats as operator_stats_module
 from arkdata.calculations.damage import DamageType
-from arkdata.calculations.operator_stats import OperatorStats, determine_damage_type, parse_phase, ATTRIBUTE_TYPE_TO_STAT_KEY, SUB_PROFESSION_DAMAGE_TYPES
-
+from arkdata.calculations.operator_stats import (
+    ATTRIBUTE_TYPE_TO_STAT_KEY,
+    SUB_PROFESSION_DAMAGE_TYPES,
+    OperatorStats,
+    determine_damage_type,
+    parse_phase,
+)
 from factories import make_operator_data
-
 
 # determine_damage_type
 
@@ -37,12 +41,14 @@ def _trait(phase, override):
 
 
 def test_damage_type_trait_override_applies_once_phase_reached():
-    data = {'description': 'Blocks 1 enemy', 'profession': 'GUARD', 'trait': {'candidates': [_trait('PHASE_2', 'Deals Arts damage')]}}
+    data = {'description': 'Blocks 1 enemy', 'profession': 'GUARD',
+            'trait': {'candidates': [_trait('PHASE_2', 'Deals Arts damage')]}}
     assert determine_damage_type(data, 2) == 'ARTS'
 
 
 def test_damage_type_trait_override_ignored_before_phase():
-    data = {'description': 'Blocks 1 enemy', 'profession': 'GUARD', 'trait': {'candidates': [_trait('PHASE_2', 'Deals Arts damage')]}}
+    data = {'description': 'Blocks 1 enemy', 'profession': 'GUARD',
+            'trait': {'candidates': [_trait('PHASE_2', 'Deals Arts damage')]}}
     assert determine_damage_type(data, 1) == 'PHYSICAL'
 
 

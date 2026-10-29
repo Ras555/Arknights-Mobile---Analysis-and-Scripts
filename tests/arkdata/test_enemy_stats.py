@@ -1,10 +1,8 @@
 import pytest
 
 import arkdata.calculations.enemy_stats as enemy_stats_module
-from arkdata.calculations.enemy_stats import EnemyStats, _defined_values, _fix_mojibake, ENEMY_DAMAGE_TYPES
-
-from factories import make_enemy_data, defined, undefined
-
+from arkdata.calculations.enemy_stats import ENEMY_DAMAGE_TYPES, EnemyStats, _defined_values, _fix_mojibake
+from factories import defined, make_enemy_data, undefined
 
 # helpers
 
@@ -90,7 +88,8 @@ def test_name_mojibake_fixed():
 
 
 @pytest.mark.parametrize('damage_type, expected', [
-    (['MAGIC'], 'ARTS'), (['HEAL'], 'HEAL'), (['PHYSIC', 'MAGIC'], 'PHYSICAL'), (['OTHER'], 'OTHER'), ([], 'NONE'), (None, 'NONE'),
+    (['MAGIC'], 'ARTS'), (['HEAL'], 'HEAL'), (['PHYSIC', 'MAGIC'], 'PHYSICAL'), (['OTHER'], 'OTHER'),
+    ([], 'NONE'), (None, 'NONE'),
 ])
 def test_damage_type(damage_type, expected):
     enemy = EnemyStats('enemy_test', enemy_data=make_enemy_data(damage_type=damage_type))

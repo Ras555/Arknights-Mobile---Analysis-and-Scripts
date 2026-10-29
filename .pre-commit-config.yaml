@@ -1,0 +1,19 @@
+# Checks that run automatically on `git commit`, once enabled with `pre-commit install`.
+# The hooks use the ruff and mypy installed in the project's .venv by `pip install -e .[dev]`,
+# so their versions come from pyproject.toml. Commit with the .venv activated.
+# Run every hook on every file with: pre-commit run --all-files
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (lint, auto-fixing what it safely can)
+        entry: ruff check --fix --force-exclude
+        language: system
+        types: [python]
+        require_serial: true
+      - id: mypy
+        name: mypy (type check src/)
+        entry: mypy
+        language: system
+        types: [python]
+        pass_filenames: false

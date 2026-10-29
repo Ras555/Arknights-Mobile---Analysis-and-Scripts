@@ -490,9 +490,9 @@ tests use fake game data built by tests/factories.py and never call the HellaAPI
 ### Other
 
 Auxiliary files such as the .gitignore, README.md, CLAUDE.md, pyproject.toml (dependencies, the `arknights-calc` command,
-and pytest and mutmut configuration) and .env file aren't sorted in any folder, and are stored in the main folder of the
-project. Logs are written to the logs
-folder.
+and pytest, mutmut, ruff and mypy configuration), .pre-commit-config.yaml and .env file aren't sorted in any folder, and
+are stored in the main folder of the project. The GitHub Actions workflow is in .github/workflows/ci.yml. Logs are written
+to the logs folder.
 
 
 ## Version Control
@@ -504,7 +504,7 @@ named origin and main as the default branch.
 
 The following are gitignored and must never be committed: the .env file (account email), .venv, the logs folder, the ref
 and io folders (personal account data and generated outputs), Homecoming Operator Comparison.xlsx, and cache folders
-such as __pycache__, .pytest_cache and mutants. Once committed, a file stays in the repository history even if it is
+such as __pycache__, .pytest_cache, .mypy_cache, .ruff_cache and mutants. Once committed, a file stays in the repository history even if it is
 ignored later, so check `git status` before every commit.
 
 ### Git Configuration
@@ -533,6 +533,18 @@ and maintained in the tests folder. The test suite should cover boundary conditi
 testing should also be implemented to ensure the test suite maintains a high coverage. Mutation testing is configured in
 pyproject.toml; lines containing `logger.info(` are excluded from mutation since only their text would change, while
 warning, error, print and raise lines are still mutated.
+
+### Tooling
+
+Development tools are pinned in the `dev` extra of pyproject.toml and configured there too:
+- ruff (lint only, never used to reformat code, so the code keeps its own layout): pycodestyle (E, W), pyflakes (F),
+import sorting (I), bugbear (B), pyupgrade (UP) and simplify (SIM) rules, with a 130 character line limit.
+- mypy: type checks src/ (not the tests), with pandas-stubs for pandas types.
+- pytest and mutmut, as described above.
+
+.pre-commit-config.yaml runs ruff (with safe auto-fixes) and mypy on every commit, using the tools installed in the
+.venv. .github/workflows/ci.yml runs ruff, mypy and pytest on every push and pull request, and mutation testing after
+every push to main (or on demand). All code must pass ruff check, mypy and pytest before it is merged into main.
 
 ### Logging
 

@@ -2,8 +2,7 @@ import logging
 
 import pytest
 
-from arkdata.calculations.trust import calculate_trust, TRUST_MILESTONES
-
+from arkdata.calculations.trust import TRUST_MILESTONES, calculate_trust
 
 # calculate_trust
 

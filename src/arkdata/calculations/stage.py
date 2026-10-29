@@ -7,7 +7,7 @@ Created: 2026-09-30
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-28
+Last Modified: 2026-10-29
 Last Modified by: Claude
 '''
 
@@ -21,11 +21,11 @@ from arkdata.calculations.enemy_stats import EnemyStats
 logger = logging.getLogger(__name__)
 
 
-def count_enemy_spawns(waves: list) -> Counter:
+def count_enemy_spawns(waves: list) -> Counter[str]:
     '''
     Counts how many of each enemy key the stage's waves spawn.
     '''
-    counts = Counter()
+    counts: Counter[str] = Counter()
     for wave in waves or []:
         for fragment in wave.get("fragments") or []:
             for action in fragment.get("actions") or []:

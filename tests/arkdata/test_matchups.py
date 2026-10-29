@@ -5,7 +5,6 @@ import pytest
 
 from arkdata.calculations.matchups import REQUIRED_OPERATOR_COLUMNS, calculate_matchups
 from arkdata.calculations.operator_stats import OperatorStats
-
 from factories import make_enemy_stats, make_operator_data, operator_stats_row
 
 
@@ -48,7 +47,7 @@ def test_calculate_matchups_healer_and_harmless_enemy_never_kill():
 def test_calculate_matchups_one_row_per_pair():
     operators = pd.DataFrame([operator_stats_row(operator_id='a'), operator_stats_row(operator_id='b')])
     result = calculate_matchups(operators, [(make_enemy_stats(), 1), (make_enemy_stats(name='Other'), 2)])
-    assert list(zip(result['operator_id'], result['enemy_name'])) == [
+    assert list(zip(result['operator_id'], result['enemy_name'], strict=True)) == [
         ('a', 'Test Enemy'), ('a', 'Other'), ('b', 'Test Enemy'), ('b', 'Other')]
 
 

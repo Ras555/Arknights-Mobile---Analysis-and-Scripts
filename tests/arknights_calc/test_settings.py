@@ -1,4 +1,5 @@
 import os
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -63,5 +64,5 @@ def test_defaults_to_project_root(monkeypatch):
 
 
 def test_settings_are_frozen(tmp_path):
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         load_settings(tmp_path).user_email = 'changed'

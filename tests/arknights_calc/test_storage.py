@@ -13,7 +13,8 @@ def storage(tmp_path):
 
 
 def test_from_settings_uses_ref_and_io_dirs(tmp_path):
-    settings = Settings(project_root=tmp_path, user_email=None, ref_dir=tmp_path / 'r', io_dir=tmp_path / 'i', log_dir=tmp_path / 'l')
+    settings = Settings(project_root=tmp_path, user_email=None, ref_dir=tmp_path / 'r', io_dir=tmp_path / 'i',
+                        log_dir=tmp_path / 'l')
     storage = Storage.from_settings(settings)
     assert (storage.ref_dir, storage.io_dir) == (tmp_path / 'r', tmp_path / 'i')
 

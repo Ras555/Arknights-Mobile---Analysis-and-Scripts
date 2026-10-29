@@ -8,7 +8,7 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-10-28
+Last Modified: 2026-10-29
 Last Modified by: Claude
 '''
 
@@ -16,6 +16,7 @@ Last Modified by: Claude
 
 import argparse
 import asyncio
+import io
 import logging
 import sys
 from enum import StrEnum
@@ -76,7 +77,9 @@ def main(argv=None) -> int:
     crashed (the error is logged).
     '''
     # Enemy names can contain characters (e.g. "α") the Windows console codepage can't print.
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    # sys.stdout is only a TextIOWrapper (which has reconfigure) when it's a real console or file.
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
     args = parse_args(argv)
     settings = load_settings()

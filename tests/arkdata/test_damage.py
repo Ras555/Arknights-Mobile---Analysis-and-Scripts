@@ -1,6 +1,6 @@
 import pytest
 
-from arkdata.calculations.damage import damage_per_hit, damage_per_second, MINIMUM_DAMAGE_RATIO
+from arkdata.calculations.damage import MINIMUM_DAMAGE_RATIO, damage_per_hit, damage_per_second
 
 
 def test_minimum_damage_ratio_is_five_percent():
