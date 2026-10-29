@@ -1,5 +1,38 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arknights-calc"
+version = "0.1.0"
+description = "Arknights damage and stat calculations: operator stats, DPS, and stage matchups."
+requires-python = ">=3.11"
+dependencies = [
+    "arkprts==0.3.22",
+    "numpy==2.4.6",
+    "pandas==3.0.6",
+    "python-dotenv==1.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "mutmut",
+]
+
+[project.scripts]
+arknights-calc = "arknights_calc.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Lets tests import the shared test data builders with `from factories import ...`.
+pythonpath = ["tests"]
+
 [tool.mutmut]
-source_paths = ["lib", "app"]
+source_paths = ["src"]
 # Informational log lines are skipped, since mutating their text doesn't change
 # behaviour. Warnings, errors, print() and raise lines are still mutated.
 do_not_mutate_patterns = ['logger\.info\(']

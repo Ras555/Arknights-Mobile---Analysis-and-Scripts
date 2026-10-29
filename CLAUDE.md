@@ -432,48 +432,96 @@ Physical and arts hits always deal at least 5% of the attacker's ATK, no matter 
 
 Typically Casters, Supporters and other ranged units other than Snipers deal Arts damage in their base attacks while Snipers and most melee units deal Physical damage. However, some units have special traits that cause them to deal arts damage instead of physical damage. True damage is generally reserved for specific abilities or talents, and is much rarer than the other two.
 
-Damage types are represented by the DamageType enum in lib/damage.py (PHYSICAL, ARTS, TRUE, HEAL, NONE). It is a StrEnum, so its members compare equal to the plain strings saved in CSV files.
+Damage types are represented by the DamageType enum in src/arkdata/calculations/damage.py (PHYSICAL, ARTS, TRUE, HEAL, NONE). It is a StrEnum, so its members compare equal to the plain strings saved in CSV files.
 
 
 ## Project Structure
 
 The project has several folders used to organize files.
 
-### app Folder
+The code is an installable Python package with two top-level packages under src/: arkdata, a generic Arknights library,
+and arknights_calc, this program. The project is installed once with `pip install -e .[dev]` (an editable install, so
+code changes take effect without reinstalling), which also installs the `arknights-calc` command.
 
-The app folder stores the main files for the program, including the runner (runner.py), the config loader (config.py),
-and one flow module per step of the program (roster_flow.py, operator_stats_flow.py and stage_matchup_flow.py).
+### src/arkdata
 
-### lib Folder
+arkdata is a generic Arknights library that any Arknights tool could use. It knows nothing about this program, its
+files, or its command line, and must never import from arknights_calc (tests/arknights_calc/test_package_boundaries.py
+checks this).
+- calculations/: damage.py (DamageType, damage formulas), operator_stats.py, enemy_stats.py, trust.py, stage.py (enemies
+and spawn counts in a stage) and matchups.py (operator vs. enemy DPS and kill times).
+- sources/: hella_api.py (the HellaAPI client) and account.py (arkprts login and roster retrieval).
 
-The lib folder stores generic modules that come from other programs or that are designed to be reused in other programs,
-such as the HellaAPI client, the Arknights account helpers, the operator and enemy stat calculations and the damage formulas.
-Every module, in lib, app and test, imports project modules by their full package name (e.g.
-`from lib.hella_api_client import fetch_operator_data`, `from app import config`), never by a bare name like
-`import damage`. Importing a module under two names loads it twice, which duplicates classes such as HellaAPIError and
-stops mutmut from matching tests to the code they cover. app/runner.py and test/conftest.py put only the project root on
-sys.path, and test_runner.py checks that no module was imported by a bare name.
+### src/arknights_calc
+
+arknights_calc is this program. It uses arkdata and adds everything specific to this program:
+- cli.py: the command line (`arknights-calc`, or `python -m arknights_calc` through __main__.py).
+- settings.py: load_settings() returns a Settings object (account email and folder paths). Nothing is loaded at import
+time; settings are created once in cli.main() and passed to whatever needs them.
+- logging_setup.py: logging to the console and logs/arknights.log.
+- storage.py: the Storage class reads and writes every file in ref/ and io/, so file names, formats and required columns
+are defined in one place.
+- flows/: one module per step of the program (roster.py, stats.py and matchups.py). Flows only orchestrate: they load
+inputs through Storage, call arkdata, save outputs through Storage, and print results.
+
+### Imports
+
+Every module and test imports project code by its full package name (e.g.
+`from arkdata.calculations.damage import damage_per_second`, `from arknights_calc.storage import Storage`). sys.path is
+never modified; the editable install makes both packages importable. mutmut strips the leading `src.` from module names,
+so its names match these imports.
 
 ### ref Folder
 
 The ref folder stores outputs designed to store information for use by the program or for future runs: raw_data.json,
-elite2_operators.csv and operator_stats_output.csv.
+elite2_operators.csv and operator_stats_output.csv. The ref folder is gitignored, since it holds personal account data.
 
 ### io Folder
 
 The io folder stores outputs designed to be viewed by the user: operator_stats_output.csv (a copy of the one in ref), and
 the stage_{stage_id}_enemy_stats.csv and stage_{stage_id}_matchups.csv files. Files may be placed in both ref and io.
+The io folder is gitignored, since its files are regenerated on every run.
 
-### test Folder
+### tests Folder
 
-The test folder stores the unit test suite and other test scripts used to verify program functionality. The tests use
-fake game data and never call the HellaAPI or the Arknights servers.
+The tests folder stores the pytest suite, split into tests/arkdata and tests/arknights_calc to mirror the packages. The
+tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
 
 ### Other
 
-Auxiliary files such as the .gitignore, README.md, CLAUDE.md, requirements files, pyproject.toml (mutmut configuration)
-and .env file aren't sorted in any folder, and are stored in the main folder of the project. Logs are written to the logs
+Auxiliary files such as the .gitignore, README.md, CLAUDE.md, pyproject.toml (dependencies, the `arknights-calc` command,
+and pytest and mutmut configuration) and .env file aren't sorted in any folder, and are stored in the main folder of the
+project. Logs are written to the logs
 folder.
+
+
+## Version Control
+
+### Repository
+
+The project is stored in a private GitHub repository, Ras555/Arknights-Mobile---Analysis-and-Scripts, with the remote
+named origin and main as the default branch.
+
+The following are gitignored and must never be committed: the .env file (account email), .venv, the logs folder, the ref
+and io folders (personal account data and generated outputs), Homecoming Operator Comparison.xlsx, and cache folders
+such as __pycache__, .pytest_cache and mutants. Once committed, a file stays in the repository history even if it is
+ignored later, so check `git status` before every commit.
+
+### Git Configuration
+
+The commit author (user.name and user.email) is set in this repository's own .git/config, not with `git config --global`.
+The same computer also has work repositories (Azure DevOps) that use a different identity, so global git settings must not
+be changed. core.autocrlf is enabled, so files have Windows (CRLF) line endings on disk and Unix (LF) line endings in the
+repository.
+
+### Workflow
+
+- Changes are made on a separate branch (e.g. `feature/<short-description>`), never committed directly to main.
+- Each branch is reviewed (`git diff main...<branch>`) and approved by the project owner before it is merged into main.
+- Code changes still require explicit approval before they are made, as described in the project instructions.
+- Committing, pushing, merging, and anything that rewrites history (force push, rebase of pushed commits, reset) are only
+done when the project owner asks for them.
+- Commit messages should briefly describe what changed and why.
 
 
 ## Principles
@@ -481,7 +529,7 @@ folder.
 ### Testing and Verification
 
 In order to reduce debugging costs and ensure the program functionality remains verified, a test suite should be created
-and maintained in the test folder. The test suite should cover boundary conditions and invalid inputs as well. Mutation
+and maintained in the tests folder. The test suite should cover boundary conditions and invalid inputs as well. Mutation
 testing should also be implemented to ensure the test suite maintains a high coverage. Mutation testing is configured in
 pyproject.toml; lines containing `logger.info(` are excluded from mutation since only their text would change, while
 warning, error, print and raise lines are still mutated.
@@ -494,21 +542,24 @@ are printed directly rather than logged.
 
 ### Modularization
 
-Whenever possible the program should reuse functions from the files in the lib folder rather than writing code again.
+Whenever possible the program should reuse functions from arkdata rather than writing code again. Code that would be
+useful to any Arknights tool belongs in arkdata; code specific to this program's steps, files or output belongs in
+arknights_calc.
 Flow classes take their dependencies (API fetch functions, login, user input) as arguments so they can be replaced with
 fakes in tests.
 
 
 ## Program Flow
 
-The program is run through app/runner.py with the step to run as an argument: roster, stats, matchups, or all (which runs
-every step in order). The matchups step also accepts a --stage argument with the stage id.
+The program is run with `arknights-calc <step>` (or `python -m arknights_calc <step>`), where the step is roster, stats,
+matchups, or all (which runs every step in order). The matchups step also accepts a --stage argument with the stage id.
 
 ### Initialization
 
 Upon initialization the program should perform the following tasks:
-- Load the .env file and the project paths (app/config.py)
+- Load the settings (account email from .env, and the ref, io and logs folder paths) with load_settings()
 - Set up logging to standard output and to logs/arknights.log
+- Create a Storage for the ref and io folders and pass it to each step
 
 ### Roster Step
 
@@ -524,14 +575,14 @@ above the maximum (25570) log an error and are capped at a trust of 200.
 2. For each operator, retrieve its game data from the HellaAPI and calculate its stats at its current phase, level,
 potential and trust, its basic attack damage type and its DPS. Operators that fail are logged and skipped. The damage
 type is looked up by operator id in OPERATOR_DAMAGE_TYPE_OVERRIDES, then by sub profession (archetype) in
-SUB_PROFESSION_DAMAGE_TYPES (both in lib/operator_stats.py). If the archetype isn't listed, a warning is logged and the
+SUB_PROFESSION_DAMAGE_TYPES (both in src/arkdata/calculations/operator_stats.py). If the archetype isn't listed, a warning is logged and the
 damage type is guessed from the operator's trait description; the archetype should then be added to the table.
 3. Save the results to ref/operator_stats_output.csv and io/operator_stats_output.csv.
 
 ### Matchups Step
 
 1. Read the operator stats from ref/operator_stats_output.csv. If the file is missing any of the columns the matchups
-need (REQUIRED_OPERATOR_COLUMNS in app/stage_matchup_flow.py), log an error listing them and asking for the stats step
+need (REQUIRED_OPERATOR_COLUMNS in src/arkdata/calculations/matchups.py), log an error listing them and asking for the stats step
 to be rerun.
 2. Ask for a stage id if one wasn't given, retrieve the stage from the HellaAPI, and ask which variant to use if the stage
 has more than one.
