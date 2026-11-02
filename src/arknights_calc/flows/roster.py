@@ -8,13 +8,14 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-10-29
+Last Modified: 2026-11-02
 Last Modified by: Claude
 '''
 
 # Imports
 
 import logging
+from datetime import datetime, timedelta
 
 import pandas as pd
 
@@ -61,3 +62,20 @@ class RosterProcessor:
         logger.info('Saved %d Elite 2 operators to %s', len(elite2_ops), elite2_file)
         print(elite2_ops.to_string(index=False))
         return elite2_ops
+
+
+def check_roster_age(storage, max_age: timedelta, now: datetime | None = None) -> timedelta | None:
+    '''
+    Logs a warning suggesting `arknights-calc roster` if the saved roster is
+    older than max_age. Never logs in by itself, since that needs an email code
+    and logs the player out of the game. Returns the roster's age, or None if
+    there is no saved roster.
+    '''
+    saved_at = storage.roster_saved_at()
+    if saved_at is None:
+        return None
+    age = (now or datetime.now()) - saved_at
+    if age > max_age:
+        logger.warning('Your roster was last updated %d days ago (%s). Run `arknights-calc roster` to refresh it.',
+                       age.days, saved_at.date().isoformat())
+    return age

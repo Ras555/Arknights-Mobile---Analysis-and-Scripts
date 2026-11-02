@@ -1,4 +1,7 @@
 import json
+import logging
+import os
+from datetime import datetime
 
 import pandas as pd
 import pytest
@@ -90,3 +93,41 @@ def test_saving_creates_missing_parent_folders(tmp_path):
     storage.save_operator_stats(pd.DataFrame({'operator_id': ['a']}))
     assert storage.raw_data_file.exists()
     assert storage.operator_stats_view_file.exists()
+
+
+# roster info
+
+def test_save_elite2_operators_records_when_and_how_many(storage):
+    df = pd.DataFrame({'id': ['a', 'b']})
+    storage.save_elite2_operators(df, saved_at=datetime(2026, 10, 24, 9, 30))
+    assert storage.roster_info_file == storage.ref_dir / 'roster_info.json'
+    assert json.loads(storage.roster_info_file.read_text()) == {'saved_at': '2026-10-24T09:30:00', 'operator_count': 2}
+    assert storage.roster_saved_at() == datetime(2026, 10, 24, 9, 30)
+
+
+def test_save_elite2_operators_defaults_to_now(storage):
+    before = datetime.now()
+    storage.save_elite2_operators(pd.DataFrame({'id': ['a']}))
+    assert before <= storage.roster_saved_at() <= datetime.now()
+
+
+def test_roster_saved_at_is_none_without_a_roster(storage):
+    assert storage.roster_saved_at() is None
+
+
+def test_roster_saved_at_falls_back_to_roster_file_time(storage):
+    storage.elite2_operators_file.parent.mkdir(parents=True)
+    storage.elite2_operators_file.write_text('id\na\n')
+    os.utime(storage.elite2_operators_file, (1793000000, 1793000000))
+    assert storage.roster_saved_at() == datetime.fromtimestamp(1793000000)
+
+
+@pytest.mark.parametrize('content', ['not json', '{}', '{"saved_at": "bad date"}', '[]'])
+def test_unreadable_roster_info_falls_back_to_roster_file_time(storage, caplog, content):
+    storage.save_elite2_operators(pd.DataFrame({'id': ['a']}))
+    os.utime(storage.elite2_operators_file, (1793000000, 1793000000))
+    storage.roster_info_file.write_text(content)
+    with caplog.at_level(logging.WARNING):
+        assert storage.roster_saved_at() == datetime.fromtimestamp(1793000000)
+    assert f'Ignoring unreadable {storage.roster_info_file}: ' in caplog.text
+    assert not caplog.text.rstrip().endswith(': None')

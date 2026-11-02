@@ -1,12 +1,14 @@
 import asyncio
 import json
+import logging
 import os
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
-from arknights_calc.flows.roster import RosterProcessor
+from arknights_calc.flows.roster import RosterProcessor, check_roster_age
 from arknights_calc.storage import Storage
 
 
@@ -129,3 +131,50 @@ def test_run_with_empty_roster_saves_empty_csv_with_headers(tmp_path):
     processor, _ = _make_processor(tmp_path, FakeArkClient({}, {}))
     assert asyncio.run(processor.run()).empty
     assert (tmp_path / 'ref' / 'elite2_operators.csv').read_text().splitlines() == ['id,potential,level,phase,trust,skill_level']
+
+
+# check_roster_age
+
+class FakeRosterStorage:
+    def __init__(self, saved_at):
+        self.saved_at = saved_at
+
+    def roster_saved_at(self):
+        return self.saved_at
+
+
+def test_check_roster_age_without_roster_returns_none(caplog):
+    with caplog.at_level(logging.WARNING):
+        assert check_roster_age(FakeRosterStorage(None), timedelta(days=7)) is None
+    assert caplog.records == []
+
+
+def test_check_roster_age_within_limit_is_quiet(caplog):
+    now = datetime(2026, 11, 2, 12)
+    with caplog.at_level(logging.WARNING):
+        assert check_roster_age(FakeRosterStorage(now - timedelta(days=7)), timedelta(days=7), now) == timedelta(days=7)
+    assert caplog.records == []
+
+
+def test_check_roster_age_past_limit_warns(caplog):
+    now = datetime(2026, 11, 2, 12)
+    saved_at = datetime(2026, 10, 24, 9)
+    with caplog.at_level(logging.WARNING):
+        assert check_roster_age(FakeRosterStorage(saved_at), timedelta(days=7), now) == now - saved_at
+    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [(
+        logging.WARNING,
+        'Your roster was last updated 9 days ago (2026-10-24). Run `arknights-calc roster` to refresh it.',
+    )]
+
+
+def test_check_roster_age_defaults_to_now():
+    assert check_roster_age(FakeRosterStorage(datetime.now() - timedelta(hours=1)), timedelta(days=7)) >= timedelta(hours=1)
+
+
+def test_run_records_roster_save_time(tmp_path):
+    processor, _ = _make_processor(tmp_path, FakeArkClient({'1': _char('char_a', 2)}, {}))
+    before = datetime.now()
+    asyncio.run(processor.run())
+    info = json.loads((tmp_path / 'ref' / 'roster_info.json').read_text())
+    assert info['operator_count'] == 1
+    assert before <= datetime.fromisoformat(info['saved_at']) <= datetime.now()

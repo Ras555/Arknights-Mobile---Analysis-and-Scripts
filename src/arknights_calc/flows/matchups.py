@@ -9,7 +9,7 @@ Created: 2026-09-30
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-29
+Last Modified: 2026-11-02
 Last Modified by: Claude
 '''
 
@@ -22,7 +22,7 @@ import pandas as pd
 from arkdata.calculations.enemy_stats import EnemyStats
 from arkdata.calculations.matchups import REQUIRED_OPERATOR_COLUMNS, calculate_matchups
 from arkdata.calculations.stage import load_stage_enemies
-from arkdata.sources.hella_api import fetch_stage_data
+from arkdata.sources.hella_api import fetch_enemy_data, fetch_stage_data
 from arknights_calc.storage import MissingColumnsError
 
 logger = logging.getLogger(__name__)
@@ -68,15 +68,22 @@ class StageMatchupProcessor:
     Flow, matchups step) and saves the enemy stats and matchups through
     storage.
 
-    fetch_stage, make_enemy, and input_func are injectable so tests can
-    avoid network calls and user input.
+    fetch_stage and fetch_enemy take a stage or enemy id and return its
+    HellaAPI data. make_enemy takes (enemy_id, level, overwritten_data) and
+    returns an EnemyStats; by default it builds one from fetch_enemy's data.
+    All of them, and input_func, are injectable so tests can avoid network
+    calls and user input.
     '''
 
-    def __init__(self, storage, fetch_stage=fetch_stage_data, make_enemy=EnemyStats, input_func=input):
+    def __init__(self, storage, fetch_stage=fetch_stage_data, fetch_enemy=fetch_enemy_data, make_enemy=None, input_func=input):
         self.storage = storage
         self.fetch_stage = fetch_stage
-        self.make_enemy = make_enemy
+        self.fetch_enemy = fetch_enemy
+        self.make_enemy = make_enemy or self._make_enemy
         self.input_func = input_func
+
+    def _make_enemy(self, enemy_id, level, overwritten_data):
+        return EnemyStats(enemy_id, level, overwritten_data, enemy_data=self.fetch_enemy(enemy_id))
 
     def run(self, stage_id=None):
         '''
@@ -85,6 +92,9 @@ class StageMatchupProcessor:
         '''
         try:
             operators = self.storage.load_operator_stats(REQUIRED_OPERATOR_COLUMNS)
+        except FileNotFoundError:
+            logger.error('No operator stats found at %s. Run `arknights-calc stats` first.', self.storage.operator_stats_file)
+            return None
         except MissingColumnsError as exc:
             logger.error('%s is missing columns %s. Rerun the stats step first.', exc.file_path, exc.missing_columns)
             return None
