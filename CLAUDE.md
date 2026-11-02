@@ -17,6 +17,11 @@ email code: the account email is stored in the USER_EMAIL environment variable, 
 asks for the code in the console. Of importance to this program are each operator's char_id, potential_rank, level,
 evolve_phase, favor_point (raw trust points, converted to a trust percentage) and main_skill_lvl.
 
+Yostar allows only one login per account at a time: logging in from this program logs the player out of the game, and
+logging into the game revokes this program's login token. A token lasts at most 30 days and, for a daily player, usually
+only hours, so tokens are never stored. arkprts' login_with_email_code prints the token to the console, so the program
+gets the token with get_token_from_email_code and logs in with login_with_token instead, never printing or saving it.
+
 ### HellaAPI
 
 > An Arknights EN game data API. Data is fetched from HellaAssets and official game servers, lightly massaged into a nicer format, and stored in a MongoDB database. Made with Express and self-hosted (RIP Cyclic). Also an under construction personal project.
@@ -24,6 +29,23 @@ evolve_phase, favor_point (raw trust points, converted to a trust percentage) an
 The project can be downloaded from git and hosted locally, or accessed from the hosted https://awedtan.ca site.
 
 Various game data can be accessed from the api, but of particular interest are the operator, stage, and enemy info.
+
+#### Collections, Query Parameters and Update Metadata
+
+- `api/{resource}` (e.g. https://awedtan.ca/api/operator) returns every document of that type as a list. All operators
+are about 33 MB (445 documents) and all enemies about 7 MB; the stage collection is much larger.
+- Every document has the top-level fields `_id`, `canon` (its main id, e.g. char_002_amiya), `keys` (every id and name
+it can be looked up by), `meta` and `value` (the data shown in the sections below). `meta` holds `hash` (a fingerprint of
+the document's content), `updatedIndex`, `createdIndex`, `created`, `updated` and `date`.
+- `include={field}` / `exclude={field}` (repeatable) limit which fields are returned. Only top-level fields work: nested
+paths such as `value.data.name` return an empty `value`. `?include=canon&include=keys&include=meta` lists a whole
+collection's ids and content hashes cheaply (about 160 KB for all operators).
+- `limit={n}` caps the number of documents. The `search` and `searchv2` endpoints search document values only; filters on
+`meta` fields return nothing.
+- `api/about` returns the latest HellaAPI data update, e.g. `[{"index": 102, "hash": "...", "date": 1793602532,
+"message": "update: ..."}]`. index and hash change on every update.
+- `updatedIndex` is not a reliable change marker: an update can rewrite every document in a collection (all operators
+had updatedIndex 101 after one update), so changes are detected by comparing each document's `meta.hash` instead.
 
 #### Operator Data
 
@@ -450,14 +472,17 @@ files, or its command line, and must never import from arknights_calc (tests/ark
 checks this).
 - calculations/: damage.py (DamageType, damage formulas), operator_stats.py, enemy_stats.py, trust.py, stage.py (enemies
 and spawn counts in a stage) and matchups.py (operator vs. enemy DPS and kill times).
-- sources/: hella_api.py (the HellaAPI client) and account.py (arkprts login and roster retrieval).
+- sources/: hella_api.py (HellaAPIClient: the HellaAPI client, with timeouts and retries), hella_cache.py (HellaCache:
+the disk cache in front of the client, see Program Flow) and account.py (arkprts login and roster retrieval).
 
 ### src/arknights_calc
 
 arknights_calc is this program. It uses arkdata and adds everything specific to this program:
 - cli.py: the command line (`arknights-calc`, or `python -m arknights_calc` through __main__.py).
-- settings.py: load_settings() returns a Settings object (account email and folder paths). Nothing is loaded at import
-time; settings are created once in cli.main() and passed to whatever needs them.
+- settings.py: load_settings() returns a Settings object (account email, folder paths, HellaAPI client and cache
+settings, and the roster age limit). Nothing is loaded at import time; settings are created once in cli.main() and
+passed to whatever needs them. Optional .env settings: HELLA_API_URL, HELLA_CACHE_DAYS (default 14) and
+ROSTER_MAX_AGE_DAYS (default 7).
 - logging_setup.py: logging to the console and logs/arknights.log.
 - storage.py: the Storage class reads and writes every file in ref/ and io/, so file names, formats and required columns
 are defined in one place.
@@ -474,7 +499,9 @@ so its names match these imports.
 ### ref Folder
 
 The ref folder stores outputs designed to store information for use by the program or for future runs: raw_data.json,
-elite2_operators.csv and operator_stats_output.csv. The ref folder is gitignored, since it holds personal account data.
+elite2_operators.csv, roster_info.json (when the roster was saved), operator_stats_output.csv, and the HellaAPI cache in
+ref/cache (state.json, and per resource an index.json plus one JSON file per document). The ref folder is gitignored,
+since it holds personal account data.
 
 ### io Folder
 
@@ -564,7 +591,8 @@ fakes in tests.
 ## Program Flow
 
 The program is run with `arknights-calc <step>` (or `python -m arknights_calc <step>`), where the step is roster, stats,
-matchups, or all (which runs every step in order). The matchups step also accepts a --stage argument with the stage id.
+matchups, or all (which runs every step in order). The matchups step also accepts a --stage argument with the stage id,
+and --refresh downloads all HellaAPI data again instead of only what changed.
 
 ### Initialization
 
@@ -573,18 +601,40 @@ Upon initialization the program should perform the following tasks:
 - Set up logging to standard output and to logs/arknights.log
 - Create a Storage for the ref and io folders and pass it to each step
 
+The stats and matchups steps (when run on their own) first log a warning suggesting `arknights-calc roster` if the saved
+roster is older than ROSTER_MAX_AGE_DAYS. They never log in by themselves.
+
+### HellaAPI Cache Sync
+
+Before the stats and matchups steps (once per run), the HellaAPI cache in ref/cache is brought up to date:
+1. Fetch `api/about`. If its index and hash match the update the cache was last synced to, and the last full check was
+within HELLA_CACHE_DAYS, stop: everything is read from the cache.
+2. Otherwise, for operators and enemies: on the first run, download the whole collection. After that, fetch the
+collection's listing (canon, keys and meta only) and compare each document's meta.hash with the cache. Download changed
+and new documents one by one, or the whole collection if more than 40 changed, and delete removed ones.
+3. For stages, which are cached one at a time as they're used: if any are cached, compare them against the stage
+listing and drop the changed ones, so they are downloaded again the next time they're used.
+4. Record the update in state.json. If any document failed to download, the old copy is kept and the update isn't
+recorded, so the next run checks again.
+
+`--refresh` downloads every operator and enemy again and drops all cached stages. If the HellaAPI can't be reached, a
+warning is logged and the program uses what's cached. Failed requests are retried up to 3 times (waiting 1 s, then 2 s)
+when the failure may be temporary (timeouts, dropped connections, HTTP 429 and 5xx).
+
 ### Roster Step
 
-1. Log into the Arknights servers with the email in USER_EMAIL.
+1. Log into the Arknights servers with the email in USER_EMAIL (without printing or saving the login token).
 2. Retrieve the player's operator roster and convert each operator's favor points into a trust percentage. Favor points
 above the maximum (25570) log an error and are capped at a trust of 200.
 3. Retrieve the player's raw account data and save it to ref/raw_data.json.
-4. Filter the roster to Elite 2 (phase 2) operators and save them to ref/elite2_operators.csv.
+4. Filter the roster to Elite 2 (phase 2) operators and save them to ref/elite2_operators.csv, recording when and how
+many in ref/roster_info.json.
 
 ### Stats Step
 
-1. Read the roster from ref/elite2_operators.csv.
-2. For each operator, retrieve its game data from the HellaAPI and calculate its stats at its current phase, level,
+1. Read the roster from ref/elite2_operators.csv. If there isn't one yet, log an error asking for the roster step to be
+run first.
+2. For each operator, retrieve its game data from the HellaAPI cache and calculate its stats at its current phase, level,
 potential and trust, its basic attack damage type and its DPS. Operators that fail are logged and skipped. The damage
 type is looked up by operator id in OPERATOR_DAMAGE_TYPE_OVERRIDES, then by sub profession (archetype) in
 SUB_PROFESSION_DAMAGE_TYPES (both in src/arkdata/calculations/operator_stats.py). If the archetype isn't listed, a warning is logged and the
@@ -593,12 +643,13 @@ damage type is guessed from the operator's trait description; the archetype shou
 
 ### Matchups Step
 
-1. Read the operator stats from ref/operator_stats_output.csv. If the file is missing any of the columns the matchups
+1. Read the operator stats from ref/operator_stats_output.csv. If the file doesn't exist yet, log an error asking for
+the stats step to be run first. If it is missing any of the columns the matchups
 need (REQUIRED_OPERATOR_COLUMNS in src/arkdata/calculations/matchups.py), log an error listing them and asking for the stats step
 to be rerun.
-2. Ask for a stage id if one wasn't given, retrieve the stage from the HellaAPI, and ask which variant to use if the stage
+2. Ask for a stage id if one wasn't given, retrieve the stage from the HellaAPI cache, and ask which variant to use if the stage
 has more than one.
-3. Retrieve the stats of each enemy in the stage's enemyDbRefs at its level (skipping stage-defined enemies) and count how
+3. Retrieve the stats of each enemy in the stage's enemyDbRefs (from the HellaAPI cache) at its level (skipping stage-defined enemies) and count how
 many of each enemy the stage's waves spawn.
 4. For every operator and enemy pair, calculate the DPS each deals to the other and the time each takes to kill the other.
 5. Save the enemy stats and matchups to io/stage_{stage_id}_enemy_stats.csv and io/stage_{stage_id}_matchups.csv, and

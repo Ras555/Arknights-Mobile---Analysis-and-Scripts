@@ -82,3 +82,15 @@ def test_run_logs_failed_operator_id_as_error(tmp_path, caplog):
         OperatorStatsProcessor(_storage(tmp_path), fetch_operator=fake_fetch).run()
     assert [r.levelno for r in caplog.records] == [logging.ERROR]
     assert caplog.records[0].getMessage() == 'Error calculating stats for operator char_bad: down'
+
+
+def test_run_without_roster_logs_error_and_saves_nothing(tmp_path, caplog):
+    fetched = []
+    with caplog.at_level(logging.ERROR):
+        result = OperatorStatsProcessor(_storage(tmp_path), fetch_operator=fetched.append).run()
+    assert result is None
+    assert fetched == []
+    roster_file = tmp_path / 'ref' / 'elite2_operators.csv'
+    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
+        (logging.ERROR, f'No roster found at {roster_file}. Run `arknights-calc roster` first.')]
+    assert not (tmp_path / 'ref' / 'operator_stats_output.csv').exists()

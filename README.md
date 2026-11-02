@@ -28,7 +28,10 @@ the API reference.
    ```
    `python -m arknights_calc <step>` works the same way. If `--stage` is left
    out, the matchups step asks for a stage id. The roster step emails you a
-   login code and asks for it in the console.
+   login code and asks for it in the console. Logging in also logs you out
+   of the game on your phone, since Yostar allows one login at a time.
+   `stats` and `matchups` remind you to rerun `roster` once your saved
+   roster is more than a week old.
 
    Logs go to stdout and to `logs/arknights.log` (rotating).
 4. Enable the commit checks once (see [Checks](#checks)):
@@ -36,19 +39,41 @@ the API reference.
    pre-commit install
    ```
 
+## HellaAPI cache
+
+Game data from the HellaAPI is kept in `ref/cache/`, so repeat runs barely
+use the network:
+
+- The first `stats` or `matchups` run downloads every operator (~33 MB)
+  and enemy (~7 MB) once. Stages are downloaded the first time each is used.
+- Every later run asks the HellaAPI's `/about` (a few hundred bytes) whether
+  its data has changed. If not, nothing else is downloaded. If it has, only
+  the operators, enemies and cached stages whose content changed are
+  downloaded again (or a whole collection, if more than 40 changed).
+- Even without a HellaAPI update, the cache is re-checked every 14 days.
+- `--refresh` (e.g. `arknights-calc stats --refresh`) downloads everything
+  again, for example if the cache seems wrong.
+- If the HellaAPI can't be reached, the program warns and uses what's cached.
+  Failed requests are retried up to 3 times, waiting a little longer each time.
+
+Optional settings can be added to `.env` (see [.env.example](.env.example)):
+`HELLA_API_URL`, `HELLA_CACHE_DAYS` (default 14) and `ROSTER_MAX_AGE_DAYS`
+(default 7).
+
 ## Project Structure
 
 - `src/arkdata/` - a generic Arknights library, with no knowledge of this
   program:
   - `calculations/` - damage formulas, operator and enemy stats, trust,
     stage contents, and operator-vs-enemy matchups.
-  - `sources/` - the HellaAPI client and the Arknights account helpers
-    (login, roster).
+  - `sources/` - the HellaAPI client (with retries) and its disk cache, and
+    the Arknights account helpers (login, roster).
 - `src/arknights_calc/` - this program: the command line (`cli.py`),
   settings, logging, file storage (`storage.py`), and one flow per step in
   `flows/`.
 - `ref/` - outputs that the program reads back on later runs
-  (`raw_data.json`, `elite2_operators.csv`, `operator_stats_output.csv`).
+  (`raw_data.json`, `elite2_operators.csv`, `roster_info.json`,
+  `operator_stats_output.csv`, and the HellaAPI cache in `cache/`).
 - `io/` - outputs meant for you to view (`operator_stats_output.csv`, and
   the `stage_<id>_enemy_stats.csv` / `stage_<id>_matchups.csv` files).
 - `tests/` - the pytest suite, split into `arkdata/` and `arknights_calc/`.

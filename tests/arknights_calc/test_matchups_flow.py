@@ -5,7 +5,7 @@ import pytest
 
 from arknights_calc.flows.matchups import StageMatchupProcessor, choose_stage_variant, print_matchup_tables
 from arknights_calc.storage import Storage
-from factories import make_enemy_stats, operator_stats_row
+from factories import make_enemy_data, make_enemy_stats, operator_stats_row
 
 
 def _variant(stage_id, difficulty='NORMAL'):
@@ -229,3 +229,51 @@ def test_processor_lists_every_missing_column(tmp_path, caplog):
         assert processor.run('main_06-09') is None
     assert fetched == []
     assert "missing columns ['damage_type', 'attack_interval', 'def', 'magicResistance', 'maxHp']" in caplog.text
+
+
+def test_processor_without_operator_stats_logs_error(tmp_path, caplog):
+    processor, fetched = _processor(tmp_path, [])
+    with caplog.at_level(logging.ERROR):
+        assert processor.run('main_06-09') is None
+    assert fetched == []
+    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
+        (logging.ERROR, f'No operator stats found at {_stats_file(tmp_path)}. Run `arknights-calc stats` first.')]
+
+
+def test_default_make_enemy_builds_enemy_stats_from_fetch_enemy(tmp_path):
+    _write_operator_stats(tmp_path)
+    fetched = []
+
+    def fake_fetch_enemy(enemy_id):
+        fetched.append(enemy_id)
+        return make_enemy_data(name='Fetched Enemy')
+
+    stage = _stage([{'useDb': True, 'id': 'e1', 'level': 0}])
+    processor = StageMatchupProcessor(
+        Storage(tmp_path / 'ref', tmp_path / 'io'), fetch_stage=lambda stage_id: [stage],
+        fetch_enemy=fake_fetch_enemy, input_func=_inputs(),
+    )
+    enemy_df, _ = processor.run('main_06-09')
+    assert fetched == ['e1']
+    assert enemy_df['name'].tolist() == ['Fetched Enemy']
+    assert enemy_df['enemy_id'].tolist() == ['e1']
+
+
+def test_processor_defaults_to_single_attempt_fetch_functions(tmp_path):
+    from arkdata.sources import hella_api
+    processor = StageMatchupProcessor(Storage(tmp_path / 'ref', tmp_path / 'io'))
+    assert processor.fetch_stage is hella_api.fetch_stage_data
+    assert processor.fetch_enemy is hella_api.fetch_enemy_data
+    assert processor.make_enemy == processor._make_enemy
+
+
+def test_default_make_enemy_applies_stage_overwritten_data(tmp_path):
+    _write_operator_stats(tmp_path)
+    stage = _stage([{'useDb': True, 'id': 'e1', 'level': 0,
+                     'overwrittenData': {'attributes': {'atk': {'m_defined': True, 'm_value': 999}}}}])
+    processor = StageMatchupProcessor(
+        Storage(tmp_path / 'ref', tmp_path / 'io'), fetch_stage=lambda stage_id: [stage],
+        fetch_enemy=lambda enemy_id: make_enemy_data(), input_func=_inputs(),
+    )
+    enemy_df, _ = processor.run('main_06-09')
+    assert enemy_df['atk'].tolist() == [999]

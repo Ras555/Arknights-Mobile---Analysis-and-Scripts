@@ -6,23 +6,29 @@ Description: Reads and writes every file the program keeps in the ref/
     defined in one place.
 Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
-Modified by: -
+Modified by: Claude
 
-Last Modified: 2026-10-28
+Last Modified: 2026-11-02
 Last Modified by: Claude
 '''
 
 # Imports
 
 import json
+import logging
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # Constants
 
 RAW_DATA_FILE_NAME = 'raw_data.json'
 ELITE2_OPERATORS_FILE_NAME = 'elite2_operators.csv'
+# When the roster was last saved, so the program can suggest refreshing an old one.
+ROSTER_INFO_FILE_NAME = 'roster_info.json'
 OPERATOR_STATS_FILE_NAME = 'operator_stats_output.csv'
 
 
@@ -87,8 +93,37 @@ class Storage:
             f.write(json.dumps(raw_data, indent=4))
         return self.raw_data_file
 
-    def save_elite2_operators(self, df: pd.DataFrame) -> Path:
-        return _save_csv(df, self.elite2_operators_file)
+    @property
+    def roster_info_file(self) -> Path:
+        return self.ref_dir / ROSTER_INFO_FILE_NAME
+
+    def save_elite2_operators(self, df: pd.DataFrame, saved_at: datetime | None = None) -> Path:
+        '''
+        Saves the Elite 2 roster, and records when it was saved (now, unless
+        saved_at is given) and how many operators it has in roster_info.json.
+        '''
+        saved_at = saved_at or datetime.now()
+        path = _save_csv(df, self.elite2_operators_file)
+        with open(self.roster_info_file, 'w') as f:
+            f.write(json.dumps({'saved_at': saved_at.isoformat(), 'operator_count': len(df)}, indent=4))
+        return path
+
+    def roster_saved_at(self) -> datetime | None:
+        '''
+        Returns when the roster was last saved, or None if there is no saved
+        roster. Rosters saved before roster_info.json existed fall back to the
+        roster file's modified time.
+        '''
+        try:
+            with open(self.roster_info_file) as f:
+                return datetime.fromisoformat(json.load(f)['saved_at'])
+        except FileNotFoundError:
+            pass
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            logger.warning('Ignoring unreadable %s: %s', self.roster_info_file, exc)
+        if self.elite2_operators_file.exists():
+            return datetime.fromtimestamp(self.elite2_operators_file.stat().st_mtime)
+        return None
 
     def load_elite2_operators(self) -> pd.DataFrame:
         return pd.read_csv(self.elite2_operators_file)

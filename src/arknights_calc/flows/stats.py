@@ -9,7 +9,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-29
+Last Modified: 2026-11-02
 Last Modified by: Claude
 '''
 
@@ -38,7 +38,14 @@ class OperatorStatsProcessor:
         self.storage = storage
         self.fetch_operator = fetch_operator
 
-    def run(self) -> pd.DataFrame:
+    def run(self) -> pd.DataFrame | None:
+        '''
+        Calculates and saves the operator stats. Returns them, or None if
+        there is no saved roster yet.
+        '''
+        if not self.storage.elite2_operators_file.exists():
+            logger.error('No roster found at %s. Run `arknights-calc roster` first.', self.storage.elite2_operators_file)
+            return None
         target_operators = self.storage.load_elite2_operators()
         logger.info('Calculating stats for %d operators from %s', len(target_operators), self.storage.elite2_operators_file)
 
