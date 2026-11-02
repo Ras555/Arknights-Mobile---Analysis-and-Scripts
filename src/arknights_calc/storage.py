@@ -39,12 +39,22 @@ class MissingColumnsError(Exception):
     '''
 
     def __init__(self, file_path: Path, missing_columns: list):
+        '''
+        Args:
+            file_path: The file that was read.
+            missing_columns: The required columns it doesn't have.
+        '''
+        # Kept as attributes so callers can build their own message.
         self.file_path = file_path
         self.missing_columns = missing_columns
         super().__init__(f'{file_path} is missing columns {missing_columns}')
 
 
 def _save_csv(df: pd.DataFrame, file_path: Path) -> Path:
+    '''
+    Saves df to file_path as a CSV file (without the index), creating the
+    folder if needed, and returns file_path.
+    '''
     file_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(file_path, index=False)
     return file_path
@@ -58,12 +68,23 @@ class Storage:
     '''
 
     def __init__(self, ref_dir: Path, io_dir: Path):
+        '''
+        Args:
+            ref_dir: The folder for files the program reads back.
+            io_dir: The folder for files meant to be viewed.
+        '''
         self.ref_dir = Path(ref_dir)
         self.io_dir = Path(io_dir)
 
     @classmethod
     def from_settings(cls, settings) -> 'Storage':
+        '''
+        Returns a Storage using the settings' ref/ and io/ folders.
+        '''
         return cls(settings.ref_dir, settings.io_dir)
+
+    # File paths. Each file's location is defined only here, so the steps
+    # never build paths themselves.
 
     @property
     def raw_data_file(self) -> Path:
@@ -88,6 +109,10 @@ class Storage:
         return self.io_dir / f'stage_{stage_id}_matchups.csv'
 
     def save_raw_data(self, raw_data: dict) -> Path:
+        '''
+        Saves the raw account data to ref/ and returns the file's path.
+        '''
+        # indent=4 makes the (large) file readable when opened by hand.
         self.raw_data_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.raw_data_file, 'w') as f:
             f.write(json.dumps(raw_data, indent=4))
@@ -101,6 +126,13 @@ class Storage:
         '''
         Saves the Elite 2 roster, and records when it was saved (now, unless
         saved_at is given) and how many operators it has in roster_info.json.
+
+        Args:
+            df: The Elite 2 roster.
+            saved_at: When the roster was saved; None uses the current time.
+
+        Returns:
+            The roster file's path.
         '''
         saved_at = saved_at or datetime.now()
         path = _save_csv(df, self.elite2_operators_file)
@@ -113,7 +145,12 @@ class Storage:
         Returns when the roster was last saved, or None if there is no saved
         roster. Rosters saved before roster_info.json existed fall back to the
         roster file's modified time.
+
+        Returns:
+            When the roster was saved, or None.
         '''
+        # A missing roster_info.json is expected for older rosters, so only
+        # an unreadable one is warned about. Either way, fall back below.
         try:
             with open(self.roster_info_file) as f:
                 return datetime.fromisoformat(json.load(f)['saved_at'])
@@ -126,6 +163,9 @@ class Storage:
         return None
 
     def load_elite2_operators(self) -> pd.DataFrame:
+        '''
+        Returns the saved Elite 2 roster.
+        '''
         return pd.read_csv(self.elite2_operators_file)
 
     def save_operator_stats(self, df: pd.DataFrame) -> list:
@@ -139,7 +179,19 @@ class Storage:
         '''
         Loads the operator stats from ref/. Raises MissingColumnsError if any
         of required_columns are missing.
+
+        Args:
+            required_columns: The columns the caller needs.
+
+        Returns:
+            The operator stats.
+
+        Raises:
+            FileNotFoundError: If the stats haven't been saved yet.
+            MissingColumnsError: If any required column is missing.
         '''
+        # Checking the columns here gives one clear error up front, instead
+        # of a KeyError part way through the caller's calculations.
         df = pd.read_csv(self.operator_stats_file)
         missing_columns = [column for column in required_columns if column not in df.columns]
         if missing_columns:

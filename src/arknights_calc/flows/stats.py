@@ -35,6 +35,11 @@ class OperatorStatsProcessor:
     '''
 
     def __init__(self, storage, fetch_operator=fetch_operator_data):
+        '''
+        Args:
+            storage: The Storage the roster is read from and the stats saved through.
+            fetch_operator: The function used to get each operator's data.
+        '''
         self.storage = storage
         self.fetch_operator = fetch_operator
 
@@ -42,7 +47,12 @@ class OperatorStatsProcessor:
         '''
         Calculates and saves the operator stats. Returns them, or None if
         there is no saved roster yet.
+
+        Returns:
+            One row per operator (see OperatorStats.to_dict), or None.
         '''
+        # Without a roster there's nothing to calculate, so stop with a hint
+        # instead of crashing on a missing file.
         if not self.storage.elite2_operators_file.exists():
             logger.error('No roster found at %s. Run `arknights-calc roster` first.', self.storage.elite2_operators_file)
             return None
@@ -56,6 +66,8 @@ class OperatorStatsProcessor:
                     row['id'], row['level'], row['phase'], row['potential'], row['trust'],
                     operator_data=self.fetch_operator(row['id']),
                 )
+            # One operator with missing or unexpected data shouldn't stop the
+            # rest, so it's logged (with its traceback) and skipped.
             except (HellaAPIError, ValueError, KeyError) as exc:
                 logger.exception('Error calculating stats for operator %s: %s', row['id'], exc)
                 continue

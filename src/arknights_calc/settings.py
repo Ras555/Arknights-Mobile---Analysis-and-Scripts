@@ -55,6 +55,9 @@ class Settings:
     changed documents are re-downloaded one by one before the whole
     collection is downloaded instead. roster_max_age is how old the saved
     roster can be before the stats and matchups steps suggest refreshing it.
+
+    frozen=True makes the settings read-only, so no part of the program can
+    change them for the rest.
     '''
     project_root: Path
     user_email: str | None
@@ -72,14 +75,30 @@ class Settings:
 
     @property
     def log_file(self) -> Path:
+        '''
+        The path of the program's log file.
+        '''
         return self.log_dir / 'arknights.log'
 
     @property
     def cache_dir(self) -> Path:
+        '''
+        The folder the HellaAPI cache is kept in.
+        '''
         return self.ref_dir / 'cache'
 
 
 def _env_value(env_values: Mapping[str, str | None], name: str) -> str | None:
+    '''
+    Returns a setting's value from the .env file or the environment.
+
+    Args:
+        env_values: The values read from the .env file.
+        name: The setting's name, e.g. "USER_EMAIL".
+
+    Returns:
+        The value, or None if it isn't set (or is set to an empty value).
+    '''
     # The .env file takes priority over environment variables set in the shell.
     return env_values.get(name) or os.environ.get(name)
 
@@ -88,12 +107,25 @@ def _env_days(env_values: Mapping[str, str | None], name: str, default: int) -> 
     '''
     Returns the number of days set in name as a timedelta, or default days if
     it isn't set. Raises ValueError if it isn't a positive number.
+
+    Args:
+        env_values: The values read from the .env file.
+        name: The setting's name, e.g. "HELLA_CACHE_DAYS".
+        default: The number of days to use if the setting isn't set.
+
+    Returns:
+        The number of days as a timedelta (fractions like 0.5 are allowed).
+
+    Raises:
+        ValueError: If the setting isn't a positive number.
     '''
     value = _env_value(env_values, name)
     if value is None:
         return timedelta(days=default)
     try:
         days = float(value)
+    # Text that isn't a number is treated as 0, so it gets the same clear
+    # error below instead of float()'s own message.
     except ValueError:
         days = 0
     if days <= 0:
@@ -113,9 +145,23 @@ def load_settings(project_root: Path | None = None, env_file: Path | None = None
         HELLA_API_URL        the HellaAPI base URL (default https://awedtan.ca/api)
         HELLA_CACHE_DAYS     days the HellaAPI cache can go without checking for changes (default 14)
         ROSTER_MAX_AGE_DAYS  days before a refresh of the saved roster is suggested (default 7)
+
+    Args:
+        project_root: The project folder; None uses PROJECT_ROOT (tests
+            pass a temporary folder).
+        env_file: The .env file to read; None uses project_root/.env.
+
+    Returns:
+        The Settings.
+
+    Raises:
+        ValueError: If HELLA_CACHE_DAYS or ROSTER_MAX_AGE_DAYS isn't a
+            positive number.
     '''
     project_root = Path(project_root) if project_root is not None else PROJECT_ROOT
     env_file = Path(env_file) if env_file is not None else project_root / '.env'
+    # A missing .env file isn't an error; every setting can also come from
+    # the environment or its default.
     env_values = dotenv_values(env_file) if env_file.exists() else {}
 
     return Settings(
