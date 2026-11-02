@@ -80,8 +80,12 @@ def test_login_uses_yostar_en_email_code(monkeypatch):
         def __init__(self, server):
             events.append(('auth', server))
 
-        async def login_with_email_code(self, email):
-            events.append(('login', email))
+        async def get_token_from_email_code(self, email, *, stdin):
+            events.append(('get token', email, stdin))
+            return 'uid-1', 'token-1'
+
+        async def login_with_token(self, channel_uid, token):
+            events.append(('login', channel_uid, token))
 
     class FakeClient:
         def __init__(self, auth=None, assets=None):
@@ -91,8 +95,52 @@ def test_login_uses_yostar_en_email_code(monkeypatch):
     monkeypatch.setattr(account.arkprts, 'YostarAuth', FakeAuth)
     monkeypatch.setattr(account.arkprts, 'Client', FakeClient)
     client = asyncio.run(account.login('me@example.com'))
-    assert events == [('auth', 'en'), ('login', 'me@example.com'), ('client', False)]
+    assert events == [('auth', 'en'), ('get token', 'me@example.com', True), ('login', 'uid-1', 'token-1'), ('client', False)]
     assert isinstance(client.auth, FakeAuth)
+
+
+@pytest.fixture
+def fake_yostar_network(monkeypatch):
+    '''
+    Replaces the parts of arkprts' YostarAuth that talk to Yostar's servers,
+    so its real email-code login code runs without a network or a real code.
+    '''
+    YostarAuth = account.arkprts.YostarAuth
+    logins = []
+
+    async def send_email_code(self, email):
+        pass
+
+    async def submit_email_code(self, email, code):
+        return 'email-token'
+
+    async def get_yostar_token(self, email, email_token):
+        return 'uid-1', 'SECRET-TOKEN-123'
+
+    async def login_with_token(self, channel_uid, token):
+        logins.append((channel_uid, token))
+
+    monkeypatch.setattr(YostarAuth, 'send_email_code', send_email_code)
+    monkeypatch.setattr(YostarAuth, '_submit_email_code', submit_email_code)
+    monkeypatch.setattr(YostarAuth, '_get_yostar_token', get_yostar_token)
+    monkeypatch.setattr(YostarAuth, 'login_with_token', login_with_token)
+    monkeypatch.setattr('builtins.input', lambda prompt='': '123456')
+    return logins
+
+
+def test_login_never_prints_the_token(fake_yostar_network, capsys):
+    asyncio.run(account.login('me@example.com'))
+    out = capsys.readouterr().out
+    assert fake_yostar_network == [('uid-1', 'SECRET-TOKEN-123')]
+    assert 'Code sent to me@example.com.' in out
+    assert 'SECRET-TOKEN-123' not in out
+    assert 'uid-1' not in out
+
+
+def test_arkprts_login_with_email_code_would_print_the_token(fake_yostar_network, capsys):
+    # Documents why login() doesn't use login_with_email_code: with the same fakes, it prints the token.
+    asyncio.run(account.arkprts.YostarAuth('en').login_with_email_code('me@example.com'))
+    assert 'SECRET-TOKEN-123' in capsys.readouterr().out
 
 
 class FakeArkClient:
