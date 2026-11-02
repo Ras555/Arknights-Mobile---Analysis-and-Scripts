@@ -7,7 +7,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-29
+Last Modified: 2026-11-02
 Last Modified by: Claude
 '''
 
@@ -31,11 +31,18 @@ ROSTER_COLUMNS = ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
 
 async def login(email) -> arkprts.Client:
     '''
-    Logs into the Yostar EN server with an email code (arkprts prompts for
-    the code sent to the email) and returns an authenticated client.
+    Logs into the Yostar EN server with an email code (arkprts sends the code
+    to the email and asks for it in the console) and returns an authenticated
+    client.
+
+    Gets the login token and logs in with it as two steps, rather than using
+    arkprts' login_with_email_code, which prints the account's login token to
+    the console. The token gives full access to the account, so it is never
+    printed or stored.
     '''
     auth = arkprts.YostarAuth("en")
-    await auth.login_with_email_code(email)
+    channel_uid, token = await auth.get_token_from_email_code(email, stdin=True)
+    await auth.login_with_token(channel_uid, token)
     return arkprts.Client(auth=auth, assets=False)
 
 def format_operator_data(operator_data: Mapping) -> pd.DataFrame:
