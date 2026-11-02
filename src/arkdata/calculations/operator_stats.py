@@ -8,7 +8,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-10-29
+Last Modified: 2026-11-02
 Last Modified by: Claude
 '''
 
@@ -116,6 +116,12 @@ OPERATOR_DAMAGE_TYPE_OVERRIDES: dict[str, DamageType] = {}
 def parse_phase(phase) -> int:
     '''
     Converts a HellaAPI phase value ("PHASE_2" or 2) into an int (2).
+
+    Args:
+        phase: The phase as a "PHASE_n" string or an int.
+
+    Returns:
+        The phase number.
     '''
     return int(str(phase).replace("PHASE_", ""))
 
@@ -125,14 +131,26 @@ def _damage_type_from_description(operator_data: dict, phase: int) -> DamageType
     Guesses the damage type from the operator's trait description. Trait
     candidates may override the base description once a later phase is
     reached. ("overrideDescripton" is misspelled in the game data itself.)
+
+    Args:
+        operator_data: The operator's HellaAPI document.
+        phase: The operator's current phase (elite level).
+
+    Returns:
+        ARTS if the description mentions Arts damage, HEAL for Medics or
+        descriptions that restore HP, and PHYSICAL otherwise.
     '''
     description = operator_data.get("description") or ""
 
+    # Use the latest trait description the operator has unlocked. Candidates
+    # are listed in unlock order, so a later match replaces an earlier one.
     for candidate in (operator_data.get("trait") or {}).get("candidates") or []:
         required_phase = parse_phase(candidate["unlockCondition"]["phase"])
         if candidate.get("overrideDescripton") and required_phase <= phase:
             description = candidate["overrideDescripton"]
 
+    # Checked in order, so a description mentioning Arts damage wins over a
+    # Medic profession. Physical is the game's default, so it's the fallback.
     if "Arts damage" in description:
         return DamageType.ARTS
     if operator_data.get("profession") == PROFESSION_MEDIC or "Restores the HP" in description:
@@ -148,7 +166,17 @@ def determine_damage_type(operator_data: dict, phase: int, operator_id: str | No
     Checks OPERATOR_DAMAGE_TYPE_OVERRIDES, then SUB_PROFESSION_DAMAGE_TYPES.
     If the operator's archetype isn't listed, logs a warning and falls back
     to guessing from the trait description.
+
+    Args:
+        operator_data: The operator's HellaAPI document.
+        phase: The operator's current phase (only used by the fallback).
+        operator_id: The operator's coded id, for the override lookup.
+
+    Returns:
+        The DamageType of the operator's basic attack.
     '''
+    # Most specific source first: a per-operator override, then the
+    # archetype, then (least reliable) the description text.
     if operator_id in OPERATOR_DAMAGE_TYPE_OVERRIDES:
         return OPERATOR_DAMAGE_TYPE_OVERRIDES[operator_id]
 
@@ -177,6 +205,21 @@ class OperatorStats:
     def __init__(
         self, operator_id: str, level: int, phase: int, potential: int, trust: int = 0, operator_data: dict | None = None,
     ):
+        '''
+        Args:
+            operator_id: The operator's coded id or printed name.
+            level: The operator's level within its current phase.
+            phase: The operator's phase (elite level), starting at 0.
+            potential: Potential upgrades applied, from 0 (none) up to the
+                number of potential ranks.
+            trust: The operator's trust percentage (bonuses cap at 100).
+            operator_data: The operator's HellaAPI document. When None, it's
+                fetched with fetch_operator_data (tests pass it in directly).
+
+        Raises:
+            ValueError: If the phase, level, potential or trust is out of
+                range for this operator.
+        '''
         self.operator_id = operator_id
         self.level = level
         self.phase = phase
@@ -190,6 +233,9 @@ class OperatorStats:
         self.sub_profession_id = self._data["subProfessionId"]
         self.rarity = self._data["rarity"]
 
+        # Validate before calculating, so bad input fails with a clear message
+        # instead of an IndexError deep in the calculations. Phase goes first
+        # because the level check needs a valid phase.
         self._validate_phase()
         self._validate_level()
         self._validate_potential()
@@ -197,6 +243,8 @@ class OperatorStats:
 
         self.damage_type = determine_damage_type(self._data, self.phase, self.operator_id)
 
+        # Stats are built in the same order as in game: the level's base
+        # stats, plus flat potential bonuses, plus the trust bonus.
         self.stats = self._calculate_base_stats()
         self._apply_potential_bonuses()
         self._apply_trust_bonus()
@@ -205,34 +253,64 @@ class OperatorStats:
         self.dps = self._calculate_dps()
 
     def _phase_data(self, phase: int) -> dict:
+        '''
+        Returns the HellaAPI data for one of the operator's phases.
+        '''
         return self._data["phases"][phase]
 
     @staticmethod
     def _keyframes(phase_data: dict) -> list:
+        '''
+        Returns a phase's stat keyframes: the stats at set levels (normally
+        level 1 and the phase's max level).
+        '''
         # HellaAPI returns "attributesKeyFrames"; "attributeKeyFrames" is kept as a fallback.
         return phase_data.get("attributesKeyFrames") or phase_data["attributeKeyFrames"]
 
     def _validate_phase(self):
+        '''
+        Raises a ValueError if the phase is outside the operator's phases.
+        Lower rarity operators have fewer phases (e.g. 3* stop at phase 1).
+        '''
         num_phases = len(self._data["phases"])
         if not (0 <= self.phase < num_phases):
             raise ValueError(f"{self.name} only has phases 0-{num_phases - 1}, got phase {self.phase}")
 
     def _validate_level(self):
-        max_level = self._phase_data(self.phase)["maxLevel"]
+        '''
+        Raises a ValueError if the level is outside 1 to the phase's max level.
+        '''
+        max_level =self._phase_data(self.phase)["maxLevel"]
         if not (1 <= self.level <= max_level):
             raise ValueError(f"{self.name} phase {self.phase} allows levels 1-{max_level}, got level {self.level}")
 
     def _validate_potential(self):
+        '''
+        Raises a ValueError if the potential is outside 0 to the number of
+        potential ranks.
+        '''
         # Potential is 0-indexed to match arkprts' potential_rank (0 = base, no upgrades applied).
         max_potential = len(self._data["potentialRanks"])
         if not (0 <= self.potential <= max_potential):
             raise ValueError(f"{self.name} allows potential 0-{max_potential}, got potential {self.potential}")
 
     def _validate_trust(self):
+        '''
+        Raises a ValueError if the trust is negative. Trust above 100 is
+        allowed (the game goes up to 200) but gives no extra bonus.
+        '''
         if self.trust < 0:
             raise ValueError(f"Trust cannot be negative, got trust {self.trust}")
 
     def _calculate_base_stats(self) -> dict:
+        '''
+        Returns the operator's stats at its level, before potential and trust.
+
+        Returns:
+            {stat key: value}, with every key from the phase's keyframes.
+        '''
+        # Stats grow linearly from the first keyframe's level to the last's,
+        # so the stats at any level can be interpolated between the two.
         keyframes = self._keyframes(self._phase_data(self.phase))
         start_frame, end_frame = keyframes[0], keyframes[-1]
         start_level, end_level = start_frame["level"], end_frame["level"]
@@ -241,6 +319,9 @@ class OperatorStats:
         stats = {}
         for key, start_value in start_data.items():
             end_value = end_data[key]
+            # Copied as-is: flags (e.g. immunities) that can't be interpolated,
+            # stats that don't change with level, and single-level phases
+            # (which would otherwise divide by zero).
             if isinstance(start_value, bool) or start_value == end_value or end_level == start_level:
                 stats[key] = start_value
             else:
@@ -249,18 +330,31 @@ class OperatorStats:
         return stats
 
     def _apply_potential_bonuses(self):
+        '''
+        Adds the stat bonuses from each potential rank the operator has
+        unlocked to self.stats.
+        '''
+        # Potential N unlocks the first N ranks, so slice the list to N.
         ranks_to_apply = self._data["potentialRanks"][: self.potential]
         for rank in ranks_to_apply:
+            # Ranks that don't change stats (e.g. ones that improve a talent)
+            # have no buff, so each missing level is treated as empty.
             modifiers = ((rank.get("buff") or {}).get("attributes") or {}).get("attributeModifiers") or []
             for modifier in modifiers:
+                # Only flat bonuses are handled; other formulas are skipped.
                 if modifier.get("formulaItem") != "ADDITION":
                     continue
                 stat_key = ATTRIBUTE_TYPE_TO_STAT_KEY.get(modifier["attributeType"])
+                # Skip attribute types that don't map to a stat tracked here.
                 if stat_key is None:
                     continue
                 self.stats[stat_key] = self.stats.get(stat_key, 0) + modifier["value"]
 
     def _apply_trust_bonus(self):
+        '''
+        Adds the operator's trust bonus (usually some ATK, DEF and/or HP)
+        to self.stats.
+        '''
         # favorKeyFrames gives the stat bonus at 0 trust (level 0, always zero) and
         # 100 trust (level 50); trust scales linearly between them and caps at 100.
         start_frame, end_frame = self._data["favorKeyFrames"][0], self._data["favorKeyFrames"][-1]
@@ -268,6 +362,7 @@ class OperatorStats:
         trust_ratio = min(self.trust, 100) / 100
 
         for key, start_value in start_data.items():
+            # Flags aren't bonuses, so they're left as the base stats set them.
             if isinstance(start_value, bool):
                 continue
             end_value = end_data[key]
@@ -275,16 +370,28 @@ class OperatorStats:
             self.stats[key] = self.stats.get(key, 0) + bonus
 
     def _calculate_attack_interval(self) -> float:
+        '''
+        Returns the seconds between the operator's attacks.
+        '''
         # attackSpeed is a percentage of the base attack rate (100 = normal speed).
         return self.stats["baseAttackTime"] / (self.stats["attackSpeed"] / 100)
 
     def _calculate_dps(self) -> float:
+        '''
+        Returns the operator's raw DPS, before any enemy's DEF or RES. For
+        healers this is healing per second; the matchup calculations treat
+        HEAL attacks as dealing no damage.
+        '''
         return self.stats["atk"] / self.attack_interval
 
     def to_dict(self) -> dict:
         '''
         Returns the operator's identity, configuration, stats, damage type,
         and DPS as a dictionary.
+
+        Returns:
+            One flat dictionary (one row of the operator stats table), with
+            every stat included as its own key.
         '''
         return {
             "operator_id": self.operator_id,

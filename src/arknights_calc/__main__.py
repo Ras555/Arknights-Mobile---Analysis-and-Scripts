@@ -6,10 +6,11 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-10-28
+Last Modified: 2026-11-02
 Last Modified by: Claude
 '''
 
 from arknights_calc.cli import main
 
+# SystemExit passes main's return value to the shell as the exit code.
 raise SystemExit(main())
