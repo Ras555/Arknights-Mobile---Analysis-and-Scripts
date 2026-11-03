@@ -2,14 +2,14 @@
 '''
 File: stats.py
 Description: Implements the stats step: for each operator in the saved
-    Elite 2 roster, retrieve its game data from the HellaAPI and calculate
+    roster, retrieve its game data from the HellaAPI and calculate
     its stats, damage type, and DPS at its current phase, level, potential,
     and trust.
 Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -53,11 +53,11 @@ class OperatorStatsProcessor:
         '''
         # Without a roster there's nothing to calculate, so stop with a hint
         # instead of crashing on a missing file.
-        if not self.storage.elite2_operators_file.exists():
-            logger.error('No roster found at %s. Run `arknights-calc roster` first.', self.storage.elite2_operators_file)
+        if not self.storage.roster_file.exists():
+            logger.error('No roster found at %s. Run `arknights-calc roster` first.', self.storage.roster_file)
             return None
-        target_operators = self.storage.load_elite2_operators()
-        logger.info('Calculating stats for %d operators from %s', len(target_operators), self.storage.elite2_operators_file)
+        target_operators = self.storage.load_roster()
+        logger.info('Calculating stats for %d operators from %s', len(target_operators), self.storage.roster_file)
 
         operator_stats = []
         for _, row in target_operators.iterrows():

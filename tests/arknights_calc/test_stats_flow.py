@@ -14,7 +14,7 @@ def _storage(tmp_path):
 
 
 def _write_roster(tmp_path, rows):
-    roster_file = _storage(tmp_path).elite2_operators_file
+    roster_file = _storage(tmp_path).roster_file
     roster_file.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows, columns=['id', 'potential', 'level', 'phase', 'trust', 'skill_level']).to_csv(roster_file, index=False)
 
@@ -90,7 +90,23 @@ def test_run_without_roster_logs_error_and_saves_nothing(tmp_path, caplog):
         result = OperatorStatsProcessor(_storage(tmp_path), fetch_operator=fetched.append).run()
     assert result is None
     assert fetched == []
-    roster_file = tmp_path / 'ref' / 'elite2_operators.csv'
+    roster_file = tmp_path / 'ref' / 'roster.csv'
     assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
         (logging.ERROR, f'No roster found at {roster_file}. Run `arknights-calc roster` first.')]
     assert not (tmp_path / 'ref' / 'operator_stats_output.csv').exists()
+
+
+def test_run_calculates_operators_at_every_phase(tmp_path):
+    _write_roster(tmp_path, [['char_e0', 0, 30, 0, 0.0, 1], ['char_e1', 0, 1, 1, 0.0, 1], ['char_e2', 0, 1, 2, 0.0, 1]])
+    result = OperatorStatsProcessor(_storage(tmp_path), fetch_operator=lambda _: make_operator_data()).run()
+    assert result['operator_id'].tolist() == ['char_e0', 'char_e1', 'char_e2']
+    assert result['phase'].tolist() == [0, 1, 2]
+
+
+def test_run_ignores_old_elite2_roster_file(tmp_path, caplog):
+    old_file = tmp_path / 'ref' / 'elite2_operators.csv'
+    old_file.parent.mkdir(parents=True)
+    old_file.write_text('id,potential,level,phase,trust,skill_level\nchar_a,0,1,2,0.0,1\n')
+    with caplog.at_level(logging.ERROR):
+        assert OperatorStatsProcessor(_storage(tmp_path), fetch_operator=lambda _: make_operator_data()).run() is None
+    assert 'Run `arknights-calc roster` first.' in caplog.text

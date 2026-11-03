@@ -8,7 +8,7 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Constants
 
 RAW_DATA_FILE_NAME = 'raw_data.json'
-ELITE2_OPERATORS_FILE_NAME = 'elite2_operators.csv'
+ROSTER_FILE_NAME = 'roster.csv'
 # When the roster was last saved, so the program can suggest refreshing an old one.
 ROSTER_INFO_FILE_NAME = 'roster_info.json'
 OPERATOR_STATS_FILE_NAME = 'operator_stats_output.csv'
@@ -91,8 +91,12 @@ class Storage:
         return self.ref_dir / RAW_DATA_FILE_NAME
 
     @property
-    def elite2_operators_file(self) -> Path:
-        return self.ref_dir / ELITE2_OPERATORS_FILE_NAME
+    def roster_file(self) -> Path:
+        return self.ref_dir / ROSTER_FILE_NAME
+
+    @property
+    def roster_view_file(self) -> Path:
+        return self.io_dir / ROSTER_FILE_NAME
 
     @property
     def operator_stats_file(self) -> Path:
@@ -122,23 +126,24 @@ class Storage:
     def roster_info_file(self) -> Path:
         return self.ref_dir / ROSTER_INFO_FILE_NAME
 
-    def save_elite2_operators(self, df: pd.DataFrame, saved_at: datetime | None = None) -> Path:
+    def save_roster(self, df: pd.DataFrame, saved_at: datetime | None = None) -> list:
         '''
-        Saves the Elite 2 roster, and records when it was saved (now, unless
-        saved_at is given) and how many operators it has in roster_info.json.
+        Saves the roster to ref/ (read by the stats step) and io/ (for
+        viewing), and records when it was saved (now, unless saved_at is
+        given) and how many operators it has in roster_info.json.
 
         Args:
-            df: The Elite 2 roster.
+            df: The roster, one row per operator.
             saved_at: When the roster was saved; None uses the current time.
 
         Returns:
-            The roster file's path.
+            The paths of the ref/ and io/ roster files.
         '''
         saved_at = saved_at or datetime.now()
-        path = _save_csv(df, self.elite2_operators_file)
+        paths = [_save_csv(df, self.roster_file), _save_csv(df, self.roster_view_file)]
         with open(self.roster_info_file, 'w') as f:
             f.write(json.dumps({'saved_at': saved_at.isoformat(), 'operator_count': len(df)}, indent=4))
-        return path
+        return paths
 
     def roster_saved_at(self) -> datetime | None:
         '''
@@ -158,15 +163,15 @@ class Storage:
             pass
         except (OSError, ValueError, KeyError, TypeError) as exc:
             logger.warning('Ignoring unreadable %s: %s', self.roster_info_file, exc)
-        if self.elite2_operators_file.exists():
-            return datetime.fromtimestamp(self.elite2_operators_file.stat().st_mtime)
+        if self.roster_file.exists():
+            return datetime.fromtimestamp(self.roster_file.stat().st_mtime)
         return None
 
-    def load_elite2_operators(self) -> pd.DataFrame:
+    def load_roster(self) -> pd.DataFrame:
         '''
-        Returns the saved Elite 2 roster.
+        Returns the saved roster from ref/.
         '''
-        return pd.read_csv(self.elite2_operators_file)
+        return pd.read_csv(self.roster_file)
 
     def save_operator_stats(self, df: pd.DataFrame) -> list:
         '''

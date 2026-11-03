@@ -8,7 +8,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -42,10 +42,11 @@ ATTRIBUTE_TYPE_TO_STAT_KEY = {
 # The HellaAPI's profession value for Medics, whose basic attacks heal.
 PROFESSION_MEDIC = "MEDIC"
 
-# Basic attack damage type for each sub profession (archetype). Only
-# archetypes whose damage type is certain are listed; any other archetype
-# falls back to reading the operator's trait description, with a warning so
-# it can be added here.
+# Basic attack damage type for each sub profession (archetype). Every
+# archetype in the HellaAPI data as of 2026-11-03 is listed. Attacks are
+# physical unless the archetype's trait says otherwise. An archetype added to
+# the game later falls back to reading the operator's trait description, with
+# a warning so it can be added here.
 SUB_PROFESSION_DAMAGE_TYPES = {
     # Vanguards
     "pioneer": DamageType.PHYSICAL,
@@ -53,6 +54,7 @@ SUB_PROFESSION_DAMAGE_TYPES = {
     "tactician": DamageType.PHYSICAL,
     "bearer": DamageType.PHYSICAL,
     "agent": DamageType.PHYSICAL,
+    "counsellor": DamageType.PHYSICAL,
     # Guards
     "fighter": DamageType.PHYSICAL,
     "lord": DamageType.PHYSICAL,
@@ -63,6 +65,10 @@ SUB_PROFESSION_DAMAGE_TYPES = {
     "centurion": DamageType.PHYSICAL,
     "instructor": DamageType.PHYSICAL,
     "librator": DamageType.PHYSICAL,
+    "crusher": DamageType.PHYSICAL,
+    "hammer": DamageType.PHYSICAL,
+    "mercenary": DamageType.PHYSICAL,
+    "primguard": DamageType.PHYSICAL,  # Elemental damage comes from skills and talents, not basic attacks.
     "artsfghter": DamageType.ARTS,  # "artsfghter" is spelled this way in the game data
     # Defenders
     "protector": DamageType.PHYSICAL,
@@ -70,6 +76,8 @@ SUB_PROFESSION_DAMAGE_TYPES = {
     "unyield": DamageType.PHYSICAL,
     "duelist": DamageType.PHYSICAL,
     "fortress": DamageType.PHYSICAL,
+    "shotprotector": DamageType.PHYSICAL,
+    "primprotector": DamageType.PHYSICAL,  # Elemental Injury comes from skills and talents, not basic attacks.
     "artsprotector": DamageType.ARTS,
     # Snipers
     "fastshot": DamageType.PHYSICAL,
@@ -81,6 +89,7 @@ SUB_PROFESSION_DAMAGE_TYPES = {
     "bombarder": DamageType.PHYSICAL,
     "hunter": DamageType.PHYSICAL,
     "loopshooter": DamageType.PHYSICAL,
+    "skybreaker": DamageType.PHYSICAL,
     # Casters
     "corecaster": DamageType.ARTS,
     "splashcaster": DamageType.ARTS,
@@ -89,23 +98,38 @@ SUB_PROFESSION_DAMAGE_TYPES = {
     "phalanx": DamageType.ARTS,
     "chain": DamageType.ARTS,
     "mystic": DamageType.ARTS,
+    "primcaster": DamageType.ARTS,
+    "soulcaster": DamageType.ARTS,
     # Medics
     "physician": DamageType.HEAL,
     "ringhealer": DamageType.HEAL,
     "healer": DamageType.HEAL,
     "wandermedic": DamageType.HEAL,
     "chainhealer": DamageType.HEAL,
+    "watchman": DamageType.HEAL,
+    # Incantation Medics' attacks deal Arts damage to enemies and heal an ally
+    # for part of it. Listed here because their trait text ("<@ba.kw>Arts</>
+    # damage") doesn't match the description check, which would guess HEAL.
+    "incantationmedic": DamageType.ARTS,
     # Supporters
     "slower": DamageType.ARTS,
     "underminer": DamageType.ARTS,
     "summoner": DamageType.ARTS,
     "ritualist": DamageType.ARTS,
     "bard": DamageType.HEAL,  # Bards don't attack; they heal allies in range.
+    "blessing": DamageType.ARTS,  # Abjurers deal Arts damage; only their skills switch attacks to healing.
+    "craftsman": DamageType.PHYSICAL,
     # Specialists
     "executor": DamageType.PHYSICAL,
     "pusher": DamageType.PHYSICAL,
     "stalker": DamageType.PHYSICAL,
     "hookmaster": DamageType.PHYSICAL,
+    "alchemist": DamageType.PHYSICAL,
+    "dollkeeper": DamageType.PHYSICAL,
+    "geek": DamageType.PHYSICAL,
+    "merchant": DamageType.PHYSICAL,
+    "skywalker": DamageType.PHYSICAL,
+    "traper": DamageType.PHYSICAL,  # "traper" is spelled this way in the game data
 }
 
 # Per-operator exceptions to SUB_PROFESSION_DAMAGE_TYPES, keyed by the

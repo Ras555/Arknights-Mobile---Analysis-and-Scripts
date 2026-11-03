@@ -21,14 +21,15 @@ the API reference.
    `USER_EMAIL` to your Yostar account email. `.env` is gitignored.
 3. Run a step (or `all` to run every step in order):
    ```
-   arknights-calc roster                     # log in and save your Elite 2 roster
-   arknights-calc stats                      # calculate operator stats and DPS
-   arknights-calc matchups --stage main_06-09
+   arknights-calc roster                     # log in and save your full roster
+   arknights-calc stats                      # calculate every operator's stats and DPS
+   arknights-calc matchups --stage main_06-09  # compare your Elite 2 operators with a stage's enemies
    arknights-calc all --stage main_06-09
    ```
    `python -m arknights_calc <step>` works the same way. If `--stage` is left
    out, the matchups step asks for a stage id. The roster step emails you a
-   login code and asks for it in the console. Logging in also logs you out
+   login code and asks for it in the console, then prints how many
+   operators you have at each Elite level. Logging in also logs you out
    of the game on your phone, since Yostar allows one login at a time.
    `stats` and `matchups` remind you to rerun `roster` once your saved
    roster is more than a week old.
@@ -72,10 +73,10 @@ Optional settings can be added to `.env` (see [.env.example](.env.example)):
   settings, logging, file storage (`storage.py`), and one flow per step in
   `flows/`.
 - `ref/` - outputs that the program reads back on later runs
-  (`raw_data.json`, `elite2_operators.csv`, `roster_info.json`,
+  (`raw_data.json`, `roster.csv`, `roster_info.json`,
   `operator_stats_output.csv`, and the HellaAPI cache in `cache/`).
-- `io/` - outputs meant for you to view (`operator_stats_output.csv`, and
-  the `stage_<id>_enemy_stats.csv` / `stage_<id>_matchups.csv` files).
+- `io/` - outputs meant for you to view (`roster.csv`,
+  `operator_stats_output.csv`, and the `stage_<id>_enemy_stats.csv` / `stage_<id>_matchups.csv` files).
 - `tests/` - the pytest suite, split into `arkdata/` and `arknights_calc/`.
 
 `arkdata` must never import from `arknights_calc`; a test checks this.

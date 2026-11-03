@@ -499,14 +499,14 @@ so its names match these imports.
 ### ref Folder
 
 The ref folder stores outputs designed to store information for use by the program or for future runs: raw_data.json,
-elite2_operators.csv, roster_info.json (when the roster was saved), operator_stats_output.csv, and the HellaAPI cache in
-ref/cache (state.json, and per resource an index.json plus one JSON file per document). The ref folder is gitignored,
+roster.csv (every operator in the roster), roster_info.json (when the roster was saved), operator_stats_output.csv, and
+the HellaAPI cache in ref/cache (state.json, and per resource an index.json plus one JSON file per document). The ref folder is gitignored,
 since it holds personal account data.
 
 ### io Folder
 
-The io folder stores outputs designed to be viewed by the user: operator_stats_output.csv (a copy of the one in ref), and
-the stage_{stage_id}_enemy_stats.csv and stage_{stage_id}_matchups.csv files. Files may be placed in both ref and io.
+The io folder stores outputs designed to be viewed by the user: roster.csv and operator_stats_output.csv (copies of the
+ones in ref), and the stage_{stage_id}_enemy_stats.csv and stage_{stage_id}_matchups.csv files. Files may be placed in both ref and io.
 The io folder is gitignored, since its files are regenerated on every run.
 
 ### tests Folder
@@ -627,18 +627,20 @@ when the failure may be temporary (timeouts, dropped connections, HTTP 429 and 5
 2. Retrieve the player's operator roster and convert each operator's favor points into a trust percentage. Favor points
 above the maximum (25570) log an error and are capped at a trust of 200.
 3. Retrieve the player's raw account data and save it to ref/raw_data.json.
-4. Filter the roster to Elite 2 (phase 2) operators and save them to ref/elite2_operators.csv, recording when and how
-many in ref/roster_info.json.
+4. Save every operator in the roster to ref/roster.csv and io/roster.csv, recording when and how many in
+ref/roster_info.json, and print how many operators are at each Elite level (phase).
 
 ### Stats Step
 
-1. Read the roster from ref/elite2_operators.csv. If there isn't one yet, log an error asking for the roster step to be
-run first.
-2. For each operator, retrieve its game data from the HellaAPI cache and calculate its stats at its current phase, level,
-potential and trust, its basic attack damage type and its DPS. Operators that fail are logged and skipped. The damage
+1. Read the roster from ref/roster.csv. If there isn't one yet, log an error asking for the roster step to be run first.
+(Rosters saved before 2026-11-03 were saved as ref/elite2_operators.csv, which is no longer read; rerun the roster step.)
+2. For each operator in the roster (at any phase), retrieve its game data from the HellaAPI cache and calculate its stats
+at its current phase, level, potential and trust, its basic attack damage type and its DPS. Operators that fail are logged and skipped. The damage
 type is looked up by operator id in OPERATOR_DAMAGE_TYPE_OVERRIDES, then by sub profession (archetype) in
 SUB_PROFESSION_DAMAGE_TYPES (both in src/arkdata/calculations/operator_stats.py). If the archetype isn't listed, a warning is logged and the
-damage type is guessed from the operator's trait description; the archetype should then be added to the table.
+damage type is guessed from the operator's trait description; the archetype should then be added to the table. Every
+archetype in the HellaAPI data as of 2026-11-03 is listed. Basic attacks are physical unless the archetype's trait says
+otherwise.
 3. Save the results to ref/operator_stats_output.csv and io/operator_stats_output.csv.
 
 ### Matchups Step
@@ -646,11 +648,13 @@ damage type is guessed from the operator's trait description; the archetype shou
 1. Read the operator stats from ref/operator_stats_output.csv. If the file doesn't exist yet, log an error asking for
 the stats step to be run first. If it is missing any of the columns the matchups
 need (REQUIRED_OPERATOR_COLUMNS in src/arkdata/calculations/matchups.py), log an error listing them and asking for the stats step
-to be rerun.
-2. Ask for a stage id if one wasn't given, retrieve the stage from the HellaAPI cache, and ask which variant to use if the stage
+to be rerun. The phase column is also required.
+2. Keep only the Elite 2 (phase 2) operators, so the matchup tables stay a readable size. If there are none, log a
+warning and stop.
+3. Ask for a stage id if one wasn't given, retrieve the stage from the HellaAPI cache, and ask which variant to use if the stage
 has more than one.
-3. Retrieve the stats of each enemy in the stage's enemyDbRefs (from the HellaAPI cache) at its level (skipping stage-defined enemies) and count how
+4. Retrieve the stats of each enemy in the stage's enemyDbRefs (from the HellaAPI cache) at its level (skipping stage-defined enemies) and count how
 many of each enemy the stage's waves spawn.
-4. For every operator and enemy pair, calculate the DPS each deals to the other and the time each takes to kill the other.
-5. Save the enemy stats and matchups to io/stage_{stage_id}_enemy_stats.csv and io/stage_{stage_id}_matchups.csv, and
+5. For every operator and enemy pair, calculate the DPS each deals to the other and the time each takes to kill the other.
+6. Save the enemy stats and matchups to io/stage_{stage_id}_enemy_stats.csv and io/stage_{stage_id}_matchups.csv, and
 print the enemy stats and DPS tables.

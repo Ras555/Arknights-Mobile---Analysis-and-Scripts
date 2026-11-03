@@ -2,13 +2,13 @@
 '''
 File: roster.py
 Description: Implements the roster step: log into the Arknights servers,
-    save the account's raw data, and save the Elite 2 operator roster for
+    save the account's raw data, and save the full operator roster for
     the stats step to read.
 Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -19,14 +19,29 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 
-from arkdata.sources.account import filter_operators, login, retrieve_operator_info, retrieve_raw_data
+from arkdata.sources.account import login, retrieve_operator_info, retrieve_raw_data
 
 logger = logging.getLogger(__name__)
 
-# Constants
 
-# Phase (elite level) of the operators saved for the stats step.
-ELITE_2_PHASE = 2
+def summarize_roster(roster: pd.DataFrame) -> str:
+    '''
+    Returns a one line summary of the roster: how many operators it has, and
+    how many are at each phase (elite level).
+
+    Args:
+        roster: The roster, with a phase column.
+
+    Returns:
+        e.g. "194 operators (Elite 0: 133, Elite 1: 23, Elite 2: 38)".
+    '''
+    operator_word = 'operator' if len(roster) == 1 else 'operators'
+    if roster.empty:
+        return f'0 {operator_word}'
+    # sort_index lists the phases in order (Elite 0, 1, 2) rather than by count.
+    counts = roster['phase'].astype(int).value_counts().sort_index()
+    phases = ', '.join(f'Elite {phase}: {count}' for phase, count in counts.items())
+    return f'{len(roster)} {operator_word} ({phases})'
 
 
 class RosterProcessor:
@@ -51,11 +66,11 @@ class RosterProcessor:
 
     async def run(self) -> pd.DataFrame:
         '''
-        Logs in, saves the raw account data and the Elite 2 roster, and
-        prints the roster.
+        Logs in, saves the raw account data and the full roster, and prints
+        a summary of the roster.
 
         Returns:
-            The Elite 2 operators, as saved.
+            The roster, as saved.
 
         Raises:
             ValueError: If no account email is set.
@@ -79,13 +94,14 @@ class RosterProcessor:
         raw_data_file = self.storage.save_raw_data(raw_data)
         logger.info('Saved raw account data to %s', raw_data_file)
 
-        # Only Elite 2 operators are kept, since those are the ones the stats
-        # and matchups steps compare.
-        elite2_ops = filter_operators(operator_df=operators, min_phase=ELITE_2_PHASE, max_phase=ELITE_2_PHASE)
-        elite2_file = self.storage.save_elite2_operators(elite2_ops)
-        logger.info('Saved %d Elite 2 operators to %s', len(elite2_ops), elite2_file)
-        print(elite2_ops.to_string(index=False))
-        return elite2_ops
+        # Every operator is saved; the steps that only want some of them
+        # (e.g. matchups uses Elite 2) filter for themselves.
+        roster_file, roster_view_file = self.storage.save_roster(operators)
+        logger.info('Saved %d operators to %s and %s', len(operators), roster_file, roster_view_file)
+        # A summary instead of the whole table, since a full roster can be
+        # hundreds of rows; the full list is in the io/ copy.
+        print(f'Roster: {summarize_roster(operators)}')
+        return operators
 
 
 def check_roster_age(storage, max_age: timedelta, now: datetime | None = None) -> timedelta | None:

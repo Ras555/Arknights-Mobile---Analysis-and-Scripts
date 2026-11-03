@@ -29,7 +29,8 @@ def test_accepts_string_paths(tmp_path):
 
 def test_file_locations(storage, tmp_path):
     assert storage.raw_data_file == tmp_path / 'ref' / 'raw_data.json'
-    assert storage.elite2_operators_file == tmp_path / 'ref' / 'elite2_operators.csv'
+    assert storage.roster_file == tmp_path / 'ref' / 'roster.csv'
+    assert storage.roster_view_file == tmp_path / 'io' / 'roster.csv'
     assert storage.operator_stats_file == tmp_path / 'ref' / 'operator_stats_output.csv'
     assert storage.operator_stats_view_file == tmp_path / 'io' / 'operator_stats_output.csv'
     assert storage.stage_enemy_stats_file('main_06-09') == tmp_path / 'io' / 'stage_main_06-09_enemy_stats.csv'
@@ -42,11 +43,19 @@ def test_save_raw_data_writes_4_space_json_and_overwrites(storage):
     assert storage.raw_data_file.read_text() == json.dumps({'user': {'id': 1}}, indent=4)
 
 
-def test_elite2_operators_round_trip_without_index(storage):
-    df = pd.DataFrame({'id': ['char_a'], 'potential': [1], 'level': [40], 'phase': [2], 'trust': [100.0], 'skill_level': [7]})
-    assert storage.save_elite2_operators(df) == storage.elite2_operators_file
-    assert storage.elite2_operators_file.read_text().splitlines()[0] == 'id,potential,level,phase,trust,skill_level'
-    pd.testing.assert_frame_equal(storage.load_elite2_operators(), df, check_dtype=False)
+def test_roster_round_trip_without_index(storage):
+    df = pd.DataFrame({'id': ['char_a', 'char_b'], 'potential': [1, 0], 'level': [40, 1], 'phase': [2, 0],
+                       'trust': [100.0, 0.0], 'skill_level': [7, 1]})
+    assert storage.save_roster(df) == [storage.roster_file, storage.roster_view_file]
+    assert storage.roster_file.read_text().splitlines()[0] == 'id,potential,level,phase,trust,skill_level'
+    pd.testing.assert_frame_equal(storage.load_roster(), df, check_dtype=False)
+
+
+def test_save_roster_writes_same_roster_to_ref_and_io_and_overwrites(storage):
+    storage.save_roster(pd.DataFrame({'id': ['old']}))
+    storage.save_roster(pd.DataFrame({'id': ['a', 'b']}))
+    for path in (storage.roster_file, storage.roster_view_file):
+        assert path.read_text().splitlines() == ['id', 'a', 'b']
 
 
 def test_save_operator_stats_writes_ref_and_io_and_overwrites(storage):
@@ -97,17 +106,17 @@ def test_saving_creates_missing_parent_folders(tmp_path):
 
 # roster info
 
-def test_save_elite2_operators_records_when_and_how_many(storage):
+def test_save_roster_records_when_and_how_many(storage):
     df = pd.DataFrame({'id': ['a', 'b']})
-    storage.save_elite2_operators(df, saved_at=datetime(2026, 10, 24, 9, 30))
+    storage.save_roster(df, saved_at=datetime(2026, 10, 24, 9, 30))
     assert storage.roster_info_file == storage.ref_dir / 'roster_info.json'
     assert json.loads(storage.roster_info_file.read_text()) == {'saved_at': '2026-10-24T09:30:00', 'operator_count': 2}
     assert storage.roster_saved_at() == datetime(2026, 10, 24, 9, 30)
 
 
-def test_save_elite2_operators_defaults_to_now(storage):
+def test_save_roster_defaults_to_now(storage):
     before = datetime.now()
-    storage.save_elite2_operators(pd.DataFrame({'id': ['a']}))
+    storage.save_roster(pd.DataFrame({'id': ['a']}))
     assert before <= storage.roster_saved_at() <= datetime.now()
 
 
@@ -116,16 +125,16 @@ def test_roster_saved_at_is_none_without_a_roster(storage):
 
 
 def test_roster_saved_at_falls_back_to_roster_file_time(storage):
-    storage.elite2_operators_file.parent.mkdir(parents=True)
-    storage.elite2_operators_file.write_text('id\na\n')
-    os.utime(storage.elite2_operators_file, (1793000000, 1793000000))
+    storage.roster_file.parent.mkdir(parents=True)
+    storage.roster_file.write_text('id\na\n')
+    os.utime(storage.roster_file, (1793000000, 1793000000))
     assert storage.roster_saved_at() == datetime.fromtimestamp(1793000000)
 
 
 @pytest.mark.parametrize('content', ['not json', '{}', '{"saved_at": "bad date"}', '[]'])
 def test_unreadable_roster_info_falls_back_to_roster_file_time(storage, caplog, content):
-    storage.save_elite2_operators(pd.DataFrame({'id': ['a']}))
-    os.utime(storage.elite2_operators_file, (1793000000, 1793000000))
+    storage.save_roster(pd.DataFrame({'id': ['a']}))
+    os.utime(storage.roster_file, (1793000000, 1793000000))
     storage.roster_info_file.write_text(content)
     with caplog.at_level(logging.WARNING):
         assert storage.roster_saved_at() == datetime.fromtimestamp(1793000000)
