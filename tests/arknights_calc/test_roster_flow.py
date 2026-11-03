@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from arknights_calc.flows.roster import RosterProcessor, check_roster_age
+from arknights_calc.flows.roster import RosterProcessor, check_roster_age, summarize_roster
 from arknights_calc.storage import Storage
 
 
@@ -52,21 +52,23 @@ def _make_processor(tmp_path, client, email='me@example.com'):
     return processor, logins
 
 
-def test_run_saves_raw_data_and_elite2_roster(tmp_path, capsys):
-    client = FakeArkClient({'1': _char('char_a', 2, 40), '2': _char('char_b', 1), '3': _char('char_c', 2)}, {'user': {'id': 1}})
+def test_run_saves_raw_data_and_full_roster(tmp_path, capsys):
+    client = FakeArkClient({'1': _char('char_a', 2, 40), '2': _char('char_b', 1), '3': _char('char_c', 0)}, {'user': {'id': 1}})
     processor, logins = _make_processor(tmp_path, client)
 
     result = asyncio.run(processor.run())
 
     assert logins == ['me@example.com']
     assert client.network.closed
-    assert result['id'].tolist() == ['char_a', 'char_c']
+    assert result['id'].tolist() == ['char_a', 'char_b', 'char_c']
     with open(tmp_path / 'ref' / 'raw_data.json') as f:
         assert json.load(f) == {'user': {'id': 1}}
-    saved = pd.read_csv(tmp_path / 'ref' / 'elite2_operators.csv')
-    assert saved['id'].tolist() == ['char_a', 'char_c']
-    assert list(saved.columns) == ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
-    assert 'char_a' in capsys.readouterr().out
+    for roster_file in (tmp_path / 'ref' / 'roster.csv', tmp_path / 'io' / 'roster.csv'):
+        saved = pd.read_csv(roster_file)
+        assert saved['id'].tolist() == ['char_a', 'char_b', 'char_c']
+        assert saved['phase'].tolist() == [2, 1, 0]
+        assert list(saved.columns) == ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
+    assert capsys.readouterr().out == 'Roster: 3 operators (Elite 0: 1, Elite 1: 1, Elite 2: 1)\n'
 
 
 def test_run_closes_network_on_error(tmp_path):
@@ -86,10 +88,10 @@ def test_run_without_email_raises(tmp_path, email):
     assert logins == []
 
 
-def test_run_keeps_only_phase_2_operators(tmp_path):
-    client = FakeArkClient({'1': _char('char_a', 2), '2': _char('char_b', 3), '3': _char('char_c', 1)}, {})
+def test_run_keeps_operators_at_every_phase(tmp_path):
+    client = FakeArkClient({'1': _char('char_a', 2), '2': _char('char_b', 0), '3': _char('char_c', 1)}, {})
     processor, _ = _make_processor(tmp_path, client)
-    assert asyncio.run(processor.run())['id'].tolist() == ['char_a']
+    assert asyncio.run(processor.run())['id'].tolist() == ['char_a', 'char_b', 'char_c']
 
 
 def test_run_twice_overwrites_existing_files(tmp_path):
@@ -99,7 +101,8 @@ def test_run_twice_overwrites_existing_files(tmp_path):
     asyncio.run(processor.run())
     with open(tmp_path / 'ref' / 'raw_data.json') as f:
         assert json.load(f) == {'run': 2}
-    assert pd.read_csv(tmp_path / 'ref' / 'elite2_operators.csv')['id'].tolist() == ['char_b']
+    assert pd.read_csv(tmp_path / 'ref' / 'roster.csv')['id'].tolist() == ['char_b']
+    assert pd.read_csv(tmp_path / 'io' / 'roster.csv')['id'].tolist() == ['char_b']
 
 
 def test_raw_data_saved_with_4_space_indent(tmp_path):
@@ -108,29 +111,43 @@ def test_raw_data_saved_with_4_space_indent(tmp_path):
     assert (tmp_path / 'ref' / 'raw_data.json').read_text() == json.dumps({'user': {'id': 1}}, indent=4)
 
 
-def test_elite2_csv_saved_without_index_column(tmp_path):
+def test_roster_csv_saved_without_index_column(tmp_path):
     processor, _ = _make_processor(tmp_path, FakeArkClient({'1': _char('char_a', 2)}, {}))
     asyncio.run(processor.run())
-    assert (tmp_path / 'ref' / 'elite2_operators.csv').read_text().splitlines()[0] == 'id,potential,level,phase,trust,skill_level'
+    assert (tmp_path / 'ref' / 'roster.csv').read_text().splitlines()[0] == 'id,potential,level,phase,trust,skill_level'
 
 
-def test_run_prints_roster_without_index(tmp_path, capsys):
-    processor, _ = _make_processor(tmp_path, FakeArkClient({'1': _char('char_a', 2)}, {}))
-    asyncio.run(processor.run())
-    lines = capsys.readouterr().out.splitlines()
-    assert lines[0].split() == ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
-    assert lines[1].split()[0] == 'char_a'
+def test_run_logs_where_the_roster_was_saved(tmp_path, caplog):
+    processor, _ = _make_processor(tmp_path, FakeArkClient({'1': _char('char_a', 2), '2': _char('char_b', 0)}, {}))
+    with caplog.at_level(logging.INFO, logger='arknights_calc.flows.roster'):
+        asyncio.run(processor.run())
+    assert f"Saved 2 operators to {tmp_path / 'ref' / 'roster.csv'} and {tmp_path / 'io' / 'roster.csv'}" in caplog.text
 
 
-def test_elite_2_phase_constant():
-    from arknights_calc.flows.roster import ELITE_2_PHASE
-    assert ELITE_2_PHASE == 2
-
-
-def test_run_with_empty_roster_saves_empty_csv_with_headers(tmp_path):
+def test_run_with_empty_roster_saves_empty_csv_with_headers(tmp_path, capsys):
     processor, _ = _make_processor(tmp_path, FakeArkClient({}, {}))
     assert asyncio.run(processor.run()).empty
-    assert (tmp_path / 'ref' / 'elite2_operators.csv').read_text().splitlines() == ['id,potential,level,phase,trust,skill_level']
+    assert (tmp_path / 'ref' / 'roster.csv').read_text().splitlines() == ['id,potential,level,phase,trust,skill_level']
+    assert capsys.readouterr().out == 'Roster: 0 operators\n'
+
+
+# summarize_roster
+
+def test_summarize_roster_counts_each_phase_in_order():
+    roster = pd.DataFrame({'id': ['a', 'b', 'c', 'd', 'e'], 'phase': [2, 0, 2, 1, 0]})
+    assert summarize_roster(roster) == '5 operators (Elite 0: 2, Elite 1: 1, Elite 2: 2)'
+
+
+def test_summarize_roster_lists_only_phases_present():
+    assert summarize_roster(pd.DataFrame({'id': ['a', 'b'], 'phase': [2, 2]})) == '2 operators (Elite 2: 2)'
+
+
+def test_summarize_roster_accepts_phases_read_back_as_text():
+    assert summarize_roster(pd.DataFrame({'id': ['a'], 'phase': ['1']})) == '1 operator (Elite 1: 1)'
+
+
+def test_summarize_empty_roster():
+    assert summarize_roster(pd.DataFrame(columns=['id', 'phase'])) == '0 operators'
 
 
 # check_roster_age

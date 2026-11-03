@@ -311,9 +311,30 @@ def test_sub_profession_table_only_holds_damage_types():
     ('corecaster', 'ARTS'), ('artsfghter', 'ARTS'), ('summoner', 'ARTS'), ('slower', 'ARTS'),
     ('physician', 'HEAL'), ('ringhealer', 'HEAL'), ('bard', 'HEAL'),
     ('lord', 'PHYSICAL'), ('guardian', 'PHYSICAL'), ('aoesniper', 'PHYSICAL'), ('stalker', 'PHYSICAL'),
+    # Archetypes added 2026-11-03
+    ('blessing', 'ARTS'), ('incantationmedic', 'ARTS'), ('primcaster', 'ARTS'), ('soulcaster', 'ARTS'),
+    ('watchman', 'HEAL'),
+    ('alchemist', 'PHYSICAL'), ('counsellor', 'PHYSICAL'), ('craftsman', 'PHYSICAL'), ('crusher', 'PHYSICAL'),
+    ('dollkeeper', 'PHYSICAL'), ('geek', 'PHYSICAL'), ('hammer', 'PHYSICAL'), ('mercenary', 'PHYSICAL'),
+    ('merchant', 'PHYSICAL'), ('primguard', 'PHYSICAL'), ('primprotector', 'PHYSICAL'), ('shotprotector', 'PHYSICAL'),
+    ('skybreaker', 'PHYSICAL'), ('skywalker', 'PHYSICAL'), ('traper', 'PHYSICAL'),
 ])
 def test_sub_profession_table_entries(sub_profession, expected):
     assert SUB_PROFESSION_DAMAGE_TYPES[sub_profession] == expected
+
+
+def test_sub_profession_table_has_every_archetype_in_the_game_data():
+    # The 71 archetypes in the HellaAPI operator data on 2026-11-03.
+    assert len(SUB_PROFESSION_DAMAGE_TYPES) == 71
+
+
+def test_incantation_medic_listed_as_arts_although_its_trait_would_guess_heal(caplog):
+    data = {'subProfessionId': 'incantationmedic', 'profession': 'MEDIC',
+            'description': 'Attacks deal <@ba.kw>Arts</> damage and heal the HP of an ally within Attack Range'}
+    with caplog.at_level(logging.WARNING):
+        assert determine_damage_type(data, 2) == DamageType.ARTS
+    assert caplog.records == []
+    assert determine_damage_type({**data, 'subProfessionId': 'notlisted'}, 2) == DamageType.HEAL
 
 
 def test_sub_profession_takes_priority_over_description(caplog):

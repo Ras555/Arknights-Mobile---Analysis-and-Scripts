@@ -3,7 +3,14 @@ import logging
 import pandas as pd
 import pytest
 
-from arknights_calc.flows.matchups import StageMatchupProcessor, choose_stage_variant, print_matchup_tables
+from arkdata.calculations.matchups import REQUIRED_OPERATOR_COLUMNS
+from arknights_calc.flows.matchups import (
+    ELITE_2_PHASE,
+    MATCHUP_OPERATOR_COLUMNS,
+    StageMatchupProcessor,
+    choose_stage_variant,
+    print_matchup_tables,
+)
 from arknights_calc.storage import Storage
 from factories import make_enemy_data, make_enemy_stats, operator_stats_row
 
@@ -57,12 +64,14 @@ def _stats_file(tmp_path):
     return tmp_path / 'ref' / 'operator_stats_output.csv'
 
 
-def _write_operator_stats(tmp_path, include_damage_type=True):
-    row = operator_stats_row(phase=2, profession='GUARD')
-    if not include_damage_type:
-        row.pop('damage_type')
+def _write_operator_stats(tmp_path, include_damage_type=True, rows=None):
+    if rows is None:
+        rows = [operator_stats_row(phase=2, profession='GUARD')]
+    for row in rows:
+        if not include_damage_type:
+            row.pop('damage_type')
     _stats_file(tmp_path).parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame([row]).to_csv(_stats_file(tmp_path), index=False)
+    pd.DataFrame(rows).to_csv(_stats_file(tmp_path), index=False)
 
 
 def _stage(enemy_refs, stage_id='main_06-09'):
@@ -123,6 +132,48 @@ def test_processor_requires_damage_type_column(tmp_path, caplog):
         assert processor.run('main_06-09') is None
     assert fetched == []
     assert "missing columns ['damage_type']" in caplog.text
+
+
+def test_processor_compares_only_elite_2_operators(tmp_path, caplog):
+    _write_operator_stats(tmp_path, rows=[
+        operator_stats_row(operator_id='char_e0', name='Zero', phase=0),
+        operator_stats_row(operator_id='char_e2', name='Two', phase=2),
+        operator_stats_row(operator_id='char_e1', name='One', phase=1),
+    ])
+    processor, _ = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
+    with caplog.at_level(logging.INFO, logger='arknights_calc.flows.matchups'):
+        _, matchups = processor.run('main_06-09')
+    assert matchups['operator_id'].tolist() == ['char_e2']
+    assert 'Comparing 1 Elite 2 operators' in caplog.text
+
+
+def test_processor_without_elite_2_operators_warns_before_asking_for_a_stage(tmp_path, caplog):
+    _write_operator_stats(tmp_path, rows=[operator_stats_row(phase=0), operator_stats_row(operator_id='char_b', phase=1)])
+    processor, fetched = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
+    with caplog.at_level(logging.WARNING):
+        assert processor.run() is None
+    assert processor.input_func.prompts == []
+    assert fetched == []
+    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [(
+        logging.WARNING,
+        f'No Elite 2 operators in {_stats_file(tmp_path)}. Matchups only compare Elite 2 operators.',
+    )]
+    assert not (tmp_path / 'io').exists()
+
+
+def test_processor_requires_phase_column(tmp_path, caplog):
+    row = operator_stats_row()
+    _write_operator_stats(tmp_path, rows=[row])
+    processor, fetched = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
+    with caplog.at_level(logging.ERROR):
+        assert processor.run('main_06-09') is None
+    assert fetched == []
+    assert "missing columns ['phase']" in caplog.text
+
+
+def test_matchup_operator_columns_add_phase_to_calculation_columns():
+    assert ELITE_2_PHASE == 2
+    assert [*REQUIRED_OPERATOR_COLUMNS, 'phase'] == MATCHUP_OPERATOR_COLUMNS
 
 
 def test_processor_no_enemies_returns_none(tmp_path, caplog):
@@ -228,7 +279,7 @@ def test_processor_lists_every_missing_column(tmp_path, caplog):
     with caplog.at_level(logging.ERROR):
         assert processor.run('main_06-09') is None
     assert fetched == []
-    assert "missing columns ['damage_type', 'attack_interval', 'def', 'magicResistance', 'maxHp']" in caplog.text
+    assert "missing columns ['damage_type', 'attack_interval', 'def', 'magicResistance', 'maxHp', 'phase']" in caplog.text
 
 
 def test_processor_without_operator_stats_logs_error(tmp_path, caplog):

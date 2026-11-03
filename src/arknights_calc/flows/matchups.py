@@ -3,13 +3,13 @@
 File: matchups.py
 Description: Implements the matchups step: retrieve the stats of each
     enemy in a stage from the HellaAPI and compare them against the saved
-    operator stats to calculate the damage per second each operator deals
+    stats of the Elite 2 operators to calculate the damage per second each operator deals
     to each enemy, and vice versa.
 Created: 2026-09-30
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -22,10 +22,19 @@ import pandas as pd
 from arkdata.calculations.enemy_stats import EnemyStats
 from arkdata.calculations.matchups import REQUIRED_OPERATOR_COLUMNS, calculate_matchups
 from arkdata.calculations.stage import load_stage_enemies
+from arkdata.sources.account import filter_operators
 from arkdata.sources.hella_api import fetch_enemy_data, fetch_stage_data
 from arknights_calc.storage import MissingColumnsError
 
 logger = logging.getLogger(__name__)
+
+# Constants
+
+# Only Elite 2 operators are compared, so the matchup tables stay a readable size.
+ELITE_2_PHASE = 2
+# The operator stats columns this step needs: the ones calculate_matchups
+# reads, plus the phase used to keep only Elite 2 operators.
+MATCHUP_OPERATOR_COLUMNS = [*REQUIRED_OPERATOR_COLUMNS, 'phase']
 
 
 def choose_stage_variant(stage_id: str, variants: list, input_func=input) -> dict:
@@ -85,7 +94,7 @@ class StageMatchupProcessor:
     '''
     Calculates operator vs. enemy matchups for one stage (CLAUDE.md Program
     Flow, matchups step) and saves the enemy stats and matchups through
-    storage.
+    storage. Only Elite 2 operators are compared.
 
     fetch_stage and fetch_enemy take a stage or enemy id and return its
     HellaAPI data. make_enemy takes (enemy_id, level, overwritten_data) and
@@ -133,13 +142,22 @@ class StageMatchupProcessor:
         # The stats step's output is needed first. Stop with a hint if it's
         # missing or was saved by an older version without every column.
         try:
-            operators = self.storage.load_operator_stats(REQUIRED_OPERATOR_COLUMNS)
+            operators = self.storage.load_operator_stats(MATCHUP_OPERATOR_COLUMNS)
         except FileNotFoundError:
             logger.error('No operator stats found at %s. Run `arknights-calc stats` first.', self.storage.operator_stats_file)
             return None
         except MissingColumnsError as exc:
             logger.error('%s is missing columns %s. Rerun the stats step first.', exc.file_path, exc.missing_columns)
             return None
+
+        # Checked before asking for a stage, so there's nothing to answer if
+        # there are no operators to compare.
+        operators = filter_operators(operators, min_phase=ELITE_2_PHASE, max_phase=ELITE_2_PHASE)
+        if operators.empty:
+            logger.warning('No Elite 2 operators in %s. Matchups only compare Elite 2 operators.',
+                           self.storage.operator_stats_file)
+            return None
+        logger.info('Comparing %d Elite 2 operators', len(operators))
 
         if not stage_id:
             stage_id = self.input_func("Enter a stage id (e.g. main_01-07): ").strip()

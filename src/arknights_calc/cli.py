@@ -8,7 +8,7 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -61,8 +61,8 @@ def parse_args(argv=None):
     '''
     parser = argparse.ArgumentParser(prog='arknights-calc', description='Arknights damage and stat calculations.')
     parser.add_argument('step', choices=STEPS,
-                        help='roster: download your Elite 2 roster. stats: calculate operator stats. '
-                             'matchups: compare operators against a stage\'s enemies. all: run every step in order.')
+                        help='roster: download your full roster. stats: calculate every operator\'s stats. '
+                             'matchups: compare your Elite 2 operators against a stage\'s enemies. all: run every step in order.')
     parser.add_argument('--refresh', action='store_true',
                         help='Download all HellaAPI data again instead of only what changed (e.g. after a game update).')
     parser.add_argument('--stage', default=None,
