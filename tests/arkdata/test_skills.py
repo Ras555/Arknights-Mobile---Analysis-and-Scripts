@@ -1,7 +1,7 @@
 import pytest
 
 from arkdata.calculations.attack_targets import Targets
-from arkdata.calculations.blackboard import Target
+from arkdata.calculations.blackboard import BlackboardValue, Target
 from arkdata.calculations.damage import DamageType
 from arkdata.calculations.skill_rotation import SkillTrigger
 from arkdata.calculations.skills import (
@@ -10,7 +10,11 @@ from arkdata.calculations.skills import (
     DamagePart,
     SkillStatus,
     SkillType,
+    StatEffects,
     StatModifiers,
+    apply_stat_value,
+    apply_stat_values,
+    is_stat_value,
     level_index,
     parse_skill,
     unlocked_skills,
@@ -240,6 +244,49 @@ def test_stat_modifiers_add_and_report_empty():
     assert total == StatModifiers(atk_percent=0.75, attack_speed=10, block=1)
     assert StatModifiers().is_empty()
     assert not total.is_empty()
+
+
+# apply_stat_value(s): shared with talents
+
+def _value(key, value, is_percent=None, target=Target.SELF):
+    return BlackboardValue(key, key, value, is_percent, target)
+
+
+@pytest.mark.parametrize('key, expected', [
+    ('atk', True), ('magic_resistance', True), ('attack_speed', True), ('block_cnt', True),
+    ('atk_scale', False), ('stun', False),
+])
+def test_is_stat_value(key, expected):
+    assert is_stat_value(_value(key, 1)) == expected
+
+
+def test_apply_stat_values_combines_and_skips_other_values():
+    effects = apply_stat_values([
+        _value('atk', 0.1, True), _value('atk', 20, False), _value('attack_speed', 8), _value('atk_scale', 1.5),
+        _value('def', -0.2, True, Target.ENEMY), _value('max_hp', 0.1, True, Target.ALLY),
+    ])
+    assert effects.modifiers == StatModifiers(atk_percent=0.1, atk_flat=20, attack_speed=8)
+    assert [value.key for value in effects.enemy_effects] == ['def']
+    assert effects.notes == ['buffs allies: max_hp +0.1']
+    assert effects.assumed == []
+
+
+def test_apply_stat_values_scales_own_values_only():
+    effects = apply_stat_values([_value('attack_speed', 2), _value('def', 0.05), _value('atk', -0.2, True, Target.ENEMY)],
+                                scale=2.5)
+    assert effects.modifiers == StatModifiers(attack_speed=5, def_percent=0.125)
+    assert effects.enemy_effects[0].value == -0.2
+    assert effects.assumed == ['def +0.05 assumed to be a percentage']
+
+
+def test_apply_stat_values_of_nothing():
+    assert apply_stat_values([]) == StatEffects()
+
+
+def test_apply_stat_value_adds_to_any_collector():
+    skill = _parse(make_skill_level('ATK +{atk:0%}', {'atk': 0.5}))
+    apply_stat_value(skill, _value('atk', 0.25, True))
+    assert skill.modifiers.atk_percent == 0.75
 
 
 # parse_skill: notes and unmodelled values

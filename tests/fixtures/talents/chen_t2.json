@@ -1,0 +1,55 @@
+{
+ "source": "HellaAPI operator char_010_chen (Ch'en), talent 2, retrieved 2026-11-04",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Blade Art",
+    "description": "ATK +5%; DEF +5%; Physical Dodge +10%",
+    "blackboard": [
+     {
+      "key": "atk",
+      "value": 0.05
+     },
+     {
+      "key": "def",
+      "value": 0.05
+     },
+     {
+      "key": "prob",
+      "value": 0.1
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Blade Art",
+    "description": "ATK +6% <@ba.talpu>(+1%)</>; DEF +6% <@ba.talpu>(+1%)</>; Physical Dodge +13% <@ba.talpu>(+3%)</>",
+    "blackboard": [
+     {
+      "key": "atk",
+      "value": 0.06
+     },
+     {
+      "key": "def",
+      "value": 0.06
+     },
+     {
+      "key": "prob",
+      "value": 0.13
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

@@ -187,9 +187,10 @@ The important pieces of the expected format are as follows:
                                 "phase": _requiredPhase_,
                                 "level": _requiredLevel_
                             },
-                            "requiredPotentialRank": _requiredPotential_,
+                            "requiredPotentialRank": _requiredPotential_, # 0-5, compared with the roster's potential (from 0)
                             "name": _talentName_,
-                            "description": _talentDescription_,
+                            "description": _talentDescription_, # numbers already filled in, unlike skill templates
+                            "isHideTalent": _isHidden_,
                             "blackboard":
                             [
                                 ...{
@@ -563,6 +564,46 @@ the HellaAPI data) divided by the number of attackers. The main average DPS uses
 details also show the rotation with a full block (block count attackers). Max DPS doesn't depend on this, since it's
 the DPS while the skill is active.
 
+### Talents
+
+Talents are read by src/arkdata/calculations/talents.py, reusing apply_stat_value from skills.py for stat values.
+- The version used is the last candidate whose phase and level the operator has reached and whose requiredPotentialRank
+is at most its potential. Hidden talents (isHideTalent) and ones without a description are skipped.
+- Talent descriptions have their numbers filled in, so each value is found by its number ("8%" for 0.08, "15" for 15,
+"115%" or "15%" for a 1.15 multiplier), and the clause around it decides who it affects (words after the last comma
+before it: enemies, allies, or the unit itself; a value followed by Fragile/Fragility is on enemies) and its group.
+Prefixes (attack@, talent@) and variants (skadi2_t_2[atk][1].atk) are dropped from value names; a second copy of a
+value with a different number is ignored and recorded as an assumption. Stat and damage values that aren't in the
+description aren't plain bonuses (e.g. an "atk" of 1), so they're listed as unmodelled instead of applied.
+- Groups (TalentGroup), checked in this order on each clause holding one of the talent's own effects (or its effects on
+enemies when it has none; the least likely group wins): PER_ENEMY (aerial/enemy drones, unblocked, blocked, elite/leader/boss,
+enemy HP ("enemies with 80% or more HP"), weight, or an enemy type such as "[Infected Creatures]", "Sarkaz enemies" or
+"to Machine enemies", kept as the talent's condition), UNLIKELY (depends on allies, operator counts, tiles or the team),
+LIKELY (after deployment, while the skill is active, HP thresholds, when
+attacking/dealing damage, per attack, per kill, per Slow inflicted, every N seconds deployed...), and ALWAYS (no
+condition words). Wording that no rule recognises, and effects picked at random, are UNLIKELY and flagged for review. ALWAYS and LIKELY talents are
+applied to the operator's figures; PER_ENEMY ones only in matchups against enemies that fit; UNLIKELY ones not at all.
+Every talent's effects are still worked out, whatever its group.
+- Factor (what each value is multiplied by): a chance (prob, or the first of prob1, prob2...) of the talent's own
+effect is its expected value (a 20% chance to deal 160% is a 1.12 multiplier). It only scales the effects in the part of
+the clause (between commas) that mentions the chance ("ASPD +6, 15% chance to increase ATK to 150%" keeps the full ASPD),
+or every effect when only the clause as a whole does. A dodge chance, or a chance of something not modelled, is a note. Stacking
+effects use the average number of stacks over a window (one skill rotation) when they stack per attack, every N
+attacks, or every N seconds; when the rate isn't known (per kill, per Slow) they assume half the maximum stacks
+(UNKNOWN_STACK_FRACTION), flagged as assumed.
+- damage_scale and atk_scale on the unit's attacks become damage_multiplier (1 + (m - 1) × factor). On enemies (Fragile,
+Arts Fragility) they're enemy_effects, as are DEF/RES penetration values. atk_scale not on attacks (e.g. damage when
+deploying), multipliers below 1 (e.g. "at least 33% of ATK") and splash-only multipliers are listed as unmodelled.
+- Talent.status is full, partial or none, as for skills.
+
+#### Talent Override File
+
+src/arkdata/data/talent_conditions.csv (columns operator_id, talent, group, factor, note) overrides the automatic group
+of a talent, and optionally its factor, when the wording rules get it wrong. talent is the talent's number from 1, group
+a TalentGroup name (case doesn't matter), and an empty factor keeps the calculated one. The file ships with the package
+(package-data in pyproject.toml) and is read once with importlib.resources by load_talent_overrides(); an unknown group
+raises a ValueError. Overridden talents are marked overridden and get an "overridden" note (with the row's note).
+
 
 ## Project Structure
 
@@ -579,8 +620,10 @@ files, or its command line, and must never import from arknights_calc (tests/ark
 checks this).
 - calculations/: damage.py (DamageType, damage formulas), operator_stats.py, enemy_stats.py, trust.py, stage.py (enemies
 and spawn counts in a stage), matchups.py (operator vs. enemy DPS and kill times), and for skills (see Calculations):
-blackboard.py (a skill's named values and readable text), skills.py (Skill, StatModifiers, DamagePart),
-skill_rotation.py (SkillRotation) and attack_targets.py (Targets).
+blackboard.py (a skill's named values and readable text), skills.py (Skill, StatModifiers, DamagePart, and
+apply_stat_value(s), shared with talents), skill_rotation.py (SkillRotation), attack_targets.py (Targets) and talents.py
+(Talent, TalentGroup, the talent override file).
+- data/: data files that ship with the package: talent_conditions.csv (see Talent Override File).
 - sources/: hella_api.py (HellaAPIClient: the HellaAPI client, with timeouts and retries), hella_cache.py (HellaCache:
 the disk cache in front of the client, see Program Flow) and account.py (arkprts login and roster retrieval).
 
@@ -622,8 +665,9 @@ The io folder is gitignored, since its files are regenerated on every run.
 
 The tests folder stores the pytest suite, split into tests/arkdata and tests/arknights_calc to mirror the packages. The
 tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
-tests/fixtures/skills holds trimmed real HellaAPI skill data (each file names its source) for tests that check the
-parsing of real skills, loaded with load_skill_fixture.
+tests/fixtures/skills and tests/fixtures/talents hold trimmed real HellaAPI skill and talent data (each file names its
+source) for tests that check the parsing of real skills and talents, loaded with load_skill_fixture and
+load_talent_fixture.
 
 ### Other
 

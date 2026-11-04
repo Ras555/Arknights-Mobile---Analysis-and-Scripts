@@ -16,8 +16,10 @@ Last Modified by: Claude
 # Imports
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
+from typing import Protocol
 
 from arkdata.calculations.attack_targets import Targets, skill_targets
 from arkdata.calculations.blackboard import (
@@ -395,10 +397,8 @@ def parse_skill(
         skill.duration = 0
 
     for value in values.values():
-        if value.key in STAT_KEYS:
-            _apply_stat(skill, value)
-        elif value.key in ATTACK_KEYS:
-            _apply_attack_value(skill, value)
+        if is_stat_value(value):
+            apply_stat_value(skill, value)
         elif value.key in NOTE_KEYS:
             skill.notes.append(NOTE_KEYS[value.key].format(value=value.value))
         elif value.key not in DAMAGE_KEYS:
@@ -492,46 +492,82 @@ def _clause_of(text: str, raw_key: str) -> str:
     return ''
 
 
-def _apply_stat(skill: Skill, value: BlackboardValue) -> None:
+class StatEffectTarget(Protocol):
     '''
-    Adds a STAT_KEYS value to the skill's own modifiers, or records it as an
+    Anything that collects stat effects: a Skill, a Talent, or StatEffects.
+    '''
+    modifiers: StatModifiers
+    enemy_effects: list[BlackboardValue]
+    notes: list[str]
+    assumed: list[str]
+
+
+@dataclass
+class StatEffects:
+    '''
+    The stat effects of a set of values: changes to the unit's own stats,
+    effects on enemies, notes (e.g. ally buffs) and assumptions made.
+    '''
+    modifiers: StatModifiers = field(default_factory=StatModifiers)
+    enemy_effects: list[BlackboardValue] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    assumed: list[str] = field(default_factory=list)
+
+
+def is_stat_value(value: BlackboardValue) -> bool:
+    '''
+    Whether a value is one apply_stat_value handles (STAT_KEYS or ATTACK_KEYS).
+    '''
+    return value.key in STAT_KEYS or value.key in ATTACK_KEYS
+
+
+def apply_stat_value(effects: StatEffectTarget, value: BlackboardValue, scale: float = 1.0) -> None:
+    '''
+    Adds one stat value to effects: to the unit's own modifiers, or as an
     enemy effect or an ally buff.
 
-    Args:
-        skill: The skill being built (changed in place).
-        value: An atk, def, max_hp or magic_resistance value.
-    '''
-    if value.target == Target.ENEMY:
-        skill.enemy_effects.append(value)
-        return
-    if value.target == Target.ALLY:
-        skill.notes.append(f'buffs allies: {value.raw_key} {value.value:+g}')
-        return
-    is_percent, assumed = _percent(value)
-    if assumed:
-        skill.assumed.append(f'{value.raw_key} {value.value:+g} assumed to be {"a percentage" if is_percent else "flat"}')
-    percent_field, flat_field = STAT_KEYS[value.key]
-    name = percent_field if is_percent else flat_field
-    setattr(skill.modifiers, name, getattr(skill.modifiers, name) + value.value)
-
-
-def _apply_attack_value(skill: Skill, value: BlackboardValue) -> None:
-    '''
-    Adds an ATTACK_KEYS value (ASPD, attack interval, block) to the skill's
-    own modifiers, or records it as an enemy effect or an ally buff.
-
-    These values are almost always the unit's own, so values not shown in
-    the description are applied too.
+    STAT_KEYS values (atk, def, max_hp, magic_resistance) are percentages or
+    flat amounts by their template (or by size, recorded as an assumption,
+    when they aren't in the text). ATTACK_KEYS values (ASPD, attack
+    interval, block) are almost always the unit's own, so values not shown
+    in the description are applied too.
 
     Args:
-        skill: The skill being built (changed in place).
-        value: An attack_speed, base_attack_time or block_cnt value.
+        effects: Where to record the effect (changed in place).
+        value: A STAT_KEYS or ATTACK_KEYS value.
+        scale: What to multiply the value by before applying it (e.g. a
+            talent's chance or average stacks); 1 for skills.
     '''
     if value.target == Target.ENEMY:
-        skill.enemy_effects.append(value)
+        effects.enemy_effects.append(value)
         return
     if value.target == Target.ALLY:
-        skill.notes.append(f'buffs allies: {value.raw_key} {value.value:+g}')
+        effects.notes.append(f'buffs allies: {value.raw_key} {value.value:+g}')
         return
-    name = ATTACK_KEYS[value.key]
-    setattr(skill.modifiers, name, getattr(skill.modifiers, name) + value.value)
+    if value.key in ATTACK_KEYS:
+        name = ATTACK_KEYS[value.key]
+    else:
+        is_percent, assumed = _percent(value)
+        if assumed:
+            effects.assumed.append(f'{value.raw_key} {value.value:+g} assumed to be {"a percentage" if is_percent else "flat"}')
+        percent_field, flat_field = STAT_KEYS[value.key]
+        name = percent_field if is_percent else flat_field
+    setattr(effects.modifiers, name, getattr(effects.modifiers, name) + value.value * scale)
+
+
+def apply_stat_values(values: Iterable[BlackboardValue], scale: float = 1.0) -> StatEffects:
+    '''
+    Returns the stat effects of every stat value in values.
+
+    Args:
+        values: BlackboardValues; ones that aren't stat values are skipped.
+        scale: What to multiply each value by (see apply_stat_value).
+
+    Returns:
+        The combined StatEffects.
+    '''
+    effects = StatEffects()
+    for value in values:
+        if is_stat_value(value):
+            apply_stat_value(effects, value, scale)
+    return effects

@@ -1,0 +1,71 @@
+{
+ "source": "HellaAPI operator char_363_toddi (Toddifons), talent 1, retrieved 2026-11-04",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Fiery Instinct",
+    "description": "When attacking Sarkaz enemies, increase ATK to 130%",
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.3
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Fiery Instinct",
+    "description": "When attacking Sarkaz enemies, increase ATK to 135% <@ba.talpu>(+5%)</>",
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.35
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Fiery Instinct",
+    "description": "When attacking Sarkaz enemies, increase ATK to 145%",
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.45
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Fiery Instinct",
+    "description": "When attacking Sarkaz enemies, increase ATK to 150% <@ba.talpu>(+5%)</>",
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.5
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

@@ -1,0 +1,47 @@
+{
+ "source": "HellaAPI operator char_1047_halo2 (Astgenne the Lightchaser), talent 1, retrieved 2026-11-04",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Data Modeling",
+    "description": "When inflicting <$ba.sluggish>Slow</> on an enemy, +1 ASPD, stacking up to 12 times",
+    "blackboard": [
+     {
+      "key": "attack_speed",
+      "value": 1
+     },
+     {
+      "key": "max_stack_cnt",
+      "value": 12
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Data Modeling",
+    "description": "When inflicting <$ba.sluggish>Slow</> on an enemy, +1 ASPD, stacking up to 18 times",
+    "blackboard": [
+     {
+      "key": "attack_speed",
+      "value": 1
+     },
+     {
+      "key": "max_stack_cnt",
+      "value": 18
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

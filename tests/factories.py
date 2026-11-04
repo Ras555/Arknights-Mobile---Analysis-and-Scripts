@@ -10,7 +10,7 @@ from pathlib import Path
 
 from arkdata.calculations.enemy_stats import EnemyStats
 
-# Trimmed real HellaAPI data (see each file's "source"), for tests that check the parsing of real skills.
+# Trimmed real HellaAPI data (see each file's "source"), for tests that check the parsing of real skills and talents.
 FIXTURES_DIR = Path(__file__).parent / 'fixtures'
 
 # Stats shared by every keyframe. Values that change between level 1 and
@@ -168,3 +168,24 @@ def make_skill_entry(*levels, skill_id='skchr_test_1'):
     single default level when none are given.
     '''
     return {'excel': {'skillId': skill_id, 'levels': list(levels) or [make_skill_level()]}}
+
+
+def load_talent_fixture(name):
+    '''
+    Returns a trimmed real talent entry ({"candidates": [...]}) from
+    tests/fixtures/talents/<name>.json, e.g. "chen_t2".
+    '''
+    return json.loads((FIXTURES_DIR / 'talents' / f'{name}.json').read_text(encoding='utf-8'))['talent']
+
+
+def make_talent_candidate(description='', blackboard=None, phase='PHASE_0', level=1, potential=0, hidden=False,
+                          name='Test Talent'):
+    '''
+    Returns one fake talent candidate (version) in the HellaAPI format.
+    blackboard is a {name: value} dict.
+    '''
+    return {
+        'unlockCondition': {'phase': phase, 'level': level}, 'requiredPotentialRank': potential, 'name': name,
+        'description': description, 'blackboard': [{'key': key, 'value': value} for key, value in (blackboard or {}).items()],
+        'isHideTalent': hidden,
+    }
