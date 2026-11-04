@@ -1,14 +1,14 @@
 #File Documentation
 '''
 File: hella_api.py
-Description: A client for retrieving Arknights operator, stage, and enemy
-    game data from the HellaAPI (https://awedtan.ca), with timeouts and
+Description: A client for retrieving Arknights operator, stage, enemy, and
+    deployable (summon and device) game data from the HellaAPI (https://awedtan.ca), with timeouts and
     retries.
 Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -104,6 +104,29 @@ def _enemy_data_from(value, enemy_id: str) -> dict:
     '''
     if not isinstance(value, dict) or "excel" not in value or "levels" not in value:
         raise HellaAPIError(f"Unexpected HellaAPI response shape for enemy '{enemy_id}'")
+    return value
+
+
+def _deployable_data_from(value, deployable_id: str) -> dict:
+    '''
+    Returns a deployable document's value, after checking it has a "data" dict.
+
+    Unlike operators, the whole value is returned rather than just "data",
+    because a deployable's skill levels are kept beside it, in "skills".
+
+    Args:
+        value: The deployable document's "value" field.
+        deployable_id: The deployable requested, for the error message.
+
+    Returns:
+        The deployable's game data: "data" (stats and phases, in the same
+        format as an operator's), "skills", and "range".
+
+    Raises:
+        HellaAPIError: If value has no "data" dict.
+    '''
+    if not isinstance(value, dict) or not isinstance(value.get("data"), dict):
+        raise HellaAPIError(f"Unexpected HellaAPI response shape for deployable '{deployable_id}'")
     return value
 
 
@@ -302,6 +325,17 @@ class HellaAPIClient:
         '''
         return _enemy_data_from(self.fetch_document("enemy", enemy_id)["value"], enemy_id)
 
+    def fetch_deployable_data(self, deployable_id: str) -> dict:
+        '''
+        Returns a deployable's (summon, trap or device) game data: "data",
+        "skills", and "range". deployable_id may be its coded id (e.g.
+        "token_10002_kalts_mon3tr") or a version of its name.
+
+        Raises:
+            HellaAPIError: If the request fails or the document is malformed.
+        '''
+        return _deployable_data_from(self.fetch_document("deployable", deployable_id)["value"], deployable_id)
+
 
 # Module-level functions: single attempts with no retries, kept for callers
 # that don't need a configured client.
@@ -344,3 +378,11 @@ def fetch_enemy_data(enemy_id: str, base_url: str = HELLA_API_BASE_URL) -> dict:
     HellaAPIClient.fetch_enemy_data.
     '''
     return _enemy_data_from(_fetch_value("enemy", enemy_id, base_url), enemy_id)
+
+
+def fetch_deployable_data(deployable_id: str, base_url: str = HELLA_API_BASE_URL) -> dict:
+    '''
+    Fetch a deployable's game data from the HellaAPI (one attempt). See
+    HellaAPIClient.fetch_deployable_data.
+    '''
+    return _deployable_data_from(_fetch_value("deployable", deployable_id, base_url), deployable_id)

@@ -13,10 +13,16 @@ def _storage(tmp_path):
     return Storage(tmp_path / 'ref', tmp_path / 'io')
 
 
-def _write_roster(tmp_path, rows):
+ROSTER_BASE_COLUMNS = ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
+
+
+def _write_roster(tmp_path, rows, with_skill_columns=True):
     roster_file = _storage(tmp_path).roster_file
     roster_file.parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows, columns=['id', 'potential', 'level', 'phase', 'trust', 'skill_level']).to_csv(roster_file, index=False)
+    df = pd.DataFrame(rows, columns=ROSTER_BASE_COLUMNS)
+    if with_skill_columns:
+        df = df.assign(skill_1_mastery=0, skill_2_mastery=None, skill_3_mastery=None, selected_skill=1)
+    df.to_csv(roster_file, index=False)
 
 
 def test_run_calculates_and_saves_to_ref_and_io(tmp_path):
@@ -110,3 +116,32 @@ def test_run_ignores_old_elite2_roster_file(tmp_path, caplog):
     with caplog.at_level(logging.ERROR):
         assert OperatorStatsProcessor(_storage(tmp_path), fetch_operator=lambda _: make_operator_data()).run() is None
     assert 'Run `arknights-calc roster` first.' in caplog.text
+
+
+def test_run_with_skill_columns_does_not_warn(tmp_path, caplog):
+    _write_roster(tmp_path, [['char_a', 0, 1, 0, 0.0, 1]])
+    with caplog.at_level(logging.WARNING, logger='arknights_calc.flows.stats'):
+        OperatorStatsProcessor(_storage(tmp_path), fetch_operator=lambda _: make_operator_data()).run()
+    assert [r for r in caplog.records if r.name == 'arknights_calc.flows.stats'] == []
+
+
+def test_run_warns_when_roster_has_no_skill_columns_and_still_calculates(tmp_path, caplog):
+    _write_roster(tmp_path, [['char_a', 0, 1, 0, 0.0, 1]], with_skill_columns=False)
+    with caplog.at_level(logging.WARNING):
+        result = OperatorStatsProcessor(_storage(tmp_path), fetch_operator=lambda _: make_operator_data()).run()
+    assert result['operator_id'].tolist() == ['char_a']
+    roster_file = tmp_path / 'ref' / 'roster.csv'
+    assert [(r.levelno, r.getMessage()) for r in caplog.records if r.name == 'arknights_calc.flows.stats'] == [(
+        logging.WARNING,
+        f'{roster_file} has no skill mastery columns (skill_1_mastery, skill_2_mastery, skill_3_mastery, selected_skill). '
+        'Run `arknights-calc roster` to add them.',
+    )]
+
+
+def test_run_lists_only_the_missing_skill_columns(tmp_path, caplog):
+    _write_roster(tmp_path, [['char_a', 0, 1, 0, 0.0, 1]], with_skill_columns=False)
+    roster_file = tmp_path / 'ref' / 'roster.csv'
+    pd.read_csv(roster_file).assign(skill_1_mastery=0, selected_skill=1).to_csv(roster_file, index=False)
+    with caplog.at_level(logging.WARNING):
+        OperatorStatsProcessor(_storage(tmp_path), fetch_operator=lambda _: make_operator_data()).run()
+    assert '(skill_2_mastery, skill_3_mastery)' in caplog.text

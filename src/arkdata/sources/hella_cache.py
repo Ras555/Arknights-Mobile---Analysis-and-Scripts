@@ -8,7 +8,7 @@ Created: 2026-11-02
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -25,6 +25,7 @@ from pathlib import Path
 from arkdata.sources.hella_api import (
     HellaAPIClient,
     HellaAPIError,
+    _deployable_data_from,
     _enemy_data_from,
     _operator_data_from,
     _stage_variants_from,
@@ -35,7 +36,8 @@ logger = logging.getLogger(__name__)
 # Constants
 
 # Collections downloaded whole on the first run and kept fully up to date.
-BULK_RESOURCES = ("operator", "enemy")
+# Deployables are summons, traps and devices (832 documents on 2026-11-03).
+BULK_RESOURCES = ("operator", "enemy", "deployable")
 # Collections cached one document at a time, as they are used.
 ON_DEMAND_RESOURCES = ("stage",)
 # Top-level fields that identify a document and its version, without its (large) value.
@@ -274,6 +276,13 @@ class HellaCache:
             return False
         return same_update and self.now() - checked_at <= self.max_age
 
+    def _has_every_bulk_collection(self) -> bool:
+        '''
+        Returns whether every collection in BULK_RESOURCES has been
+        downloaded (has an index).
+        '''
+        return all(self._index_path(resource).exists() for resource in BULK_RESOURCES)
+
     def sync(self, refresh: bool = False) -> None:
         '''
         Brings the cache up to date with the HellaAPI. With refresh, every
@@ -297,7 +306,9 @@ class HellaCache:
                 self._download_collection(resource)
             for resource in ON_DEMAND_RESOURCES:
                 self._clear_collection(resource)
-        elif self._is_up_to_date(_read_json(self._state_path()), about):
+        # A bulk collection without an index (e.g. one added to BULK_RESOURCES
+        # since the last sync) is downloaded even when nothing else changed.
+        elif self._is_up_to_date(_read_json(self._state_path()), about) and self._has_every_bulk_collection():
             logger.info("HellaAPI data unchanged since the last check (update %s); using the cache", about.get("index"))
             return
         else:
@@ -486,3 +497,9 @@ class HellaCache:
         Same as HellaAPIClient.fetch_enemy_data, using the cache.
         '''
         return _enemy_data_from(self.fetch_document("enemy", enemy_id)["value"], enemy_id)
+
+    def fetch_deployable_data(self, deployable_id: str) -> dict:
+        '''
+        Same as HellaAPIClient.fetch_deployable_data, using the cache.
+        '''
+        return _deployable_data_from(self.fetch_document("deployable", deployable_id)["value"], deployable_id)

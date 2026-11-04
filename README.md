@@ -45,8 +45,8 @@ the API reference.
 Game data from the HellaAPI is kept in `ref/cache/`, so repeat runs barely
 use the network:
 
-- The first `stats` or `matchups` run downloads every operator (~33 MB)
-  and enemy (~7 MB) once. Stages are downloaded the first time each is used.
+- The first `stats` or `matchups` run downloads every operator (~33 MB),
+  enemy (~7 MB) and deployable (summons, traps and devices) once. Stages are downloaded the first time each is used.
 - Every later run asks the HellaAPI's `/about` (a few hundred bytes) whether
   its data has changed. If not, nothing else is downloaded. If it has, only
   the operators, enemies and cached stages whose content changed are

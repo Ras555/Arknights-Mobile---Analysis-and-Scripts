@@ -20,6 +20,7 @@ import logging
 import pandas as pd
 
 from arkdata.calculations.operator_stats import OperatorStats
+from arkdata.sources.account import SKILL_COLUMNS
 from arkdata.sources.hella_api import HellaAPIError, fetch_operator_data
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,12 @@ class OperatorStatsProcessor:
             return None
         target_operators = self.storage.load_roster()
         logger.info('Calculating stats for %d operators from %s', len(target_operators), self.storage.roster_file)
+        # Rosters saved before the skill columns were added still work, but
+        # the skill calculations will need them, so suggest saving it again.
+        missing_columns = [column for column in SKILL_COLUMNS if column not in target_operators.columns]
+        if missing_columns:
+            logger.warning('%s has no skill mastery columns (%s). Run `arknights-calc roster` to add them.',
+                           self.storage.roster_file, ', '.join(missing_columns))
 
         operator_stats = []
         for _, row in target_operators.iterrows():

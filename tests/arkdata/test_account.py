@@ -10,16 +10,55 @@ from arkdata.sources.account import filter_operators, format_operator_data
 
 # format_operator_data
 
-def _char(char_id, potential=0, level=1, phase=0, favor=0, skill=1):
+# Every roster column, in order, as format_operator_data saves them.
+EXPECTED_ROSTER_COLUMNS = [
+    'id', 'potential', 'level', 'phase', 'trust', 'skill_level',
+    'skill_1_mastery', 'skill_2_mastery', 'skill_3_mastery', 'selected_skill',
+]
+
+
+def _char(char_id, potential=0, level=1, phase=0, favor=0, skill=1, masteries=(), selected=-1):
     return SimpleNamespace(char_id=char_id, potential_rank=potential, level=level, evolve_phase=phase,
-                           favor_point=favor, main_skill_lvl=skill)
+                           favor_point=favor, main_skill_lvl=skill,
+                           skills=[SimpleNamespace(specialize_level=mastery) for mastery in masteries],
+                           default_skill_index=selected)
 
 
 def test_format_operator_data():
-    df = format_operator_data({'1': _char('char_a', 2, 40, 2, 10070, 7), '2': _char('char_b')})
-    assert list(df.columns) == ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
-    assert df.iloc[0].tolist() == ['char_a', 2, 40, 2, 100, 7]
+    df = format_operator_data({'1': _char('char_a', 2, 40, 2, 10070, 7, masteries=(3, 0, 2), selected=2), '2': _char('char_b')})
+    assert list(df.columns) == EXPECTED_ROSTER_COLUMNS
+    assert df.iloc[0].tolist() == ['char_a', 2, 40, 2, 100, 7, 3, 0, 2, 3]
     assert df.iloc[1]['trust'] == 0
+
+
+def test_format_operator_data_blank_for_missing_skills():
+    df = format_operator_data({'1': _char('char_a', masteries=(1,), selected=0), '2': _char('char_b')})
+    assert df.iloc[0][account.SKILL_COLUMNS].tolist() == [1, pd.NA, pd.NA, 1]
+    assert df.iloc[1][account.SKILL_COLUMNS].isna().all()
+
+
+@pytest.mark.parametrize('selected, expected', [(-1, pd.NA), (0, 1), (1, 2), (2, pd.NA)])
+def test_selected_skill_counts_from_1_and_must_be_a_skill_the_operator_has(selected, expected):
+    df = format_operator_data({'1': _char('char_a', masteries=(0, 0), selected=selected)})
+    assert df.iloc[0]['selected_skill'] is expected or df.iloc[0]['selected_skill'] == expected
+
+
+def test_format_operator_data_without_skill_list():
+    op = _char('char_a')
+    op.skills = None
+    assert format_operator_data({'1': op}).iloc[0][account.SKILL_COLUMNS].isna().all()
+
+
+def test_skill_columns_saved_as_whole_numbers(tmp_path):
+    df = format_operator_data({'1': _char('char_a', masteries=(3, 1), selected=1)})
+    df.to_csv(tmp_path / 'roster.csv', index=False)
+    assert (tmp_path / 'roster.csv').read_text().splitlines()[1].endswith(',3,1,,2')
+
+
+def test_roster_columns_end_with_skill_columns():
+    assert account.MASTERY_COLUMNS == ['skill_1_mastery', 'skill_2_mastery', 'skill_3_mastery']
+    assert [*account.MASTERY_COLUMNS, 'selected_skill'] == account.SKILL_COLUMNS
+    assert account.ROSTER_COLUMNS[-4:] == account.SKILL_COLUMNS
 
 
 def test_format_operator_data_empty():
@@ -219,4 +258,4 @@ def test_filter_empty_roster_returns_empty():
 
 
 def test_format_operator_data_empty_keeps_columns():
-    assert list(format_operator_data({}).columns) == ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
+    assert list(format_operator_data({}).columns) == EXPECTED_ROSTER_COLUMNS

@@ -11,10 +11,18 @@ import pytest
 from arknights_calc.flows.roster import RosterProcessor, check_roster_age, summarize_roster
 from arknights_calc.storage import Storage
 
+# Every roster column, in order, as format_operator_data saves them.
+EXPECTED_ROSTER_COLUMNS = [
+    'id', 'potential', 'level', 'phase', 'trust', 'skill_level',
+    'skill_1_mastery', 'skill_2_mastery', 'skill_3_mastery', 'selected_skill',
+]
+
 
 def _char(char_id, phase, level=1):
     return SimpleNamespace(char_id=char_id, potential_rank=1, level=level, evolve_phase=phase,
-                           favor_point=10070, main_skill_lvl=7)
+                           favor_point=10070, main_skill_lvl=7,
+                           skills=[SimpleNamespace(specialize_level=2), SimpleNamespace(specialize_level=0)],
+                           default_skill_index=1)
 
 
 class FakeNetwork:
@@ -67,7 +75,9 @@ def test_run_saves_raw_data_and_full_roster(tmp_path, capsys):
         saved = pd.read_csv(roster_file)
         assert saved['id'].tolist() == ['char_a', 'char_b', 'char_c']
         assert saved['phase'].tolist() == [2, 1, 0]
-        assert list(saved.columns) == ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
+        assert list(saved.columns) == EXPECTED_ROSTER_COLUMNS
+        assert saved[['skill_1_mastery', 'skill_2_mastery', 'selected_skill']].iloc[0].tolist() == [2, 0, 2]
+        assert saved['skill_3_mastery'].isna().all()
     assert capsys.readouterr().out == 'Roster: 3 operators (Elite 0: 1, Elite 1: 1, Elite 2: 1)\n'
 
 
@@ -114,7 +124,7 @@ def test_raw_data_saved_with_4_space_indent(tmp_path):
 def test_roster_csv_saved_without_index_column(tmp_path):
     processor, _ = _make_processor(tmp_path, FakeArkClient({'1': _char('char_a', 2)}, {}))
     asyncio.run(processor.run())
-    assert (tmp_path / 'ref' / 'roster.csv').read_text().splitlines()[0] == 'id,potential,level,phase,trust,skill_level'
+    assert (tmp_path / 'ref' / 'roster.csv').read_text().splitlines()[0] == ','.join(EXPECTED_ROSTER_COLUMNS)
 
 
 def test_run_logs_where_the_roster_was_saved(tmp_path, caplog):
@@ -127,7 +137,7 @@ def test_run_logs_where_the_roster_was_saved(tmp_path, caplog):
 def test_run_with_empty_roster_saves_empty_csv_with_headers(tmp_path, capsys):
     processor, _ = _make_processor(tmp_path, FakeArkClient({}, {}))
     assert asyncio.run(processor.run()).empty
-    assert (tmp_path / 'ref' / 'roster.csv').read_text().splitlines() == ['id,potential,level,phase,trust,skill_level']
+    assert (tmp_path / 'ref' / 'roster.csv').read_text().splitlines() == [','.join(EXPECTED_ROSTER_COLUMNS)]
     assert capsys.readouterr().out == 'Roster: 0 operators\n'
 
 

@@ -7,7 +7,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-03
 Last Modified by: Claude
 '''
 
@@ -25,8 +25,14 @@ logger = logging.getLogger(__name__)
 
 # Constants
 
+# Mastery (specialization) level of each of an operator's skills, in skill
+# order: 0 = not mastered, up to 3. Blank when the operator has fewer skills.
+MASTERY_COLUMNS = ['skill_1_mastery', 'skill_2_mastery', 'skill_3_mastery']
+# The roster's skill columns: the masteries, plus which skill (1-3) is
+# selected for deployment. Blank for operators without skills.
+SKILL_COLUMNS = [*MASTERY_COLUMNS, 'selected_skill']
 # Columns of the roster DataFrame built by format_operator_data.
-ROSTER_COLUMNS = ['id', 'potential', 'level', 'phase', 'trust', 'skill_level']
+ROSTER_COLUMNS = ['id', 'potential', 'level', 'phase', 'trust', 'skill_level', *SKILL_COLUMNS]
 
 
 async def login(email) -> arkprts.Client:
@@ -57,10 +63,34 @@ async def login(email) -> arkprts.Client:
     # program doesn't use (game data comes from the HellaAPI instead).
     return arkprts.Client(auth=auth, assets=False)
 
+def _skill_columns(op) -> dict:
+    '''
+    Returns an operator's SKILL_COLUMNS: each skill's mastery level and the
+    selected skill.
+
+    Args:
+        op: One arkprts character, with skills (each with specialize_level)
+            and default_skill_index.
+
+    Returns:
+        {column: value}, with None for skills the operator doesn't have.
+    '''
+    skills = op.skills or []
+    columns = {}
+    for i, column in enumerate(MASTERY_COLUMNS):
+        columns[column] = skills[i].specialize_level if i < len(skills) else None
+    # default_skill_index counts from 0 (and is -1 without skills), while the
+    # game numbers skills from 1, so it's shifted to match the mastery columns.
+    selected = op.default_skill_index
+    columns['selected_skill'] = selected + 1 if 0 <= selected < len(skills) else None
+    return columns
+
+
 def format_operator_data(operator_data: Mapping) -> pd.DataFrame:
     '''
     Converts arkprts' {char_key: character} roster into a DataFrame with
-    one row per operator: id, potential, level, phase, trust, skill_level.
+    one row per operator: id, potential, level, phase, trust, skill_level,
+    each skill's mastery level, and the selected skill.
 
     Args:
         operator_data: arkprts' troop.chars mapping of the player's operators.
@@ -72,10 +102,15 @@ def format_operator_data(operator_data: Mapping) -> pd.DataFrame:
     # The column names here are this program's; the attribute names on the
     # right are arkprts'.
     rows = [{'id': op.char_id, 'potential': op.potential_rank,
-        'level': op.level, 'phase': op.evolve_phase, 'trust': calculate_trust(op.favor_point), 'skill_level': op.main_skill_lvl}
+        'level': op.level, 'phase': op.evolve_phase, 'trust': calculate_trust(op.favor_point), 'skill_level': op.main_skill_lvl,
+        **_skill_columns(op)}
         for op in operator_data.values()]
     # columns= keeps the columns (and their order) even for an empty roster.
-    return pd.DataFrame(rows, columns=ROSTER_COLUMNS)
+    df = pd.DataFrame(rows, columns=ROSTER_COLUMNS)
+    # Int64 (pandas' integer type that allows blanks) keeps the skill columns
+    # as whole numbers; otherwise a blank would turn them into 2.0, 3.0, ...
+    df[SKILL_COLUMNS] = df[SKILL_COLUMNS].astype('Int64')
+    return df
 
 
 async def retrieve_operator_info(client: arkprts.Client) -> pd.DataFrame:

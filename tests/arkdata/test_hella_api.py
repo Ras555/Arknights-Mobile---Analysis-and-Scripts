@@ -111,10 +111,25 @@ def test_fetch_enemy_data_bad_shape_raises(monkeypatch, value):
         client.fetch_enemy_data('enemy_1')
 
 
+def test_fetch_deployable_data_returns_whole_value(monkeypatch):
+    value = {'data': {'name': 'Mon3tr'}, 'skills': [{'excel': {}}], 'range': {}}
+    calls = _install_urlopen(monkeypatch, {'value': value})
+    assert client.fetch_deployable_data('token_10002_kalts_mon3tr') == value
+    assert calls[0]['url'].endswith('/deployable/token_10002_kalts_mon3tr')
+
+
+@pytest.mark.parametrize('value', [{'skills': []}, {'data': None}, {'data': []}, [], None])
+def test_fetch_deployable_data_bad_shape_raises(monkeypatch, value):
+    _install_urlopen(monkeypatch, {'value': value})
+    with pytest.raises(HellaAPIError, match="^Unexpected HellaAPI response shape for deployable 'token_1'$"):
+        client.fetch_deployable_data('token_1')
+
+
 @pytest.mark.parametrize('fetch, resource, value', [
     ('fetch_operator_data', 'operator', {'data': {}}),
     ('fetch_stage_data', 'stage', [{}]),
     ('fetch_enemy_data', 'enemy', {'excel': {}, 'levels': {}}),
+    ('fetch_deployable_data', 'deployable', {'data': {}}),
 ])
 def test_fetch_functions_request_their_resource_from_custom_base_url(monkeypatch, fetch, resource, value):
     calls = _install_urlopen(monkeypatch, {'value': value})
@@ -300,10 +315,18 @@ def test_client_fetch_operator_stage_and_enemy_data(monkeypatch):
         'http://api.test/api/operator/Amiya', 'http://api.test/api/stage/main_01-07', 'http://api.test/api/enemy/enemy_1']
 
 
+def test_client_fetch_deployable_data(monkeypatch):
+    calls = _install_responses(monkeypatch, [{'value': {'data': {'name': 'Mon3tr'}, 'skills': []}}])
+    hella, _ = _client()
+    assert hella.fetch_deployable_data('Mon3tr') == {'data': {'name': 'Mon3tr'}, 'skills': []}
+    assert [call['url'] for call in calls] == ['http://api.test/api/deployable/Mon3tr']
+
+
 @pytest.mark.parametrize('method, value, message', [
     ('fetch_operator_data', {}, "operator 'k'"),
     ('fetch_stage_data', [], "stage 'k'"),
     ('fetch_enemy_data', {'excel': {}}, "enemy 'k'"),
+    ('fetch_deployable_data', {'skills': []}, "deployable 'k'"),
 ])
 def test_client_fetch_data_bad_value_shape_raises(monkeypatch, method, value, message):
     _install_responses(monkeypatch, [{'value': value}])

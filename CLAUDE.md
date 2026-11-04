@@ -3,8 +3,8 @@
 ## Project Description
 
 Arknights Damage and Stat Calculation is a set of utility scripts for the Arknights mobile game. The program retrieves the
-player's operator roster from the Arknights (Yostar EN) servers, retrieves operator, stage and enemy game data from the
-HellaAPI, and calculates each operator's stats and damage per second (DPS). It then compares those operators against the
+player's operator roster from the Arknights (Yostar EN) servers, retrieves operator, stage, enemy and deployable game data from
+the HellaAPI, and calculates each operator's stats and damage per second (DPS). It then compares those operators against the
 enemies in a chosen stage to show how much damage each operator deals to, and takes from, each enemy, making it easier
 to decide which operators to bring to a stage.
 
@@ -15,7 +15,9 @@ to decide which operators to bring to a stage.
 The player's account data is retrieved from the Arknights (Yostar EN) servers with the arkprts library. Logging in uses an
 email code: the account email is stored in the USER_EMAIL environment variable, a login code is emailed to it, and arkprts
 asks for the code in the console. Of importance to this program are each operator's char_id, potential_rank, level,
-evolve_phase, favor_point (raw trust points, converted to a trust percentage) and main_skill_lvl.
+evolve_phase, favor_point (raw trust points, converted to a trust percentage), main_skill_lvl, skills (each skill's
+specialize_level, its mastery from 0 to 3) and default_skill_index (the selected skill, counting from 0; -1 without
+skills).
 
 Yostar allows only one login per account at a time: logging in from this program logs the player out of the game, and
 logging into the game revokes this program's login token. A token lasts at most 30 days and, for a daily player, usually
@@ -28,12 +30,14 @@ gets the token with get_token_from_email_code and logs in with login_with_token 
 
 The project can be downloaded from git and hosted locally, or accessed from the hosted https://awedtan.ca site.
 
-Various game data can be accessed from the api, but of particular interest are the operator, stage, and enemy info.
+Various game data can be accessed from the api, but of particular interest are the operator, stage, enemy, and
+deployable info.
 
 #### Collections, Query Parameters and Update Metadata
 
 - `api/{resource}` (e.g. https://awedtan.ca/api/operator) returns every document of that type as a list. All operators
-are about 33 MB (445 documents) and all enemies about 7 MB; the stage collection is much larger.
+are about 33 MB (445 documents), all enemies about 7 MB, and there are 832 deployables; the stage collection is much
+larger.
 - Every document has the top-level fields `_id`, `canon` (its main id, e.g. char_002_amiya), `keys` (every id and name
 it can be looked up by), `meta` and `value` (the data shown in the sections below). `meta` holds `hash` (a fingerprint of
 the document's content), `updatedIndex`, `createdIndex`, `created`, `updated` and `date`.
@@ -234,6 +238,15 @@ The important pieces of the expected format are as follows:
 }
 ```
 
+
+#### Deployable Info
+
+Deployables are the units operators place or summon besides themselves: summons (e.g. Kal'tsit's Mon3tr), traps and
+devices. They can be retrieved using a link of the format: https://awedtan.ca/api/deployable/{deployable_id} (e.g.
+token_10002_kalts_mon3tr). Their documents have the same structure as operators: `value.data` holds name, profession
+(TOKEN), subProfessionId, phases (with attributesKeyFrames), talents and so on, and `value.skills` holds each skill's
+levels. fetch_deployable_data returns the whole value (data, skills and range), not just data, since the skills are
+beside it.
 
 #### Stage Info
 
@@ -609,15 +622,17 @@ roster is older than ROSTER_MAX_AGE_DAYS. They never log in by themselves.
 Before the stats and matchups steps (once per run), the HellaAPI cache in ref/cache is brought up to date:
 1. Fetch `api/about`. If its index and hash match the update the cache was last synced to, and the last full check was
 within HELLA_CACHE_DAYS, stop: everything is read from the cache.
-2. Otherwise, for operators and enemies: on the first run, download the whole collection. After that, fetch the
+2. Otherwise, for operators, enemies and deployables: on the first run, download the whole collection. After that, fetch the
 collection's listing (canon, keys and meta only) and compare each document's meta.hash with the cache. Download changed
 and new documents one by one, or the whole collection if more than 40 changed, and delete removed ones.
+A collection with no index yet (e.g. deployables, the first time the program runs after they were added) is downloaded
+even if the HellaAPI update hasn't changed.
 3. For stages, which are cached one at a time as they're used: if any are cached, compare them against the stage
 listing and drop the changed ones, so they are downloaded again the next time they're used.
 4. Record the update in state.json. If any document failed to download, the old copy is kept and the update isn't
 recorded, so the next run checks again.
 
-`--refresh` downloads every operator and enemy again and drops all cached stages. If the HellaAPI can't be reached, a
+`--refresh` downloads every operator, enemy and deployable again and drops all cached stages. If the HellaAPI can't be reached, a
 warning is logged and the program uses what's cached. Failed requests are retried up to 3 times (waiting 1 s, then 2 s)
 when the failure may be temporary (timeouts, dropped connections, HTTP 429 and 5xx).
 
@@ -625,7 +640,9 @@ when the failure may be temporary (timeouts, dropped connections, HTTP 429 and 5
 
 1. Log into the Arknights servers with the email in USER_EMAIL (without printing or saving the login token).
 2. Retrieve the player's operator roster and convert each operator's favor points into a trust percentage. Favor points
-above the maximum (25570) log an error and are capped at a trust of 200.
+above the maximum (25570) log an error and are capped at a trust of 200. The roster columns are id, potential, level,
+phase, trust, skill_level, skill_1_mastery to skill_3_mastery (blank for skills the operator doesn't have) and
+selected_skill (1 to 3, blank without skills).
 3. Retrieve the player's raw account data and save it to ref/raw_data.json.
 4. Save every operator in the roster to ref/roster.csv and io/roster.csv, recording when and how many in
 ref/roster_info.json, and print how many operators are at each Elite level (phase).
@@ -634,6 +651,8 @@ ref/roster_info.json, and print how many operators are at each Elite level (phas
 
 1. Read the roster from ref/roster.csv. If there isn't one yet, log an error asking for the roster step to be run first.
 (Rosters saved before 2026-11-03 were saved as ref/elite2_operators.csv, which is no longer read; rerun the roster step.)
+If the roster has no skill mastery columns (saved before they were added), log a warning suggesting the roster step be
+rerun, and carry on.
 2. For each operator in the roster (at any phase), retrieve its game data from the HellaAPI cache and calculate its stats
 at its current phase, level, potential and trust, its basic attack damage type and its DPS. Operators that fail are logged and skipped. The damage
 type is looked up by operator id in OPERATOR_DAMAGE_TYPE_OVERRIDES, then by sub profession (archetype) in

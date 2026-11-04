@@ -34,6 +34,10 @@ def _enemy(canon, version=1):
     return _doc(canon, version, value={'excel': {'name': canon}, 'levels': {'version': version}})
 
 
+def _deployable(canon, version=1):
+    return _doc(canon, version, value={'data': {'name': canon, 'phases': []}, 'skills': [], 'range': {'version': version}})
+
+
 def _stage(canon, version=1):
     return _doc(canon, version, value=[{'excel': {'stageId': canon}, 'version': version}])
 
@@ -100,6 +104,7 @@ def api():
     return FakeHellaClient({
         'operator': [_operator('char_002_amiya', keys=['char_002_amiya', 'Amiya', 'amiya']), _operator('char_003_kalts')],
         'enemy': [_enemy('enemy_1'), _enemy('enemy_2')],
+        'deployable': [_deployable('token_10002_kalts_mon3tr')],
         'stage': [_stage('main_01-07'), _stage('main_06-09')],
     })
 
@@ -119,7 +124,7 @@ def _calls(api, kind=None):
 def test_defaults():
     assert timedelta(days=14) == DEFAULT_MAX_AGE
     assert DEFAULT_BULK_THRESHOLD == 40
-    assert BULK_RESOURCES == ('operator', 'enemy')
+    assert BULK_RESOURCES == ('operator', 'enemy', 'deployable')
     assert ON_DEMAND_RESOURCES == ('stage',)
     assert LISTING_FIELDS == ['canon', 'keys', 'meta']
 
@@ -152,7 +157,8 @@ def test_first_sync_downloads_bulk_collections_and_saves_state(api, tmp_path, cl
     hella = _cache(api, tmp_path, clock)
     hella.sync()
 
-    assert _calls(api) == [('about',), ('collection', 'operator', None), ('collection', 'enemy', None)]
+    assert _calls(api) == [('about',), ('collection', 'operator', None), ('collection', 'enemy', None),
+                           ('collection', 'deployable', None)]
     root = tmp_path / 'cache'
     assert sorted(p.name for p in (root / 'operator').iterdir()) == ['char_002_amiya.json', 'char_003_kalts.json', 'index.json']
     expected = _operator('char_002_amiya', keys=['char_002_amiya', 'Amiya', 'amiya'])
@@ -176,6 +182,35 @@ def test_fetching_after_sync_uses_the_cache(api, tmp_path, clock):
     assert hella.fetch_operator_data('AMIYA')['name'] == 'char_002_amiya'
     assert hella.fetch_enemy_data('enemy_2') == {'excel': {'name': 'enemy_2'}, 'levels': {'version': 1}}
     assert _calls(api) == []
+
+
+def test_fetching_a_deployable_after_sync_uses_the_cache(api, tmp_path, clock):
+    hella = _cache(api, tmp_path, clock)
+    hella.sync()
+    _calls(api)
+    deployable = hella.fetch_deployable_data('token_10002_kalts_mon3tr')
+    assert deployable == {'data': {'name': 'token_10002_kalts_mon3tr', 'phases': []}, 'skills': [], 'range': {'version': 1}}
+    assert hella.fetch_deployable_data('TOKEN_10002_KALTS_MON3TR')['data']['name'] == 'token_10002_kalts_mon3tr'
+    assert _calls(api) == []
+
+
+def test_up_to_date_cache_still_downloads_a_bulk_collection_it_has_never_had(api, tmp_path, clock):
+    # A cache synced before deployables were added: the about update is unchanged, but there's no deployable index.
+    hella = _cache(api, tmp_path, clock)
+    hella.sync()
+    for path in (tmp_path / 'cache' / 'deployable').iterdir():
+        path.unlink()
+    (tmp_path / 'cache' / 'deployable').rmdir()
+    clock.time += timedelta(days=1)
+    _calls(api)
+    hella.sync()
+    assert _calls(api) == [('about',), ('collection', 'operator', ('canon', 'keys', 'meta')),
+                           ('collection', 'enemy', ('canon', 'keys', 'meta')), ('collection', 'deployable', None)]
+    assert (tmp_path / 'cache' / 'deployable' / 'token_10002_kalts_mon3tr.json').exists()
+    assert json.loads((tmp_path / 'cache' / 'state.json').read_text())['checked_at'] == clock.time.isoformat()
+    _calls(api)
+    hella.sync()
+    assert _calls(api) == [('about',)]
 
 
 # later syncs
@@ -203,7 +238,8 @@ def test_sync_after_max_age_checks_listings_even_if_about_unchanged(api, tmp_pat
     clock.time += timedelta(seconds=1)
     hella.sync()
     assert _calls(api) == [('about',), ('collection', 'operator', ('canon', 'keys', 'meta')),
-                           ('collection', 'enemy', ('canon', 'keys', 'meta'))]
+                           ('collection', 'enemy', ('canon', 'keys', 'meta')),
+                           ('collection', 'deployable', ('canon', 'keys', 'meta'))]
     assert json.loads((tmp_path / 'cache' / 'state.json').read_text())['checked_at'] == clock.time.isoformat()
 
 
@@ -231,6 +267,7 @@ def test_changed_documents_are_downloaded_one_by_one(api, tmp_path, clock, caplo
         ('document', 'operator', 'char_003_kalts'),
         ('collection', 'enemy', ('canon', 'keys', 'meta')),
         ('document', 'enemy', 'enemy_3'),
+        ('collection', 'deployable', ('canon', 'keys', 'meta')),
     ]
     assert hella.fetch_operator_data('char_003_kalts')['version'] == 2
     assert hella.fetch_enemy_data('enemy_3')['excel']['name'] == 'enemy_3'
@@ -421,7 +458,8 @@ def test_refresh_downloads_everything_again_and_drops_stages(api, tmp_path, cloc
     clock.time += timedelta(hours=1)
     _calls(api)
     hella.sync(refresh=True)
-    assert _calls(api) == [('about',), ('collection', 'operator', None), ('collection', 'enemy', None)]
+    assert _calls(api) == [('about',), ('collection', 'operator', None), ('collection', 'enemy', None),
+                           ('collection', 'deployable', None)]
     assert not (tmp_path / 'cache' / 'stage' / 'main_06-09.json').exists()
     assert json.loads((tmp_path / 'cache' / 'stage' / 'index.json').read_text())['hashes'] == {}
     assert json.loads((tmp_path / 'cache' / 'state.json').read_text())['checked_at'] == clock.time.isoformat()
@@ -484,6 +522,7 @@ def test_missing_document_raises_hella_api_error(api, tmp_path, clock):
     ('fetch_operator_data', 'operator', {'no data': 1}, "operator 'x'"),
     ('fetch_stage_data', 'stage', [], "stage 'x'"),
     ('fetch_enemy_data', 'enemy', {'excel': {}}, "enemy 'x'"),
+    ('fetch_deployable_data', 'deployable', {'data': None}, "deployable 'x'"),
 ])
 def test_fetch_data_checks_value_shape(tmp_path, clock, method, resource, value, message):
     api = FakeHellaClient({resource: [_doc('x', value=value)]})
