@@ -1,0 +1,298 @@
+{
+ "source": "HellaAPI operator char_103_angel (Exusiai), skill 3, retrieved 2026-11-03",
+ "excel": {
+  "skillId": "skchr_angel_3",
+  "levels": [
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 50,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": 0,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 48,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": 0,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 46,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": 0,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Very minor</> Attack Interval reduction\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 44,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": -0.05,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Very minor</> Attack Interval reduction\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 42,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": -0.05,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Very minor</> Attack Interval reduction\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 40,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": -0.05,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Minor</> Attack Interval reduction\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 38,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": -0.08,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Minor</> Attack Interval reduction; ATK <@ba.vup>increases to {attack@atk_scale:0%}</>\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 36,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1.03,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": -0.08,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Minor</> Attack Interval reduction; ATK <@ba.vup>increases to {attack@atk_scale:0%}</>\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 34,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1.07,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": -0.08,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Overloading Mode",
+    "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Slight</> Attack Interval reduction; ATK <@ba.vup>increases to {attack@atk_scale:0%}</>\n<@ba.rem>Automatically activated</>",
+    "skillType": "AUTO",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 30,
+     "initSp": 20
+    },
+    "duration": 15,
+    "blackboard": [
+     {
+      "key": "attack@atk_scale",
+      "value": 1.1,
+      "valueStr": null
+     },
+     {
+      "key": "attack@times",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "base_attack_time",
+      "value": -0.11,
+      "valueStr": null
+     }
+    ]
+   }
+  ]
+ }
+}

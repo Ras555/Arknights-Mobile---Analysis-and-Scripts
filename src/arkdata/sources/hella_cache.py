@@ -8,7 +8,7 @@ Created: 2026-11-02
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-03
+Last Modified: 2026-11-04
 Last Modified by: Claude
 '''
 
@@ -28,6 +28,7 @@ from arkdata.sources.hella_api import (
     _deployable_data_from,
     _enemy_data_from,
     _operator_data_from,
+    _operator_value_from,
     _stage_variants_from,
 )
 
@@ -485,6 +486,12 @@ class HellaCache:
         Same as HellaAPIClient.fetch_operator_data, using the cache.
         '''
         return _operator_data_from(self.fetch_document("operator", operator_key)["value"], operator_key)
+
+    def fetch_operator_value(self, operator_key: str) -> dict:
+        '''
+        Same as HellaAPIClient.fetch_operator_value, using the cache.
+        '''
+        return _operator_value_from(self.fetch_document("operator", operator_key)["value"], operator_key)
 
     def fetch_stage_data(self, stage_id: str) -> list:
         '''

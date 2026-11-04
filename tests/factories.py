@@ -5,8 +5,13 @@ never call the real API. Import them with `from factories import ...`
 '''
 
 import copy
+import json
+from pathlib import Path
 
 from arkdata.calculations.enemy_stats import EnemyStats
+
+# Trimmed real HellaAPI data (see each file's "source"), for tests that check the parsing of real skills.
+FIXTURES_DIR = Path(__file__).parent / 'fixtures'
 
 # Stats shared by every keyframe. Values that change between level 1 and
 # max level are overridden per keyframe in make_operator_data.
@@ -134,3 +139,32 @@ def make_enemy_stats(**kwargs):
     Returns an EnemyStats built from make_enemy_data(**kwargs).
     '''
     return EnemyStats('enemy_test', enemy_data=make_enemy_data(**kwargs))
+
+
+def load_skill_fixture(name):
+    '''
+    Returns a trimmed real skill entry ({"excel": {"skillId", "levels"}})
+    from tests/fixtures/skills/<name>.json, e.g. "blaze_s2".
+    '''
+    return json.loads((FIXTURES_DIR / 'skills' / f'{name}.json').read_text(encoding='utf-8'))
+
+
+def make_skill_level(description='', blackboard=None, skill_type='MANUAL', sp_type='INCREASE_WITH_TIME', sp_cost=30,
+                     initial_sp=0, duration=20, duration_type='NONE', name='Test Skill'):
+    '''
+    Returns one fake skill level in the HellaAPI format. blackboard is a
+    {name: value} dict.
+    '''
+    return {
+        'name': name, 'description': description, 'skillType': skill_type, 'durationType': duration_type,
+        'duration': duration, 'spData': {'spType': sp_type, 'spCost': sp_cost, 'initSp': initial_sp},
+        'blackboard': [{'key': key, 'value': value} for key, value in (blackboard or {}).items()],
+    }
+
+
+def make_skill_entry(*levels, skill_id='skchr_test_1'):
+    '''
+    Returns a fake skill entry ({"excel": ...}) with the given levels, or a
+    single default level when none are given.
+    '''
+    return {'excel': {'skillId': skill_id, 'levels': list(levels) or [make_skill_level()]}}

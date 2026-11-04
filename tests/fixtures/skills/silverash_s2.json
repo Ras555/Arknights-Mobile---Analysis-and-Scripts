@@ -1,0 +1,248 @@
+{
+ "source": "HellaAPI operator char_172_svrash (SilverAsh), skill 2, retrieved 2026-11-03",
+ "excel": {
+  "skillId": "skchr_svrash_2",
+  "levels": [
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.35,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.03,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.4,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.03,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.45,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.03,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.5,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.035,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.55,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.035,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.6,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.035,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.65,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.04,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.75,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.045,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 0.85,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.05,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Rules of Survival",
+    "description": "<@ba.rem>Can switch between the original state and the following state:</>\nRange <@ba.vdown>reduces</>; DEF <@ba.vup>+{def:0%}</>; Restores HP by <@ba.vup>{HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO:0.0%}</> of Max HP per second",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 5,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "def",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "hp_recovery_per_sec_by_max_hp_ratio",
+      "value": 0.06,
+      "valueStr": null
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -239,6 +239,41 @@ The important pieces of the expected format are as follows:
 ```
 
 
+#### Operator Skill Levels
+
+Each skill's levels are in the operator's `value.skills` list (beside `value.data`, matched to `data.skills` by skill
+id). fetch_operator_value returns the whole value; fetch_operator_data returns only `data`.
+
+```
+"skills":
+[
+    ...{
+        "excel":
+        {
+            "skillId": _skill_id_,
+            "levels": # 10 levels: skill levels 1-7, then masteries 1-3 (7 for skills that can't be mastered)
+            [
+                ...{
+                    "name": _skill_name_,
+                    "description": _template_, # e.g. "ATK <@ba.vup>+{atk:0%}</>, DEF <@ba.vup>+{def:0%}</>"
+                    "skillType": _type_, # MANUAL, AUTO or PASSIVE
+                    "durationType": _duration_type_, # NONE or AMMO
+                    "duration": _seconds_, # 0 for instant effects; -1 for unlimited/toggles AND some one-off effects
+                    "spData": {"spType": _sp_type_, "spCost": _cost_, "initSp": _initial_sp_, ...},
+                    # spType: INCREASE_WITH_TIME, INCREASE_WHEN_ATTACK, INCREASE_WHEN_TAKEN_DAMAGE, or 8 (passive)
+                    "blackboard": [...{"key": _name_, "value": _number_}] # e.g. atk 0.7, attack@times 5
+                }
+            ]
+        }
+    }
+]
+```
+
+The description template shows how each named value is used: `{atk:0%}` is a percentage, `{def}` a plain number,
+`{-def}` the value negated, and the words around it say who it affects ("Targets' DEF -{-def}" lowers enemies' DEF,
+"DEF -{-def:0%}" lowers the operator's own). About a quarter of values don't appear in the text at all. Names may have
+an `attack@` prefix (ignored), and a few templates write names in capitals.
+
 #### Deployable Info
 
 Deployables are the units operators place or summon besides themselves: summons (e.g. Kal'tsit's Mon3tr), traps and
@@ -469,6 +504,65 @@ Typically Casters, Supporters and other ranged units other than Snipers deal Art
 
 Damage types are represented by the DamageType enum in src/arkdata/calculations/damage.py (PHYSICAL, ARTS, TRUE, HEAL, NONE). It is a StrEnum, so its members compare equal to the plain strings saved in CSV files.
 
+### Skills
+
+Skills are read from their HellaAPI data (see Operator Skill Levels) by src/arkdata/calculations/skills.py, with
+blackboard.py reading the named values. The full plan for skills, talents and summons is in the project doc
+`claude/skills-talents-plan.md`.
+- Unlocked skills come from each skill's unlockCond (phase and level). The level used is skill level 1-7, then
+masteries 1-3 (index = skill level - 1 + mastery; masteries only exist at skill level 7).
+- Stat values (atk, def, max_hp, magic_resistance) that affect the operator itself become StatModifiers; whether they're
+percentages comes from the template, or, for values not in the text, from their size (atk/def/max_hp up to 3, RES up
+to 1, are percentages), which is recorded as an assumption. attack_speed is flat ASPD, base_attack_time is seconds
+added to the attack interval, block_cnt extra block. Values that affect enemies are kept as enemy_effects (for
+matchups), values that buff allies become notes.
+- Damage: each atk_scale placeholder is one DamagePart, typed by the damage named after it ("410% of ATK Physical
+damage and 410% of ATK Arts damage" is two parts), otherwise the operator's type. times is hits per attack,
+max_target the target limit. "damage type changes to True" (and similar) changes the whole attack. A multiplier only
+dealt to enemies that attack the unit (counter damage) isn't treated as an attack multiplier. Damage "every second" is
+marked per_second.
+- What starts a skill (Skill.trigger, a SkillTrigger): SP for normal skills. Passive skills (skillType PASSIVE, spType
+8) are mostly not always on (8 of 54 are, checked 2026-11-04): "After deployment" wording (also "after Skadi is
+deployed", "Upon deployment") makes them DEPLOYMENT skills, lasting their duration, the {duration} value from the text
+when the data says -1, or until retreat, and "immediately deals" makes them a one-off hit. Passives with a duration
+or that "spend" Coins, happen "when switching" or "rush" are OTHER (started by something else; flagged as assumed).
+The rest are ALWAYS on.
+- Duration: "Unlimited duration" and toggles ("Can switch between") stay on (duration None). "next attack" skills
+and skills with a duration of 0 or less are instant (duration 0); instant skills either replace the next attack or are
+an extra strike. Ammo skills (durationType AMMO) keep duration 0 and set ammo from trigger_time.
+- Known values that don't affect DPS (stun, slow, DP, shift, taunt, regeneration, range and similar) become notes.
+Unknown values are listed as unmodelled. A skill's status is full (everything understood, nothing assumed), partial,
+or none (nothing could be modelled).
+
+How many enemies an attack hits (src/arkdata/calculations/attack_targets.py), in order: the skill's max_target; AoE
+wording in the clause with the skill's multiplier ("all enemies", "nearby enemies", "AOE"...), assumed to be 3 enemies;
+otherwise the archetype's basic attack. AoE archetypes (Artilleryman, Splash/Blast Caster, Flinger, Reaper,
+Spreadshooter, Ambusher, Fortress, Earthshaker) assume 3 enemies; Centurion, Crusher and Pusher hit as many as their
+block count; Chain Casters jump between 4 enemies losing 15% per jump; Earthshakers splash 50% to the others.
+Targets.damage_share is the sum of the damage each enemy takes (3.0 for an even AoE on 3, 2.0 for an Earthshaker).
+Swordmasters hit twice and Flingers add a half-ATK shockwave; Phalanx Casters and Liberators don't attack outside
+their skills.
+
+### Skill Rotation
+
+src/arkdata/calculations/skill_rotation.py models one cycle: charge SP, then the skill is active (SP doesn't charge
+while it's active).
+> Charge time = SP cost × 1 s (SP over time), SP cost × attack interval (SP per attack), or SP cost × seconds between
+> hits taken (SP when hit, = enemy attack interval / attackers)
+>
+> Average DPS = (active DPS × duration + base DPS × charge time) / (charge time + duration)
+
+Instant skills add their extra damage once per cycle (a per-attack "next attack" skill's cycle includes that attack,
+which gains no SP). Skills that stay on and always-on passives average their active DPS. Deployment skills happen once
+per deployment, so they're left out of the average (it's the base DPS), though a timed one still counts towards max
+DPS. Skills started by something else (OTHER) have no average.
+
+Skills that gain SP when hit (1 SP per hit taken, mostly Defenders) need an assumed rate of incoming attacks:
+hit_interval() uses ASSUMED_ENEMY_ATTACK_INTERVAL (3.0 s, the median attack interval of the 1,313 attacking enemies in
+the HellaAPI data) divided by the number of attackers. The main average DPS uses ASSUMED_ATTACKERS (1 enemy); the skill
+details also show the rotation with a full block (block count attackers). Max DPS doesn't depend on this, since it's
+the DPS while the skill is active.
+
 
 ## Project Structure
 
@@ -484,7 +578,9 @@ arkdata is a generic Arknights library that any Arknights tool could use. It kno
 files, or its command line, and must never import from arknights_calc (tests/arknights_calc/test_package_boundaries.py
 checks this).
 - calculations/: damage.py (DamageType, damage formulas), operator_stats.py, enemy_stats.py, trust.py, stage.py (enemies
-and spawn counts in a stage) and matchups.py (operator vs. enemy DPS and kill times).
+and spawn counts in a stage), matchups.py (operator vs. enemy DPS and kill times), and for skills (see Calculations):
+blackboard.py (a skill's named values and readable text), skills.py (Skill, StatModifiers, DamagePart),
+skill_rotation.py (SkillRotation) and attack_targets.py (Targets).
 - sources/: hella_api.py (HellaAPIClient: the HellaAPI client, with timeouts and retries), hella_cache.py (HellaCache:
 the disk cache in front of the client, see Program Flow) and account.py (arkprts login and roster retrieval).
 
@@ -526,6 +622,8 @@ The io folder is gitignored, since its files are regenerated on every run.
 
 The tests folder stores the pytest suite, split into tests/arkdata and tests/arknights_calc to mirror the packages. The
 tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
+tests/fixtures/skills holds trimmed real HellaAPI skill data (each file names its source) for tests that check the
+parsing of real skills, loaded with load_skill_fixture.
 
 ### Other
 

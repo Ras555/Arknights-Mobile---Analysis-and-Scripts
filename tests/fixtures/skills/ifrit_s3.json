@@ -1,0 +1,298 @@
+{
+ "source": "HellaAPI operator char_134_ifrit (Ifrit), skill 3, retrieved 2026-11-03",
+ "excel": {
+  "skillId": "skchr_ifrit_3",
+  "levels": [
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 40,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 0.75,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -7,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 39,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 0.8,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -7,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 38,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 0.85,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -7,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 36,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 0.9,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -7,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 35,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 0.95,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -7,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 34,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -7,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 31,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.1,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -10,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 30,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.2,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -13,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 29,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.3,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -16,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Scorched Earth",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> ATK as Arts damage to ground enemies within Attack Range every second, and reduce their RES by <@ba.vup>-{-magic_resistance}</>\n<@ba.rem>This unit loses {hp_ratio:0%} Max HP every second</>",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WITH_TIME",
+     "spCost": 28,
+     "initSp": 0
+    },
+    "duration": 20,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.4,
+      "valueStr": null
+     },
+     {
+      "key": "hp_ratio",
+      "value": 0.02,
+      "valueStr": null
+     },
+     {
+      "key": "magic_resistance",
+      "value": -20,
+      "valueStr": null
+     }
+    ]
+   }
+  ]
+ }
+}

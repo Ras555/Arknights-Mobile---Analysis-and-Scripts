@@ -1,0 +1,248 @@
+{
+ "source": "HellaAPI operator char_010_chen (Ch'en), skill 2, retrieved 2026-11-03",
+ "excel": {
+  "skillId": "skchr_chen_2",
+  "levels": [
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 27,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 3.3,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 4,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 27,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 3.4,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 4,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 27,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 3.5,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 4,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 26,
+     "initSp": 12
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 3.7,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 26,
+     "initSp": 12
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 3.8,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 26,
+     "initSp": 12
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 3.9,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 25,
+     "initSp": 14
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 4.1,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 6,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 23,
+     "initSp": 15
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 4.4,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 6,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 21,
+     "initSp": 16
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 4.7,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 6,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Unsheath",
+    "description": "Deals <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Physical damage</> and <@ba.vup>{atk_scale:0%}</> of ATK <@ba.rem>Arts damage</> to at most <@ba.vup>{max_target}</> enemies in front of this unit",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 20,
+     "initSp": 20
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 5,
+      "valueStr": null
+     },
+     {
+      "key": "max_target",
+      "value": 7,
+      "valueStr": null
+     }
+    ]
+   }
+  ]
+ }
+}

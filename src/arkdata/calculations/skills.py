@@ -30,7 +30,7 @@ from arkdata.calculations.blackboard import (
 )
 from arkdata.calculations.damage import DamageType
 from arkdata.calculations.operator_stats import parse_phase
-from arkdata.calculations.skill_rotation import SpType
+from arkdata.calculations.skill_rotation import SkillTrigger, SpType
 
 # Constants
 
@@ -85,6 +85,15 @@ NEXT_ATTACK = re.compile(r'\bnext attack', re.IGNORECASE)
 # Skills that stay on once activated: "Unlimited duration", or a toggle ("Can switch between the default state and
 # the following state"). Other skills with a negative duration are one-off effects ("Immediately launches...").
 STAYS_ON = re.compile(r'unlimited duration|indefinite|switch between', re.IGNORECASE)
+# Passive skills that start when the operator is deployed ("After deployment", "after Skadi is deployed").
+DEPLOYMENT_WORDS = re.compile(
+    r'after (?:being )?deploy|upon deploy|when deployed|on deployment|after \w+(?: \w+)? is deployed', re.IGNORECASE,
+)
+# A deployment skill that hits once ("After deployment, immediately deals ..."), even if other effects are timed.
+IMMEDIATE_DAMAGE = re.compile(r'immediately deals?', re.IGNORECASE)
+# Passive skills started by something other than SP or deployment: spending Coins (Swire the Elegant Wit),
+# switching to a Substitute (Iana), or a talent-driven rush (Kirin R Yato).
+OTHER_TRIGGER = re.compile(r'\bspends?\b|\bwhen switching\b|\brushes\b', re.IGNORECASE)
 # Damage dealt on a timer rather than with each attack (e.g. Ifrit's Scorched Earth, "every second").
 PER_SECOND = re.compile(r'every second|per second|each second', re.IGNORECASE)
 STOPS_ATTACKING = re.compile(r'stops? attacking|(?:cannot|can not|can\'t|does not|unable to) attack', re.IGNORECASE)
@@ -169,8 +178,10 @@ class Skill:
     skill). duration is in seconds: 0 for instant skills, None for skills
     that stay on once activated. Ammo skills keep a duration of 0 and set
     ammo instead, since how long the ammo lasts depends on the attack
-    interval. enemy_effects are values that change
-    enemies (e.g. lowering their DEF), kept for the matchup calculations.
+    interval. trigger (a SkillTrigger) says what starts the skill: SP, or
+    for passives, always on, deployment, or something else. enemy_effects
+    are values that change enemies (e.g. lowering their DEF), kept for the
+    matchup calculations.
     unmodelled lists value names the model doesn't understand; status is
     FULL only when there are none and nothing had to be assumed.
     '''
@@ -187,6 +198,7 @@ class Skill:
     description: str
     instant: bool = False
     replaces_attack: bool = False
+    trigger: str = SkillTrigger.SP
     ammo: int | None = None
     charges: int | None = None
     modifiers: StatModifiers = field(default_factory=StatModifiers)
@@ -202,7 +214,8 @@ class Skill:
     @property
     def passive(self) -> bool:
         '''
-        Whether the skill is always active.
+        Whether the skill is a passive skill (no SP; see trigger for what
+        actually starts it).
         '''
         return self.skill_type == SkillType.PASSIVE or str(self.sp_type) == SpType.PASSIVE
 
@@ -370,10 +383,11 @@ def parse_skill(
     # "the next attack" makes the skill instant even when its duration says otherwise (e.g. Ifrit's Pyroclasm,
     # which stores charges and is marked as never ending).
     skill.replaces_attack = bool(NEXT_ATTACK.search(text))
-    stays_on = skill.passive or bool(STAYS_ON.search(text))
-    if is_ammo:
+    if skill.passive:
+        _set_passive_trigger(skill, text, values)
+    elif is_ammo:
         skill.duration = 0
-    elif stays_on:
+    elif STAYS_ON.search(text):
         skill.duration = None
     elif skill.replaces_attack or (skill.duration or 0) <= 0:
         # A one-off effect: "the next attack", or a duration of 0 or less without "Unlimited duration".
@@ -424,6 +438,41 @@ def parse_skill(
         hits = values['times'].value if 'times' in values else 1.0
         skill.damage_parts = [DamagePart(attack_type, 1.0, hits, targets)]
     return skill
+
+
+def _set_passive_trigger(skill: Skill, text: str, values: dict[str, BlackboardValue]) -> None:
+    '''
+    Works out what starts a passive skill and how long it lasts.
+
+    Most passives aren't always on (checked 2026-11-04: 8 of 54 are): most
+    start "After deployment" and last a set time, or hit once.
+
+    Args:
+        skill: The passive skill being built (changed in place).
+        text: Its description without formatting tags.
+        values: Its named values.
+    '''
+    duration = skill.duration or 0
+    if DEPLOYMENT_WORDS.search(text):
+        skill.trigger = SkillTrigger.DEPLOYMENT
+        if IMMEDIATE_DAMAGE.search(text):
+            skill.instant, skill.duration = True, 0
+        elif duration > 0:
+            skill.duration = duration
+        elif 'duration' in values and values['duration'].in_text:
+            # Marked -1 in the data, with the real time in the text: "stops attacking for {duration}s".
+            skill.duration = values['duration'].value
+        else:
+            # Lasts until the operator retreats.
+            skill.duration = None
+    elif duration > 0 or OTHER_TRIGGER.search(text):
+        skill.trigger = SkillTrigger.OTHER
+        skill.assumed.append('started by something other than SP or deployment, so its rotation is unknown')
+        if duration <= 0:
+            skill.instant, skill.duration = True, 0
+    else:
+        skill.trigger = SkillTrigger.ALWAYS
+        skill.duration = None
 
 
 def _clause_of(text: str, raw_key: str) -> str:
