@@ -22,7 +22,7 @@ the API reference.
 3. Run a step (or `all` to run every step in order):
    ```
    arknights-calc roster                     # log in and save your full roster
-   arknights-calc stats                      # calculate every operator's stats and DPS
+   arknights-calc stats                      # calculate every operator's stats, skills, talents and summons
    arknights-calc matchups --stage main_06-09  # compare your Elite 2 operators with a stage's enemies
    arknights-calc all --stage main_06-09
    ```
@@ -70,20 +70,24 @@ Optional settings can be added to `.env` (see [.env.example](.env.example)):
     change, how many enemies they hit, and their SP rotation), talents (and
     how likely their conditions are to be met), and operator profiles that
     put these together into min/average/max DPS, DEF, RES, HP and healing
-    for each operator and its summons. The profiles aren't in the program's
-    outputs yet.
+    for each operator and its summons.
   - `data/` - data files that ship with the library:
     `talent_conditions.csv` overrides how a talent's condition is judged.
   - `sources/` - the HellaAPI client (with retries) and its disk cache, and
     the Arknights account helpers (login, roster).
 - `src/arknights_calc/` - this program: the command line (`cli.py`),
-  settings, logging, file storage (`storage.py`), and one flow per step in
+  settings, logging, file storage (`storage.py`), the tables and pages
+  built from operator profiles (`reports.py`), and one flow per step in
   `flows/`.
 - `ref/` - outputs that the program reads back on later runs
   (`raw_data.json`, `roster.csv`, `roster_info.json`,
   `operator_stats_output.csv`, and the HellaAPI cache in `cache/`).
-- `io/` - outputs meant for you to view (`roster.csv`,
-  `operator_stats_output.csv`, and the `stage_<id>_enemy_stats.csv` / `stage_<id>_matchups.csv` files).
+- `io/` - outputs meant for you to view, with numbers rounded to 2 decimals:
+  `roster.csv`, `operator_stats_output.csv` (the stats that differ between
+  operators, and min/average/max DPS, DEF, RES, HP and healing),
+  `operator_skills.csv`, `operator_talents.csv`, `summon_stats.csv`,
+  `summon_skills.csv`, a readable page per operator in `operators/`, and
+  the `stage_<id>_enemy_stats.csv` / `stage_<id>_matchups.csv` files.
 - `tests/` - the pytest suite, split into `arkdata/` and `arknights_calc/`,
   with trimmed real game data (skills, talents, operators) in `fixtures/`.
 

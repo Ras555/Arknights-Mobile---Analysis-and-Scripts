@@ -8,7 +8,7 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-03
+Last Modified: 2026-11-05
 Last Modified by: Claude
 '''
 
@@ -16,6 +16,7 @@ Last Modified by: Claude
 
 import json
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -30,6 +31,17 @@ ROSTER_FILE_NAME = 'roster.csv'
 # When the roster was last saved, so the program can suggest refreshing an old one.
 ROSTER_INFO_FILE_NAME = 'roster_info.json'
 OPERATOR_STATS_FILE_NAME = 'operator_stats_output.csv'
+# Tables and pages about each operator's skills, talents and summons, for viewing (io/ only).
+OPERATOR_SKILLS_FILE_NAME = 'operator_skills.csv'
+OPERATOR_TALENTS_FILE_NAME = 'operator_talents.csv'
+SUMMON_STATS_FILE_NAME = 'summon_stats.csv'
+SUMMON_SKILLS_FILE_NAME = 'summon_skills.csv'
+OPERATOR_PAGES_DIR_NAME = 'operators'
+
+# Numbers in io/ files are rounded to this many decimals; ref/ files keep full precision for later runs.
+VIEW_DECIMALS = 2
+# Characters Windows doesn't allow in file names, replaced in operator page names.
+UNSAFE_FILE_NAME_CHARACTERS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 
 class MissingColumnsError(Exception):
@@ -58,6 +70,23 @@ def _save_csv(df: pd.DataFrame, file_path: Path) -> Path:
     file_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(file_path, index=False)
     return file_path
+
+
+def _save_view_csv(df: pd.DataFrame, file_path: Path) -> Path:
+    '''
+    Saves df like _save_csv, with numbers rounded to VIEW_DECIMALS for
+    reading.
+    '''
+    return _save_csv(df.round(VIEW_DECIMALS), file_path)
+
+
+def page_file_name(name: str) -> str:
+    '''
+    Returns the file name of an operator's page: its name with characters
+    Windows doesn't allow replaced by "_", plus ".md" ("Kal'tsit.md").
+    '''
+    safe = UNSAFE_FILE_NAME_CHARACTERS.sub('_', name).strip().rstrip('.')
+    return f'{safe or "_"}.md'
 
 
 class Storage:
@@ -105,6 +134,29 @@ class Storage:
     @property
     def operator_stats_view_file(self) -> Path:
         return self.io_dir / OPERATOR_STATS_FILE_NAME
+
+    @property
+    def operator_skills_file(self) -> Path:
+        return self.io_dir / OPERATOR_SKILLS_FILE_NAME
+
+    @property
+    def operator_talents_file(self) -> Path:
+        return self.io_dir / OPERATOR_TALENTS_FILE_NAME
+
+    @property
+    def summon_stats_file(self) -> Path:
+        return self.io_dir / SUMMON_STATS_FILE_NAME
+
+    @property
+    def summon_skills_file(self) -> Path:
+        return self.io_dir / SUMMON_SKILLS_FILE_NAME
+
+    @property
+    def operator_pages_dir(self) -> Path:
+        return self.io_dir / OPERATOR_PAGES_DIR_NAME
+
+    def operator_page_file(self, name: str) -> Path:
+        return self.operator_pages_dir / page_file_name(name)
 
     def stage_enemy_stats_file(self, stage_id: str) -> Path:
         return self.io_dir / f'stage_{stage_id}_enemy_stats.csv'
@@ -173,12 +225,51 @@ class Storage:
         '''
         return pd.read_csv(self.roster_file)
 
-    def save_operator_stats(self, df: pd.DataFrame) -> list:
+    def save_operator_stats(self, df: pd.DataFrame, view_columns=None) -> list:
         '''
-        Saves the operator stats to ref/ (read by the matchups step) and io/
-        (for viewing). Returns both paths.
+        Saves the operator stats to ref/ (read by the matchups step, at full
+        precision, with every column) and io/ (for viewing, rounded to
+        VIEW_DECIMALS). Returns both paths.
+
+        Args:
+            df: The operator stats, one row per operator.
+            view_columns: The columns of the io/ copy, in order (ones df
+                doesn't have are skipped); None keeps every column.
         '''
-        return [_save_csv(df, self.operator_stats_file), _save_csv(df, self.operator_stats_view_file)]
+        view = df if view_columns is None else df[[column for column in view_columns if column in df.columns]]
+        return [_save_csv(df, self.operator_stats_file), _save_view_csv(view, self.operator_stats_view_file)]
+
+    def save_profile_tables(self, skills: pd.DataFrame, talents: pd.DataFrame, summon_stats: pd.DataFrame,
+                            summon_skills: pd.DataFrame) -> list:
+        '''
+        Saves the operator skills and talents and the summon stats and
+        skills to io/ (rounded to VIEW_DECIMALS). Returns the four paths.
+        '''
+        return [
+            _save_view_csv(skills, self.operator_skills_file),
+            _save_view_csv(talents, self.operator_talents_file),
+            _save_view_csv(summon_stats, self.summon_stats_file),
+            _save_view_csv(summon_skills, self.summon_skills_file),
+        ]
+
+    def save_operator_pages(self, pages: dict) -> list:
+        '''
+        Saves a readable page per operator to io/operators/<name>.md,
+        replacing any earlier page with the same name.
+
+        Args:
+            pages: {operator name: the page's Markdown text}.
+
+        Returns:
+            The paths written.
+        '''
+        self.operator_pages_dir.mkdir(parents=True, exist_ok=True)
+        paths = []
+        for name, text in pages.items():
+            path = self.operator_page_file(name)
+            path.write_text(text, encoding='utf-8')
+            paths.append(path)
+        return paths
 
     def load_operator_stats(self, required_columns=()) -> pd.DataFrame:
         '''

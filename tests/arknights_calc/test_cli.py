@@ -56,8 +56,11 @@ class FakeHella:
         if self.error:
             raise self.error
 
-    def fetch_operator_data(self, key):
+    def fetch_operator_value(self, key):
         return {'operator': key}
+
+    def fetch_deployable_data(self, key):
+        return {'deployable': key}
 
     def fetch_stage_data(self, key):
         return [{'stage': key}]
@@ -79,8 +82,8 @@ def fake_processors(monkeypatch):
             calls.append('roster')
 
     class FakeStats:
-        def __init__(self, storage, fetch_operator):
-            calls.append(('stats init', storage.ref_dir, fetch_operator('char_a')))
+        def __init__(self, storage, fetch_operator, fetch_deployable):
+            calls.append(('stats init', storage.ref_dir, fetch_operator('char_a'), fetch_deployable('token_a')))
 
         def run(self):
             calls.append('stats')
@@ -118,7 +121,7 @@ def test_run_steps_runs_selected_steps_in_order(tmp_path, fake_processors, step,
 def test_run_steps_passes_settings_email_storage_and_cache(tmp_path, fake_processors):
     cli.run_steps('all', _settings(tmp_path), None)
     assert ('roster init', 'me@example.com', tmp_path / 'ref') in fake_processors
-    assert ('stats init', tmp_path / 'ref', {'operator': 'char_a'}) in fake_processors
+    assert ('stats init', tmp_path / 'ref', {'operator': 'char_a'}, {'deployable': 'token_a'}) in fake_processors
     assert ('matchups init', tmp_path / 'io', [{'stage': 's1'}], {'enemy': 'e1'}) in fake_processors
     assert ('build cache', tmp_path / 'ref' / 'cache') in fake_processors
 
