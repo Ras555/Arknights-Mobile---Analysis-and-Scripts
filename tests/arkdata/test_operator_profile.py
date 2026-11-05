@@ -560,3 +560,26 @@ def test_real_kaltsit_and_mon3tr():
     assert (mon3tr.name, mon3tr.owner_id, mon3tr.potential, mon3tr.trust) == ('Mon3tr', 'char_003_kalts', 0, 0)
     assert mon3tr.summary().min_dps == pytest.approx(701)
     assert mon3tr.skills == []
+
+
+def test_real_bagpipe():
+    profile = _real('bagpipe')
+    # ATK 586 + 25 (potential) + 85 (trust) = 696, attack interval 1.0 s.
+    # Talent 1 (potential 6): 28% chance of two 130% strikes: 0.72 + 0.28 × 2.6 = 1.448 per hit.
+    [talent] = [talent for talent in profile.talents if talent.number == 1]
+    assert talent.damage_multiplier == pytest.approx(1.448)
+    assert profile.summary().min_dps == pytest.approx(696 * 1.448)
+    s1, s2, s3 = profile.skills
+    # S1 M3: ATK +45%, ASPD +45: 1009.2 × 1.448 / (1 / 1.45) = 2118.92, 35 s of a 70 s cycle.
+    assert s1.dps == pytest.approx(1009.2 * 1.448 * 1.45)
+    assert s1.average_dps == pytest.approx((1009.2 * 1.448 * 1.45 + 696 * 1.448) / 2)
+    # S2 M3: next attack 200% and strikes again: 2 × 2 × 696 × 1.448 = 4031.23, minus the 1007.81 attack it replaces,
+    # every 4 s (4 SP over time): 1007.81 + 3023.42 / 4 = 1763.66.
+    assert s2.burst[0].per_target == pytest.approx(696 * 1.448 * 3)
+    assert s2.average_dps == pytest.approx(696 * 1.448 + 696 * 1.448 * 3 / 4)
+    # S3 M3: ATK +120% = 1531.2, 3 hits per attack (each can trigger the talent), interval 1 + 0.7 = 1.7 s:
+    # 1531.2 × 3 × 1.448 / 1.7 = 3912.67 DPS, 20 s of a 60 s cycle.
+    assert s3.dps == pytest.approx(1531.2 * 3 * 1.448 / 1.7)
+    assert s3.average_dps == pytest.approx((1531.2 * 3 * 1.448 / 1.7 * 20 + 696 * 1.448 * 40) / 60)
+    summary = profile.summary()
+    assert (summary.max_dps_skill, summary.avg_dps_skill) == ('Locked Breech Burst', 'Locked Breech Burst')

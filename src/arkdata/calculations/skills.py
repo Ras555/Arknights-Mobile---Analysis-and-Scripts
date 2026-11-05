@@ -9,7 +9,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-04
+Last Modified: 2026-11-05
 Last Modified by: Claude
 '''
 
@@ -23,6 +23,7 @@ from typing import Protocol
 
 from arkdata.calculations.attack_targets import Targets, skill_targets
 from arkdata.calculations.blackboard import (
+    CLAUSE_BREAK,
     PLACEHOLDER,
     BlackboardValue,
     Target,
@@ -98,6 +99,22 @@ IMMEDIATE_DAMAGE = re.compile(r'immediately deals?', re.IGNORECASE)
 OTHER_TRIGGER = re.compile(r'\bspends?\b|\bwhen switching\b|\brushes\b', re.IGNORECASE)
 # Damage dealt on a timer rather than with each attack (e.g. Ifrit's Scorched Earth, "every second").
 PER_SECOND = re.compile(r'every second|per second|each second', re.IGNORECASE)
+# Hits per attack written only in the text, for skills without a "times" value: "attacks hit 3 times in a row",
+# "strikes an additional time", "attacks hit twice", "deals 170% ATK as Arts damage twice", "double strikes". "twice"
+# only counts after an attacking word in the same clause, so counts that aren't hits ("bonuses are twice the base
+# amount", "Can be used up to twice in one battle", "stacking up to 3 times") don't match.
+HITS_IN_A_ROW = re.compile(r'\b(\d+) times in a row', re.IGNORECASE)
+TWO_HITS = re.compile(
+    r'\b(?:attacks?|attacking|hits?|hitting|strikes?|striking|deals?|dealing|takes?|shoots?|slash\w*)\b'
+    r'(?:\{[^}]*\}|[^.;\n]){0,60}?\btwice\b'
+    r'|double strikes?|\b(?:strikes?|attacks?|hits?) (?:an? |one )?(?:additional|extra) time',
+    re.IGNORECASE,
+)
+# Words in the match or earlier in its clause that mean the extra hits only sometimes apply, or apply to something else, so they
+# aren't counted: a chance ("20% chance of striking twice"), a later or special state ("after this skill has been used
+# 5 times", "During Fever", "Overload:"), a condition ("if", "when"), or a summon's attacks ("its attacks hit twice").
+CONDITIONAL_HITS = re.compile(r'\bchance\b|\bduring\b|\boverload\b|\bits attacks\b|\bafter this skill\b|\bif\b|\bwhen\b',
+                              re.IGNORECASE)
 STOPS_ATTACKING = re.compile(r'stops? attacking|(?:cannot|can not|can\'t|does not|unable to) attack', re.IGNORECASE)
 DAMAGE_TYPE_NAMES = {"physical": DamageType.PHYSICAL, "arts": DamageType.ARTS, "true": DamageType.TRUE}
 
@@ -316,6 +333,42 @@ def _percent(value: BlackboardValue) -> tuple[bool, bool]:
     return abs(value.value) <= PERCENT_LIMIT[value.key], True
 
 
+def text_hits(text: str) -> float | None:
+    '''
+    Returns the hits per attack written in a skill's text (the first
+    HITS_IN_A_ROW or TWO_HITS match without CONDITIONAL_HITS words in it or
+    before it in its clause), or None when the text doesn't say.
+
+    Args:
+        text: The description without formatting tags.
+    '''
+    matches = sorted([*HITS_IN_A_ROW.finditer(text), *TWO_HITS.finditer(text)], key=lambda match: match.start())
+    for match in matches:
+        if CONDITIONAL_HITS.search(_clause_before(text, match.start()) + match.group(0)):
+            continue
+        return float(match.group(1)) if match.re is HITS_IN_A_ROW else 2.0
+    return None
+
+
+def _clause_before(text: str, position: int) -> str:
+    '''
+    Returns the part of position's clause (between CLAUSE_BREAKs) that comes
+    before it.
+    '''
+    breaks = [match.end() for match in CLAUSE_BREAK.finditer(text, 0, position)]
+    return text[breaks[-1] if breaks else 0:position]
+
+
+def _hits(text: str, values: dict[str, BlackboardValue]) -> float:
+    '''
+    Returns the hits per attack: the "times" value, or what the text says
+    (text_hits), or 1.
+    '''
+    if 'times' in values:
+        return values['times'].value
+    return text_hits(text) or 1.0
+
+
 def _damage_parts(text: str, values: dict[str, BlackboardValue], damage_type: str, targets: Targets) -> list[DamagePart]:
     '''
     Returns the damage parts of a skill that has an ATK multiplier.
@@ -335,7 +388,7 @@ def _damage_parts(text: str, values: dict[str, BlackboardValue], damage_type: st
         The damage parts.
     '''
     scale = values['atk_scale']
-    hits = values['times'].value if 'times' in values else 1.0
+    hits = _hits(text, values)
     placeholders = list(PLACEHOLDER.finditer(text))
     parts = []
     for i, match in enumerate(placeholders):
@@ -434,9 +487,9 @@ def parse_skill(
             skill.damage_parts = _damage_parts(text, values, attack_type, targets)
         return skill
     targets = skill_targets(max_target, text, basic_targets)
-    if 'times' in values or 'max_target' in values or skill.damage_type is not None or targets.aoe:
+    hits = _hits(text, values)
+    if hits != 1 or 'max_target' in values or skill.damage_type is not None or targets.aoe:
         # No multiplier, but the attacks change: more hits, more targets, or a new damage type.
-        hits = values['times'].value if 'times' in values else 1.0
         skill.damage_parts = [DamagePart(attack_type, 1.0, hits, targets)]
     return skill
 

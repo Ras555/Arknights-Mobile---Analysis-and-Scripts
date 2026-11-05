@@ -287,6 +287,16 @@ def test_dodge_chance_is_a_note():
     assert talent.factor == 1.0 and talent.modifiers.atk_percent == 0.06
 
 
+@pytest.mark.parametrize('wording', ['and strike an additional target', 'and strikes an extra time',
+                                     'and hits another target'])
+def test_boosted_attack_that_strikes_again_deals_the_multiplier_twice(wording):
+    # Bagpipe's talent 1: 75% of attacks deal 100%, 25% deal two strikes of 130%: 0.75 + 0.25 × 2.6 = 1.4.
+    talent = _talent(f'When attacking, has a 25% chance to increase ATK to 130% {wording}',
+                     {'prob': 0.25, 'atk_scale': 1.3})
+    assert talent.damage_multiplier == pytest.approx(1.4)
+    assert talent.notes == ['the boosted attack strikes twice']
+
+
 def test_chance_of_a_damage_multiplier_is_its_expected_value():
     talent = _talent('When attacking, has a 20% chance to deal 160% damage', {'prob': 0.2, 'atk_scale': 1.6})
     assert talent.factor == 0.2

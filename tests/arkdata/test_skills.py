@@ -17,6 +17,7 @@ from arkdata.calculations.skills import (
     is_stat_value,
     level_index,
     parse_skill,
+    text_hits,
     unlocked_skills,
 )
 from factories import load_skill_fixture, make_skill_entry, make_skill_level
@@ -310,6 +311,48 @@ def test_unknown_values_are_listed():
     skill = _parse(make_skill_level('ATK +{atk:0%}', {'atk': 0.5, 'mystery': 3, 'attack@prob': 0.2}))
     assert skill.unmodelled == ['mystery', 'attack@prob']
     assert skill.status == SkillStatus.PARTIAL
+
+
+# Hits written only in the text
+
+@pytest.mark.parametrize('text, expected', [
+    ('ATK interval increases, ATK +{atk:0%}, and attacks hit 3 times in a row', 3),
+    ('Increases the ATK of the next attack to {atk_scale:0%}, and strikes an additional time', 2),
+    ('ATK +{atk:0%}, attacks hit twice', 2),
+    ('Deals {appear.atk_scale:0%} ATK as Arts damage twice to all surrounding enemies', 2),
+    ('The ATK of next attack increases to 175%, attacking twice consecutively', 2),
+    ('ATK +80%, and attacks turn into double strikes', 2),
+    ('Attacks hit 2 times in a row. After hitting a target 32 times, attacks hit 4 times in a row', 2),
+    # Not hits, or only sometimes.
+    ('Its bonuses are twice the base amount', None),
+    ('ATK +100%, ASPD +100\nCan be used up to twice in one battle', None),
+    ('ATK +70%, every attack has a 20% chance of striking twice', None),
+    ('After this skill has been used 5 times: attacks hit twice', None),
+    ('Overload: Attacks strike 4 times in a row with 80% ATK', None),
+    ('During Fever, the current timbre deals double strikes', None),
+    ('If Flowing Shape is in Ranged form, its attacks hit twice', None),
+    ('When detonated, all enemies in range take 250% ATK as Physical damage twice', None),
+    ('ATK +50%, stacking up to 3 times', None),
+    ('Can store up to 3 charges', None),
+])
+def test_text_hits(text, expected):
+    assert text_hits(text) == expected
+
+
+def test_hits_from_the_text_make_a_damage_part():
+    skill = _parse(make_skill_level('ATK +{atk:0%}, and attacks hit 3 times in a row', {'atk': 1.2}))
+    assert skill.damage_parts == [DamagePart(DamageType.PHYSICAL, 1.0, 3.0, ONE)]
+
+
+def test_hits_from_the_text_with_a_multiplier():
+    skill = _parse(make_skill_level('Increases the ATK of the next attack to {atk_scale:0%}, and strikes an additional time',
+                                    {'atk_scale': 2.0}))
+    assert skill.damage_parts == [DamagePart(DamageType.PHYSICAL, 2.0, 2.0, ONE)]
+
+
+def test_times_value_wins_over_the_text():
+    skill = _parse(make_skill_level('Shoots {times} times in a row, attacks hit twice', {'times': 4, 'atk_scale': 1.1}))
+    assert skill.damage_parts[0].hits == 4
 
 
 def test_skill_with_nothing_modelled():

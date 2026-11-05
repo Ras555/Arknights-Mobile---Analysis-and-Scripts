@@ -518,8 +518,12 @@ to 1, are percentages), which is recorded as an assumption. attack_speed is flat
 added to the attack interval, block_cnt extra block. Values that affect enemies are kept as enemy_effects (for
 matchups), values that buff allies become notes.
 - Damage: each atk_scale placeholder is one DamagePart, typed by the damage named after it ("410% of ATK Physical
-damage and 410% of ATK Arts damage" is two parts), otherwise the operator's type. times is hits per attack,
-max_target the target limit. "damage type changes to True" (and similar) changes the whole attack. A multiplier only
+damage and 410% of ATK Arts damage" is two parts), otherwise the operator's type. times is hits per attack; without
+it, hits written in the text count ("attacks hit 3 times in a row" = 3; "strikes an additional time", "attacks hit
+twice", "deals 170% ATK as Arts damage twice" and "double strikes" = 2), unless the clause makes them occasional or
+someone else's ("20% chance of striking twice", "after this skill has been used 5 times", "During Fever", "Overload:",
+"if", "when", "its attacks"; checked 2026-11-05: 34 skills in the game gain hits this way). max_target the target
+limit. "damage type changes to True" (and similar) changes the whole attack. A multiplier only
 dealt to enemies that attack the unit (counter damage) isn't treated as an attack multiplier. Damage "every second" is
 marked per_second.
 - What starts a skill (Skill.trigger, a SkillTrigger): SP for normal skills. Passive skills (skillType PASSIVE, spType
@@ -587,7 +591,10 @@ Every talent's effects are still worked out, whatever its group.
 - Factor (what each value is multiplied by): a chance (prob, or the first of prob1, prob2...) of the talent's own
 effect is its expected value (a 20% chance to deal 160% is a 1.12 multiplier). It only scales the effects in the part of
 the clause (between commas) that mentions the chance ("ASPD +6, 15% chance to increase ATK to 150%" keeps the full ASPD),
-or every effect when only the clause as a whole does. A dodge chance, or a chance of something not modelled, is a note. Stacking
+or every effect when only the clause as a whole does. A dodge chance, or a chance of something not modelled, is a note.
+A boosted attack that also strikes again ("increase ATK to 130% and strike an additional target") deals the multiplier
+twice, to the same enemy unless the first strike defeats it: 1 + (2m - 1) × chance (Bagpipe's talent 1: 0.75 + 0.25 ×
+2.6 = 1.4). Talent multipliers apply to every hit, so each hit of a multi-hit skill can trigger the talent. Stacking
 effects use the average number of stacks over a window (one skill rotation) when they stack per attack, every N
 attacks, or every N seconds; when the rate isn't known (per kill, per Slow) they assume half the maximum stacks
 (UNKNOWN_STACK_FRACTION), flagged as assumed.
@@ -724,7 +731,8 @@ The io folder is gitignored, since its files are regenerated on every run.
 The tests folder stores the pytest suite, split into tests/arkdata and tests/arknights_calc to mirror the packages. The
 tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
 tests/fixtures/skills and tests/fixtures/talents hold trimmed real HellaAPI skill and talent data, and
-tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit and Mon3tr)
+tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit, Mon3tr
+and Bagpipe)
 for operator profiles, with their expected figures worked out by hand in the tests (each file names its source). They're
 loaded with load_skill_fixture, load_talent_fixture and load_operator_fixture; make_operator_value builds a fake operator.
 
@@ -864,7 +872,7 @@ otherwise.
 3. Build each operator's profile (see Operator Profiles) at its skill level and masteries (a blank mastery counts as 0),
 and its summons' profiles. Summons that can't be fetched are logged and skipped.
 4. Save the results (src/arknights_calc/reports.py turns profiles into rows and pages; numbers in io/ files are rounded
-to 2 decimals, ref/ keeps full precision):
+to 2 decimals, ref/ keeps full precision; the pages round numbers the same way as the tables, with numpy):
    - ref/operator_stats_output.csv and io/operator_stats_output.csv: one row per operator, with OperatorStats' columns
    (the existing dps column is the basic attack with no talents, still used by the matchups step), then min_dps,
    avg_dps, max_dps, the same three ending in _total, avg_dps_skill, avg_dps_total_skill, max_dps_skill,

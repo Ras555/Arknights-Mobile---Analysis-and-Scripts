@@ -9,7 +9,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-04
+Last Modified: 2026-11-05
 Last Modified by: Claude
 '''
 
@@ -89,6 +89,10 @@ TALENT_ALLY_WORDS = re.compile(r'\boperators\b|\bmembers\b', re.IGNORECASE)
 FRAGILE_AFTER = re.compile(r'^[^,]*?\bfragil', re.IGNORECASE)
 # A damage multiplier for splash damage only ("damage caused by Trait splash effect increases by 24%").
 SPLASH_WORDS = re.compile(r'\bsplash', re.IGNORECASE)
+# A boosted attack that also strikes again ("increase ATK to 130% and strike an additional target"): the extra strike
+# deals the same boosted damage, to the same enemy unless the first defeats it (Bagpipe's talent 1).
+EXTRA_STRIKE = re.compile(r'\b(?:strikes?|attacks?|hits?) (?:an? |one )?(?:additional|extra|another) (?:target|time)',
+                          re.IGNORECASE)
 
 DODGE_WORDS = re.compile(r'\bdodge\b', re.IGNORECASE)
 CHANCE_WORDS = re.compile(r'\bchance\b', re.IGNORECASE)
@@ -511,7 +515,9 @@ def _apply_damage_value(talent: Talent, value: BlackboardValue, clause: str, sca
 
     A multiplier m with scale f (its chance and stacks) becomes
     1 + (m - 1) * f: a 20% chance to deal 160% damage averages
-    1 + 0.6 * 0.2 = 1.12.
+    1 + 0.6 * 0.2 = 1.12. When the boosted attack also strikes again
+    (EXTRA_STRIKE), it deals m twice: 1 + (2m - 1) * f, so a 25% chance of
+    two 130% strikes averages 1 + 1.6 * 0.25 = 1.4.
     '''
     if value.target == Target.ENEMY:
         talent.enemy_effects.append(value)
@@ -524,7 +530,11 @@ def _apply_damage_value(talent: Talent, value: BlackboardValue, clause: str, sca
     if SPLASH_WORDS.search(clause):
         talent.unmodelled.append(f'{value.raw_key} (splash damage only)')
         return
-    talent.damage_multiplier *= 1 + (value.value - 1) * scale
+    strikes = 1
+    if EXTRA_STRIKE.search(clause):
+        strikes = 2
+        talent.notes.append('the boosted attack strikes twice')
+    talent.damage_multiplier *= 1 + (value.value * strikes - 1) * scale
 
 
 def parse_talent_overrides(text: str) -> dict[tuple[str, int], TalentOverride]:
