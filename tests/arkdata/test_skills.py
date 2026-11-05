@@ -98,6 +98,14 @@ def test_operators_without_skills():
     assert unlocked_skills({'data': {'skills': [{'skillId': 'x'}]}}, 0, 1) == []
 
 
+def test_null_skill_entries_are_skipped():
+    # Some summons list their skills as null (Mon3tr: [null, null, null]).
+    operator = _operator({'phase': 'PHASE_0', 'level': 1})
+    operator['skills'].insert(0, None)
+    assert [number for number, _ in unlocked_skills(operator, 0, 1)] == [1]
+    assert unlocked_skills({'data': {'skills': [{'skillId': None}]}, 'skills': [None]}, 2, 90) == []
+
+
 def test_missing_unlock_condition_means_unlocked_from_the_start():
     operator = _operator({})
     assert len(unlocked_skills(operator, 0, 1)) == 1

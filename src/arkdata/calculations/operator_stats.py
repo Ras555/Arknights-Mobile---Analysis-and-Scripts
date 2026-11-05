@@ -8,7 +8,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-03
+Last Modified: 2026-11-04
 Last Modified by: Claude
 '''
 
@@ -313,8 +313,9 @@ class OperatorStats:
         Raises a ValueError if the potential is outside 0 to the number of
         potential ranks.
         '''
-        # Potential is 0-indexed to match arkprts' potential_rank (0 = base, no upgrades applied).
-        max_potential = len(self._data["potentialRanks"])
+        # Potential is 0-indexed to match arkprts' potential_rank (0 = base, no upgrades applied). Summons have no
+        # potential ranks, so only 0 is allowed for them.
+        max_potential = len(self._data.get("potentialRanks") or [])
         if not (0 <= self.potential <= max_potential):
             raise ValueError(f"{self.name} allows potential 0-{max_potential}, got potential {self.potential}")
 
@@ -359,7 +360,7 @@ class OperatorStats:
         unlocked to self.stats.
         '''
         # Potential N unlocks the first N ranks, so slice the list to N.
-        ranks_to_apply = self._data["potentialRanks"][: self.potential]
+        ranks_to_apply = (self._data.get("potentialRanks") or [])[: self.potential]
         for rank in ranks_to_apply:
             # Ranks that don't change stats (e.g. ones that improve a talent)
             # have no buff, so each missing level is treated as empty.
@@ -381,7 +382,11 @@ class OperatorStats:
         '''
         # favorKeyFrames gives the stat bonus at 0 trust (level 0, always zero) and
         # 100 trust (level 50); trust scales linearly between them and caps at 100.
-        start_frame, end_frame = self._data["favorKeyFrames"][0], self._data["favorKeyFrames"][-1]
+        # Most summons have no favorKeyFrames, so they get no trust bonus.
+        key_frames = self._data.get("favorKeyFrames") or []
+        if not key_frames:
+            return
+        start_frame, end_frame = key_frames[0], key_frames[-1]
         start_data, end_data = start_frame["data"], end_frame["data"]
         trust_ratio = min(self.trust, 100) / 100
 

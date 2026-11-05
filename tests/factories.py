@@ -189,3 +189,35 @@ def make_talent_candidate(description='', blackboard=None, phase='PHASE_0', leve
         'description': description, 'blackboard': [{'key': key, 'value': value} for key, value in (blackboard or {}).items()],
         'isHideTalent': hidden,
     }
+
+
+def make_operator_value(skills=(), talents=(), sub_profession='fearless', profession='GUARD', tokens=None,
+                        override_tokens=None, operator_id='char_test', **data_kwargs):
+    '''
+    Returns a fake HellaAPI operator value ({"id", "data", "skills"}) with
+    make_operator_data's stats (ATK 640, attack interval 1.0 s at phase 2
+    level 90, with no potential or trust).
+
+    skills are skill entries (make_skill_entry), unlocked from phase 0;
+    talents are lists of talent candidates (make_talent_candidate); tokens
+    are summon ids for displayTokenDict; override_tokens is {skill number:
+    summon id} for skills that deploy a summon.
+    '''
+    data = make_operator_data(profession=profession, **data_kwargs)
+    data['subProfessionId'] = sub_profession
+    data['skills'] = [
+        {'skillId': entry['excel']['skillId'], 'unlockCond': {'phase': 'PHASE_0', 'level': 1},
+         'overrideTokenKey': (override_tokens or {}).get(number)}
+        for number, entry in enumerate(skills, start=1)
+    ]
+    data['talents'] = [{'candidates': list(candidates)} for candidates in talents]
+    data['displayTokenDict'] = dict.fromkeys(tokens, True) if tokens else None
+    return {'id': operator_id, 'data': data, 'skills': list(skills)}
+
+
+def load_operator_fixture(name):
+    '''
+    Returns a trimmed real operator (or summon) value ({"id", "data",
+    "skills"}) from tests/fixtures/operators/<name>.json, e.g. "blaze".
+    '''
+    return json.loads((FIXTURES_DIR / 'operators' / f'{name}.json').read_text(encoding='utf-8'))['value']

@@ -288,7 +288,8 @@ def unlocked_skills(operator_value: dict, phase: int, level: int) -> list[tuple[
         (skill number from 1, skill entry with "excel") for each unlocked
         skill, in order. Skills without level data are left out.
     '''
-    entries = {(entry.get('excel') or {}).get('skillId'): entry for entry in operator_value.get('skills') or []}
+    # Some summons list their skills as null (Mon3tr: [null, null, null]).
+    entries = {(entry.get('excel') or {}).get('skillId'): entry for entry in operator_value.get('skills') or [] if entry}
     unlocked = []
     for number, skill in enumerate(operator_value['data'].get('skills') or [], start=1):
         condition = skill.get('unlockCond') or {}

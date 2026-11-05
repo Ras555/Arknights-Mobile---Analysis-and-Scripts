@@ -66,7 +66,14 @@ Optional settings can be added to `.env` (see [.env.example](.env.example)):
 - `src/arkdata/` - a generic Arknights library, with no knowledge of this
   program:
   - `calculations/` - damage formulas, operator and enemy stats, trust,
-    stage contents, and operator-vs-enemy matchups.
+    stage contents, and operator-vs-enemy matchups. Also skills (what they
+    change, how many enemies they hit, and their SP rotation), talents (and
+    how likely their conditions are to be met), and operator profiles that
+    put these together into min/average/max DPS, DEF, RES, HP and healing
+    for each operator and its summons. The profiles aren't in the program's
+    outputs yet.
+  - `data/` - data files that ship with the library:
+    `talent_conditions.csv` overrides how a talent's condition is judged.
   - `sources/` - the HellaAPI client (with retries) and its disk cache, and
     the Arknights account helpers (login, roster).
 - `src/arknights_calc/` - this program: the command line (`cli.py`),
@@ -77,7 +84,8 @@ Optional settings can be added to `.env` (see [.env.example](.env.example)):
   `operator_stats_output.csv`, and the HellaAPI cache in `cache/`).
 - `io/` - outputs meant for you to view (`roster.csv`,
   `operator_stats_output.csv`, and the `stage_<id>_enemy_stats.csv` / `stage_<id>_matchups.csv` files).
-- `tests/` - the pytest suite, split into `arkdata/` and `arknights_calc/`.
+- `tests/` - the pytest suite, split into `arkdata/` and `arknights_calc/`,
+  with trimmed real game data (skills, talents, operators) in `fixtures/`.
 
 `arkdata` must never import from `arknights_calc`; a test checks this.
 

@@ -1,0 +1,231 @@
+{
+ "source": "HellaAPI deployable token_10002_kalts_mon3tr (Mon3tr), trimmed, retrieved 2026-11-04",
+ "value": {
+  "id": "token_10002_kalts_mon3tr",
+  "data": {
+   "name": "Mon3tr",
+   "description": "Blocks 3 enemies",
+   "profession": "TOKEN",
+   "subProfessionId": "notchar1",
+   "rarity": "TIER_6",
+   "displayTokenDict": null,
+   "trait": null,
+   "phases": [
+    {
+     "maxLevel": 50,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 2510,
+        "atk": 545,
+        "def": 201,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 2,
+        "blockCnt": 3,
+        "cost": 10,
+        "respawnTime": 35
+       }
+      },
+      {
+       "level": 50,
+       "data": {
+        "maxHp": 3347,
+        "atk": 827,
+        "def": 272,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 2,
+        "blockCnt": 3,
+        "cost": 10,
+        "respawnTime": 35
+       }
+      }
+     ]
+    },
+    {
+     "maxLevel": 80,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 3347,
+        "atk": 827,
+        "def": 272,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 2,
+        "blockCnt": 3,
+        "cost": 10,
+        "respawnTime": 30
+       }
+      },
+      {
+       "level": 80,
+       "data": {
+        "maxHp": 4292,
+        "atk": 1149,
+        "def": 336,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 2,
+        "blockCnt": 3,
+        "cost": 10,
+        "respawnTime": 30
+       }
+      }
+     ]
+    },
+    {
+     "maxLevel": 90,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 4292,
+        "atk": 1149,
+        "def": 336,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 2,
+        "blockCnt": 3,
+        "cost": 10,
+        "respawnTime": 25
+       }
+      },
+      {
+       "level": 90,
+       "data": {
+        "maxHp": 5433,
+        "atk": 1402,
+        "def": 405,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 2,
+        "blockCnt": 3,
+        "cost": 10,
+        "respawnTime": 25
+       }
+      }
+     ]
+    }
+   ],
+   "skills": [
+    {
+     "skillId": null,
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_0",
+      "level": 1
+     }
+    },
+    {
+     "skillId": null,
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_1",
+      "level": 1
+     }
+    },
+    {
+     "skillId": null,
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_2",
+      "level": 1
+     }
+    }
+   ],
+   "talents": [
+    {
+     "candidates": [
+      {
+       "unlockCondition": {
+        "phase": "PHASE_0",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Mon3tr",
+       "description": "Can be healed by Kal'tsit; has 0 DEF when not within Kal'tsit's Attack Range",
+       "isHideTalent": false,
+       "blackboard": []
+      }
+     ]
+    },
+    {
+     "candidates": [
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Non-Damaging Restructuring",
+       "description": "When defeated (excluding retreat), all enemies in the surrounding 8 tiles are Stunned for 3 seconds and receive 1200 True Damage",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "stun",
+         "value": 3
+        },
+        {
+         "key": "value",
+         "value": 1200
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 4,
+       "name": "Non-Damaging Restructuring",
+       "description": "When defeated (excluding retreat), all enemies in the surrounding 8 tiles are <$ba.stun>Stunned</> for 3.5 <@ba.talpu>(+0.5)</> seconds and receive 1400 <@ba.talpu>(+200)</> True damage",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "stun",
+         "value": 3.5
+        },
+        {
+         "key": "value",
+         "value": 1400
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "potentialRanks": [],
+   "favorKeyFrames": [
+    {
+     "level": 0,
+     "data": {
+      "maxHp": 0,
+      "atk": 0,
+      "def": 0,
+      "magicResistance": 0,
+      "attackSpeed": 0
+     }
+    },
+    {
+     "level": 50,
+     "data": {
+      "maxHp": 0,
+      "atk": 0,
+      "def": 0,
+      "magicResistance": 0,
+      "attackSpeed": 0
+     }
+    }
+   ]
+  },
+  "skills": [
+   null,
+   null,
+   null
+  ]
+ }
+}

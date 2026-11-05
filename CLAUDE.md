@@ -604,6 +604,60 @@ a TalentGroup name (case doesn't matter), and an empty factor keeps the calculat
 (package-data in pyproject.toml) and is read once with importlib.resources by load_talent_overrides(); an unknown group
 raises a ValueError. Overridden talents are marked overridden and get an "overridden" note (with the row's note).
 
+### Operator Profiles
+
+src/arkdata/calculations/operator_profile.py puts stats, talents and skills together:
+`build_operator_profile(operator_value, phase, level, potential, trust, skill_level, masteries, operator_id)` returns an
+OperatorProfile, and `OperatorProfile.summary()` a ProfileSummary (one row of figures for PR 3's outputs).
+> ATK = (ATK + flat bonuses) × (1 + sum of ATK %), and the same for DEF, HP and RES
+>
+> attack interval = (base attack time + interval change) / (ASPD / 100), with ASPD kept between 20 and 600
+>
+> DPS per target = ATK × ATK multiplier × hits × talent damage multiplier / attack interval
+>
+> total DPS = DPS per target × Targets.damage_share
+
+- Base stats come from OperatorStats (level, potential, trust). The applied talents (ALWAYS and LIKELY) are added, then
+a skill's changes while it's active. Healing isn't multiplied by talent damage multipliers.
+- Hits: a damage part with 1 hit uses the archetype's hits (a Swordmaster's 2), since only skills that change the number
+of hits say so. Damage dealt every second isn't divided by the attack interval, and is added to the normal attack.
+- Phalanx Casters and Liberators don't attack outside their skills (0 DPS with no skill), but do during them.
+- Each skill gets a SkillProfile: stats and damage (one Damage per damage type, per target and in total) while active,
+and its SkillRotation (charging at the attack interval with no skill; SP when hit at 1 attacker every
+ASSUMED_ENEMY_ATTACK_INTERVAL, plus a full-block average with block count attackers).
+  - Instant skills keep the normal attack's damage and add a burst per activation: the skill's strike minus the attack it
+  replaces, its boosted next attack, or an extra strike. An instant skill with no damage and no next attack (e.g.
+  "Blocks the next source of damage") adds nothing.
+  - "Stops attacking" leaves only damage every second. Ammo skills last ammo × their attack interval.
+  - Skills that can only be used once per battle are left out of average and max DPS (noted as assumed).
+- Stacking talents: the no-skill figures average them over DEFAULT_STACK_WINDOW (60 s, noted as assumed); each skill
+averages them over its own rotation (its cycle time), or 60 s for skills that stay on. Talents are built twice each time:
+first to find the attack interval (their ASPD changes it), then with it.
+- Summary: min DPS is with no skill; max DPS is the best active skill that lasts (timed, until retreat, ammo, always on,
+timed deployment; not instant, OTHER or once-per-battle skills); average DPS is the best rotation average, or no skill if
+none is better (so deployment skills never name the average). Each comes per target and in total, naming its skill ("" for
+none). Min/max DEF, RES and HP use the same skills as max DPS. Healing (min/avg/max HPS) is only given for HEAL
+operators. status combines every skill's and talent's status (full, partial, none).
+- Skill levels: a skill that doesn't have the wanted level or mastery (a summon's 1-level skill, or one without masteries)
+uses its nearest level, noted as assumed.
+- Not modelled: modules, operator talents and skills that buff their own summons (Kal'tsit's skills that buff Mon3tr
+are read as her own changes), SP gained from talents, and the chance in a skill's own wording ("15% chance to increase
+ATK to 200%").
+
+#### Summons
+
+- `summon_ids(operator_value)` lists an operator's summons from data.displayTokenDict and each skill's overrideTokenKey
+(some are only in one of them), with the number of the skill that deploys each (or None).
+- `build_summon_profile(...)` profiles a summon at its owner's phase and level. It gets the owner's potential or trust
+only if its own data lists stat bonuses for them; none does (checked 2026-11-04: 797 deployables have neither, and the
+35 with trust key frames list 0 for every stat), so they're 0, noted as assumed.
+- A summon's skills line up with its owner's by slot (Skadi the Corrupting Heart's Seaborn has one skill for each of
+hers; Nearl the Radiant Knight's sword only has skill 3, for her S3), so skill N uses the owner's skill level and skill N
+mastery. Summon skills are counted whenever they'd be active on their own; in game, skill N is only used while the
+owner's skill N is (noted as assumed). Some summons list their skills as null (Mon3tr).
+- `build_summon_profiles(operator_value, deployables, ...)` builds every summon an operator has from a {deployable id:
+value} mapping, logging and skipping missing ones (SilverAsh the Reignfrost's token_10057_svash2_eagle).
+
 
 ## Project Structure
 
@@ -621,8 +675,8 @@ checks this).
 - calculations/: damage.py (DamageType, damage formulas), operator_stats.py, enemy_stats.py, trust.py, stage.py (enemies
 and spawn counts in a stage), matchups.py (operator vs. enemy DPS and kill times), and for skills (see Calculations):
 blackboard.py (a skill's named values and readable text), skills.py (Skill, StatModifiers, DamagePart, and
-apply_stat_value(s), shared with talents), skill_rotation.py (SkillRotation), attack_targets.py (Targets) and talents.py
-(Talent, TalentGroup, the talent override file).
+apply_stat_value(s), shared with talents), skill_rotation.py (SkillRotation), attack_targets.py (Targets), talents.py
+(Talent, TalentGroup, the talent override file) and operator_profile.py (OperatorProfile, ProfileSummary, summons).
 - data/: data files that ship with the package: talent_conditions.csv (see Talent Override File).
 - sources/: hella_api.py (HellaAPIClient: the HellaAPI client, with timeouts and retries), hella_cache.py (HellaCache:
 the disk cache in front of the client, see Program Flow) and account.py (arkprts login and roster retrieval).
@@ -665,9 +719,10 @@ The io folder is gitignored, since its files are regenerated on every run.
 
 The tests folder stores the pytest suite, split into tests/arkdata and tests/arknights_calc to mirror the packages. The
 tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
-tests/fixtures/skills and tests/fixtures/talents hold trimmed real HellaAPI skill and talent data (each file names its
-source) for tests that check the parsing of real skills and talents, loaded with load_skill_fixture and
-load_talent_fixture.
+tests/fixtures/skills and tests/fixtures/talents hold trimmed real HellaAPI skill and talent data, and
+tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit and Mon3tr)
+for operator profiles, with their expected figures worked out by hand in the tests (each file names its source). They're
+loaded with load_skill_fixture, load_talent_fixture and load_operator_fixture; make_operator_value builds a fake operator.
 
 ### Other
 
