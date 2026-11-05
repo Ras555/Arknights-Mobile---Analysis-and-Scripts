@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from arknights_calc.settings import Settings
-from arknights_calc.storage import MissingColumnsError, Storage
+from arknights_calc.storage import MissingColumnsError, Storage, page_file_name
 
 
 @pytest.fixture
@@ -35,6 +35,12 @@ def test_file_locations(storage, tmp_path):
     assert storage.operator_stats_view_file == tmp_path / 'io' / 'operator_stats_output.csv'
     assert storage.stage_enemy_stats_file('main_06-09') == tmp_path / 'io' / 'stage_main_06-09_enemy_stats.csv'
     assert storage.stage_matchups_file('main_06-09') == tmp_path / 'io' / 'stage_main_06-09_matchups.csv'
+    assert storage.operator_skills_file == tmp_path / 'io' / 'operator_skills.csv'
+    assert storage.operator_talents_file == tmp_path / 'io' / 'operator_talents.csv'
+    assert storage.summon_stats_file == tmp_path / 'io' / 'summon_stats.csv'
+    assert storage.summon_skills_file == tmp_path / 'io' / 'summon_skills.csv'
+    assert storage.operator_pages_dir == tmp_path / 'io' / 'operators'
+    assert storage.operator_page_file("Kal'tsit") == tmp_path / 'io' / 'operators' / "Kal'tsit.md"
 
 
 def test_save_raw_data_writes_4_space_json_and_overwrites(storage):
@@ -64,6 +70,48 @@ def test_save_operator_stats_writes_ref_and_io_and_overwrites(storage):
     assert paths == [storage.operator_stats_file, storage.operator_stats_view_file]
     for path in paths:
         assert path.read_text().splitlines() == ['operator_id,stunImmune', 'a,False']
+
+
+def test_save_operator_stats_with_view_columns(storage):
+    df = pd.DataFrame({'operator_id': ['a'], 'massLevel': [0], 'atk': [600], 'dps': [500.0]})
+    storage.save_operator_stats(df, ['operator_id', 'dps', 'atk', 'not_saved'])
+    assert storage.operator_stats_file.read_text().splitlines()[0] == 'operator_id,massLevel,atk,dps'
+    assert storage.operator_stats_view_file.read_text().splitlines() == ['operator_id,dps,atk', 'a,500.0,600']
+
+
+def test_save_operator_stats_rounds_only_the_io_file(storage):
+    storage.save_operator_stats(pd.DataFrame({'operator_id': ['a'], 'dps': [606.11235], 'level': [2]}))
+    assert storage.operator_stats_file.read_text().splitlines()[1] == 'a,606.11235,2'
+    assert storage.operator_stats_view_file.read_text().splitlines()[1] == 'a,606.11,2'
+
+
+def test_save_profile_tables_writes_rounded_io_files(storage):
+    tables = [pd.DataFrame({'name': [name], 'value': [1.23456]}) for name in ('skills', 'talents', 'summons', 'summon skills')]
+    paths = storage.save_profile_tables(*tables)
+    assert paths == [storage.operator_skills_file, storage.operator_talents_file, storage.summon_stats_file,
+                     storage.summon_skills_file]
+    assert [path.read_text().splitlines()[1] for path in paths] == [
+        'skills,1.23', 'talents,1.23', 'summons,1.23', 'summon skills,1.23']
+
+
+def test_save_operator_pages_writes_utf8_markdown_and_overwrites(storage):
+    storage.save_operator_pages({'Wiš\'adel': 'old'})
+    paths = storage.save_operator_pages({'Wiš\'adel': '# Wiš\'adel\n', 'Amiya (Guard)': '# Amiya\n'})
+    assert paths == [storage.operator_page_file('Wiš\'adel'), storage.operator_page_file('Amiya (Guard)')]
+    assert paths[0].read_text(encoding='utf-8') == '# Wiš\'adel\n'
+    assert paths[1].name == 'Amiya (Guard).md'
+
+
+def test_save_operator_pages_with_none(storage):
+    assert storage.save_operator_pages({}) == []
+    assert storage.operator_pages_dir.is_dir()
+
+
+@pytest.mark.parametrize('name, expected', [
+    ("Kal'tsit", "Kal'tsit.md"), ('A/B: C?', 'A_B_ C_.md'), ('Name. ', 'Name.md'), ('***', '___.md'), ('', '_.md'),
+])
+def test_page_file_name(name, expected):
+    assert page_file_name(name) == expected
 
 
 def test_load_operator_stats_restores_types(storage):

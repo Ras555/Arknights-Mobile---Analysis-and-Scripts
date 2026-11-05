@@ -8,7 +8,7 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-03
+Last Modified: 2026-11-05
 Last Modified by: Claude
 '''
 
@@ -135,7 +135,8 @@ def run_steps(step, settings, stage_id=None, refresh=False):
     # from disk where they can and only download what's missing.
     if step in (Step.STATS, Step.ALL):
         logger.info('Running stats step')
-        OperatorStatsProcessor(storage, fetch_operator=hella.fetch_operator_data).run()
+        OperatorStatsProcessor(storage, fetch_operator=hella.fetch_operator_value,
+                               fetch_deployable=hella.fetch_deployable_data).run()
     if step in (Step.MATCHUPS, Step.ALL):
         logger.info('Running matchups step')
         StageMatchupProcessor(storage, fetch_stage=hella.fetch_stage_data, fetch_enemy=hella.fetch_enemy_data).run(stage_id)

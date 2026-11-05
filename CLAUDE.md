@@ -608,7 +608,7 @@ raises a ValueError. Overridden talents are marked overridden and get an "overri
 
 src/arkdata/calculations/operator_profile.py puts stats, talents and skills together:
 `build_operator_profile(operator_value, phase, level, potential, trust, skill_level, masteries, operator_id)` returns an
-OperatorProfile, and `OperatorProfile.summary()` a ProfileSummary (one row of figures for PR 3's outputs).
+OperatorProfile, and `OperatorProfile.summary()` a ProfileSummary (one row of figures, saved by the stats step).
 > ATK = (ATK + flat bonuses) × (1 + sum of ATK %), and the same for DEF, HP and RES
 >
 > attack interval = (base attack time + interval change) / (ASPD / 100), with ASPD kept between 20 and 600
@@ -691,7 +691,8 @@ passed to whatever needs them. Optional .env settings: HELLA_API_URL, HELLA_CACH
 ROSTER_MAX_AGE_DAYS (default 7).
 - logging_setup.py: logging to the console and logs/arknights.log.
 - storage.py: the Storage class reads and writes every file in ref/ and io/, so file names, formats and required columns
-are defined in one place.
+are defined in one place. io/ copies are rounded to VIEW_DECIMALS (2).
+- reports.py: turns operator profiles into the stats step's table rows and readable operator pages.
 - flows/: one module per step of the program (roster.py, stats.py and matchups.py). Flows only orchestrate: they load
 inputs through Storage, call arkdata, save outputs through Storage, and print results.
 
@@ -712,7 +713,10 @@ since it holds personal account data.
 ### io Folder
 
 The io folder stores outputs designed to be viewed by the user: roster.csv and operator_stats_output.csv (copies of the
-ones in ref), and the stage_{stage_id}_enemy_stats.csv and stage_{stage_id}_matchups.csv files. Files may be placed in both ref and io.
+ones in ref, with numbers rounded to 2 decimals; the operator stats copy leaves out stats that are the same for every
+operator), operator_skills.csv, operator_talents.csv, summon_stats.csv,
+summon_skills.csv, a page per operator in operators/, and the stage_{stage_id}_enemy_stats.csv and
+stage_{stage_id}_matchups.csv files. Files may be placed in both ref and io.
 The io folder is gitignored, since its files are regenerated on every run.
 
 ### tests Folder
@@ -857,7 +861,30 @@ SUB_PROFESSION_DAMAGE_TYPES (both in src/arkdata/calculations/operator_stats.py)
 damage type is guessed from the operator's trait description; the archetype should then be added to the table. Every
 archetype in the HellaAPI data as of 2026-11-03 is listed. Basic attacks are physical unless the archetype's trait says
 otherwise.
-3. Save the results to ref/operator_stats_output.csv and io/operator_stats_output.csv.
+3. Build each operator's profile (see Operator Profiles) at its skill level and masteries (a blank mastery counts as 0),
+and its summons' profiles. Summons that can't be fetched are logged and skipped.
+4. Save the results (src/arknights_calc/reports.py turns profiles into rows and pages; numbers in io/ files are rounded
+to 2 decimals, ref/ keeps full precision):
+   - ref/operator_stats_output.csv and io/operator_stats_output.csv: one row per operator, with OperatorStats' columns
+   (the existing dps column is the basic attack with no talents, still used by the matchups step), then min_dps,
+   avg_dps, max_dps, the same three ending in _total, avg_dps_skill, avg_dps_total_skill, max_dps_skill,
+   max_dps_total_skill, min/max def, res and hp, min/avg/max hps (healers only), modelled_status and summons (names).
+   The ref copy keeps every stat in the game data; the io copy only has OPERATOR_STATS_VIEW_COLUMNS
+   (src/arknights_calc/reports.py), leaving out stats that are the same for every operator's base stats
+   (spRecoveryPerSec, maxDeployCount, maxDeckStackCnt, massLevel, baseForceLevel, hpRecoveryPerSec, moveSpeed and the
+   immunity flags; checked 2026-11-05 over all 445 operators).
+   - io/operator_skills.csv: one row per operator and unlocked skill: level and mastery, SP, trigger, duration_type
+   (timed, instant, ammo, stays on, until retreat, always on), duration, description, damage parts, DPS while active
+   (per target and total), burst per activation, averages (and full-block averages for SP-when-hit skills), uptime and
+   cycle time, stats while active, healing, status, and unmodelled values, notes and assumptions (joined with "; ").
+   - io/operator_talents.csv: one row per talent. Unlocked talents show the current version (unlocks_at is what
+   unlocked that version), group, condition, whether it's applied, factor, stat changes, damage multiplier, enemy
+   effects, status and notes; talents not unlocked yet show their first version's description and what unlocks them.
+   Hidden talents and ones without a description are left out.
+   - io/summon_stats.csv and io/summon_skills.csv: each summon at its owner's level, with its owner, what deploys it
+   (skill N, or talent or any skill), stats and summary columns; and its skills in the operator_skills format.
+   - io/operators/<name>.md: a readable page per operator (summary table, stats, skills, talents, summons and
+   assumptions). Characters Windows doesn't allow in file names are replaced with "_".
 
 ### Matchups Step
 
