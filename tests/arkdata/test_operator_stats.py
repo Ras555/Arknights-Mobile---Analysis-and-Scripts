@@ -114,6 +114,17 @@ def test_potential_boundaries_allowed(operator_data, potential):
     OperatorStats('char_test', 1, 0, potential, operator_data=operator_data)
 
 
+@pytest.mark.parametrize('missing', [None, []])
+def test_data_without_potential_or_trust_bonuses(operator_data, missing):
+    # Summons have no potential ranks and, mostly, no trust key frames.
+    operator_data['potentialRanks'] = missing
+    operator_data['favorKeyFrames'] = missing
+    operator = OperatorStats('token_test', 1, 0, 0, trust=100, operator_data=operator_data)
+    assert operator.stats['atk'] == 276
+    with pytest.raises(ValueError, match='potential 0-0'):
+        OperatorStats('token_test', 1, 0, 1, operator_data=operator_data)
+
+
 def test_negative_trust_raises(operator_data):
     with pytest.raises(ValueError, match='Trust cannot be negative'):
         OperatorStats('char_test', 1, 0, 0, trust=-1, operator_data=operator_data)

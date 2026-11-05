@@ -1,0 +1,87 @@
+{
+ "source": "HellaAPI operator char_131_flameb (Flamebringer), talent 1, retrieved 2026-11-04",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Bloody Slaughter",
+    "description": "Increases Max HP by 20 after defeating an enemy, stacking up to 30 times.",
+    "blackboard": [
+     {
+      "key": "max_hp",
+      "value": 20
+     },
+     {
+      "key": "max_stack_cnt",
+      "value": 30
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Bloody Slaughter",
+    "description": "Increases Max HP by 30 <@ba.talpu>(+10) </>after defeating an enemy, stacking up to 30 times.",
+    "blackboard": [
+     {
+      "key": "max_hp",
+      "value": 30
+     },
+     {
+      "key": "max_stack_cnt",
+      "value": 30
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Bloody Slaughter",
+    "description": "Increases Max HP by 40 after defeating an enemy, stacking up to 30 times.",
+    "blackboard": [
+     {
+      "key": "max_hp",
+      "value": 40
+     },
+     {
+      "key": "max_stack_cnt",
+      "value": 30
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Bloody Slaughter",
+    "description": "Increases Max HP by 50 <@ba.talpu>(+10) </>after defeating an enemy, stacking up to 30 times.",
+    "blackboard": [
+     {
+      "key": "max_hp",
+      "value": 50
+     },
+     {
+      "key": "max_stack_cnt",
+      "value": 30
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

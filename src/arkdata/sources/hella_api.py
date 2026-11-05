@@ -8,7 +8,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-03
+Last Modified: 2026-11-04
 Last Modified by: Claude
 '''
 
@@ -66,6 +66,29 @@ def _operator_data_from(value, operator_key: str) -> dict:
         return value["data"]
     except (KeyError, TypeError) as exc:
         raise HellaAPIError(f"Unexpected HellaAPI response shape for operator '{operator_key}'") from exc
+
+
+def _operator_value_from(value, operator_key: str) -> dict:
+    '''
+    Returns an operator document's whole value, after checking it has a
+    "data" dict.
+
+    The skills' levels (needed for skill calculations) are kept in "skills",
+    beside "data", which is why some callers need the whole value.
+
+    Args:
+        value: The operator document's "value" field.
+        operator_key: The operator requested, for the error message.
+
+    Returns:
+        The operator's whole value: "data", "skills", "modules" and so on.
+
+    Raises:
+        HellaAPIError: If value has no "data" dict.
+    '''
+    if not isinstance(value, dict) or not isinstance(value.get("data"), dict):
+        raise HellaAPIError(f"Unexpected HellaAPI response shape for operator '{operator_key}'")
+    return value
 
 
 def _stage_variants_from(value, stage_id: str) -> list:
@@ -304,6 +327,16 @@ class HellaAPIClient:
         '''
         return _operator_data_from(self.fetch_document("operator", operator_key)["value"], operator_key)
 
+    def fetch_operator_value(self, operator_key: str) -> dict:
+        '''
+        Returns an operator's whole value ("data", "skills" with each skill's
+        levels, "modules" and so on), rather than just "data".
+
+        Raises:
+            HellaAPIError: If the request fails or the document is malformed.
+        '''
+        return _operator_value_from(self.fetch_document("operator", operator_key)["value"], operator_key)
+
     def fetch_stage_data(self, stage_id: str) -> list:
         '''
         Returns a list of stage variants (e.g. normal and challenge mode), each
@@ -362,6 +395,14 @@ def fetch_operator_data(operator_key: str, base_url: str = HELLA_API_BASE_URL) -
     HellaAPIClient.fetch_operator_data.
     '''
     return _operator_data_from(_fetch_value("operator", operator_key, base_url), operator_key)
+
+
+def fetch_operator_value(operator_key: str, base_url: str = HELLA_API_BASE_URL) -> dict:
+    '''
+    Fetch an operator's whole value from the HellaAPI (one attempt). See
+    HellaAPIClient.fetch_operator_value.
+    '''
+    return _operator_value_from(_fetch_value("operator", operator_key, base_url), operator_key)
 
 
 def fetch_stage_data(stage_id: str, base_url: str = HELLA_API_BASE_URL) -> list:

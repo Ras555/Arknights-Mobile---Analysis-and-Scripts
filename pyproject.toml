@@ -31,6 +31,10 @@ arknights-calc = "arknights_calc.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# Installs arkdata's data files (the talent override CSV) with the package.
+[tool.setuptools.package-data]
+"arkdata.data" = ["*.csv"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Lets tests import the shared test data builders with `from factories import ...`.

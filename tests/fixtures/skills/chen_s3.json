@@ -1,0 +1,298 @@
+{
+ "source": "HellaAPI operator char_010_chen (Ch'en), skill 3, retrieved 2026-11-03",
+ "excel": {
+  "skillId": "skchr_chen_3",
+  "levels": [
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 40,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 40,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.1,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 40,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.2,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 38,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.3,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2.5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 38,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.4,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2.5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 38,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.5,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2.5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 36,
+     "initSp": 10
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.6,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 3,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 34,
+     "initSp": 13
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.8,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 3,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 32,
+     "initSp": 16
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 3,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 3,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Chi Xiao - Shadowless",
+    "description": "Seeks the closest enemy around and launches <@ba.vup>{times}</> slashes in a row, each dealing <@ba.vup>{atk_scale:0%}</> ATK as Physical damage and <$ba.stun>Stunning</> the target on the last hit for <@ba.vup>{stun}</> seconds",
+    "skillType": "MANUAL",
+    "durationType": "NONE",
+    "spData": {
+     "spType": "INCREASE_WHEN_ATTACK",
+     "spCost": 30,
+     "initSp": 20
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 3.2,
+      "valueStr": null
+     },
+     {
+      "key": "times",
+      "value": 10,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 4,
+      "valueStr": null
+     }
+    ]
+   }
+  ]
+ }
+}

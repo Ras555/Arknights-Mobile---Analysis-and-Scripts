@@ -184,6 +184,14 @@ def test_fetching_after_sync_uses_the_cache(api, tmp_path, clock):
     assert _calls(api) == []
 
 
+def test_fetching_an_operators_whole_value_uses_the_cache(api, tmp_path, clock):
+    hella = _cache(api, tmp_path, clock)
+    hella.sync()
+    _calls(api)
+    assert hella.fetch_operator_value('Amiya') == {'data': {'name': 'char_002_amiya', 'version': 1}}
+    assert _calls(api) == []
+
+
 def test_fetching_a_deployable_after_sync_uses_the_cache(api, tmp_path, clock):
     hella = _cache(api, tmp_path, clock)
     hella.sync()
@@ -523,6 +531,7 @@ def test_missing_document_raises_hella_api_error(api, tmp_path, clock):
     ('fetch_stage_data', 'stage', [], "stage 'x'"),
     ('fetch_enemy_data', 'enemy', {'excel': {}}, "enemy 'x'"),
     ('fetch_deployable_data', 'deployable', {'data': None}, "deployable 'x'"),
+    ('fetch_operator_value', 'operator', {'data': 'not a dict'}, "operator 'x'"),
 ])
 def test_fetch_data_checks_value_shape(tmp_path, clock, method, resource, value, message):
     api = FakeHellaClient({resource: [_doc('x', value=value)]})

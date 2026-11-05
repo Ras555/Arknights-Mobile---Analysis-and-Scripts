@@ -1,0 +1,151 @@
+{
+ "source": "HellaAPI operator char_1020_reed2 (Reed the Flame Shadow), talent 1, retrieved 2026-11-04",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Cinder",
+    "description": "When dealing damage, 30% chance to inflict Cinder: ATK -10%, 15% <$ba.magicfragile>[Arts Fragility]</>, does not stack, lasts 6s",
+    "blackboard": [
+     {
+      "key": "prob",
+      "value": 0.3
+     },
+     {
+      "key": "atk",
+      "value": -0.1
+     },
+     {
+      "key": "damage_scale",
+      "value": 1.15
+     },
+     {
+      "key": "duration",
+      "value": 6
+     },
+     {
+      "key": "talent@atk",
+      "value": -0.1
+     },
+     {
+      "key": "talent@damage_scale",
+      "value": 1.15
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 2,
+    "name": "Cinder",
+    "description": "When dealing damage, 30% chance to inflict Cinder: ATK -12%<@ba.talpu> (+2)</>, 17%<@ba.talpu> (+2)</> <$ba.magicfragile>[Arts Fragility]</>, does not stack, lasts 6s.",
+    "blackboard": [
+     {
+      "key": "prob",
+      "value": 0.3
+     },
+     {
+      "key": "atk",
+      "value": -0.12
+     },
+     {
+      "key": "damage_scale",
+      "value": 1.17
+     },
+     {
+      "key": "duration",
+      "value": 6
+     },
+     {
+      "key": "talent@atk",
+      "value": -0.12
+     },
+     {
+      "key": "talent@damage_scale",
+      "value": 1.17
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Cinder",
+    "description": "When dealing damage, 30% chance to inflict Cinder: ATK -20%, 30% <$ba.magicfragile>[Arts Fragility]</>, does not stack, lasts 6s",
+    "blackboard": [
+     {
+      "key": "prob",
+      "value": 0.3
+     },
+     {
+      "key": "atk",
+      "value": -0.2
+     },
+     {
+      "key": "damage_scale",
+      "value": 1.3
+     },
+     {
+      "key": "duration",
+      "value": 6
+     },
+     {
+      "key": "talent@atk",
+      "value": -0.2
+     },
+     {
+      "key": "talent@damage_scale",
+      "value": 1.3
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 2,
+    "name": "Cinder",
+    "description": "When dealing damage, 30% chance to inflict Cinder: ATK -22%<@ba.talpu> (+2)</>, 32%<@ba.talpu> (+2)</> <$ba.magicfragile>[Arts Fragility]</>, does not stack, lasts 6s",
+    "blackboard": [
+     {
+      "key": "prob",
+      "value": 0.3
+     },
+     {
+      "key": "atk",
+      "value": -0.22
+     },
+     {
+      "key": "damage_scale",
+      "value": 1.32
+     },
+     {
+      "key": "duration",
+      "value": 6
+     },
+     {
+      "key": "talent@atk",
+      "value": -0.22
+     },
+     {
+      "key": "talent@damage_scale",
+      "value": 1.32
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

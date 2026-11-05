@@ -1,0 +1,248 @@
+{
+ "source": "HellaAPI operator char_144_red (Projekt Red), skill 2, retrieved 2026-11-03",
+ "excel": {
+  "skillId": "skchr_red_2",
+  "levels": [
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.4,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 1,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.5,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 1,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.6,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 1,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.7,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 1.5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.8,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 1.5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.9,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 1.5,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.1,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2.3,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.3,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 2.6,
+      "valueStr": null
+     }
+    ]
+   },
+   {
+    "name": "Wolfpack",
+    "description": "After deployment, immediately deals <@ba.vup>{atk_scale:0%}</> ATK as Physical damage to all nearby enemies and <$ba.stun>Stuns</> them for <@ba.vup>{stun}</> seconds",
+    "skillType": "PASSIVE",
+    "durationType": "NONE",
+    "spData": {
+     "spType": 8,
+     "spCost": 0,
+     "initSp": 0
+    },
+    "duration": 0,
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 2.5,
+      "valueStr": null
+     },
+     {
+      "key": "stun",
+      "value": 3,
+      "valueStr": null
+     }
+    ]
+   }
+  ]
+ }
+}

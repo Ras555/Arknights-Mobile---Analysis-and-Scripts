@@ -1,0 +1,915 @@
+{
+ "source": "HellaAPI operator char_107_liskam (Liskarm), trimmed, retrieved 2026-11-04",
+ "value": {
+  "id": "char_107_liskam",
+  "data": {
+   "name": "Liskarm",
+   "description": "Blocks 3 enemies and attacks from long range.",
+   "profession": "TANK",
+   "subProfessionId": "shotprotector",
+   "rarity": "TIER_5",
+   "displayTokenDict": null,
+   "trait": null,
+   "phases": [
+    {
+     "maxLevel": 50,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 1307,
+        "atk": 219,
+        "def": 256,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.2,
+        "blockCnt": 3,
+        "cost": 18,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 50,
+       "data": {
+        "maxHp": 1743,
+        "atk": 281,
+        "def": 383,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.2,
+        "blockCnt": 3,
+        "cost": 18,
+        "respawnTime": 70
+       }
+      }
+     ]
+    },
+    {
+     "maxLevel": 70,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 1743,
+        "atk": 281,
+        "def": 383,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.2,
+        "blockCnt": 3,
+        "cost": 20,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 70,
+       "data": {
+        "maxHp": 2324,
+        "atk": 352,
+        "def": 518,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.2,
+        "blockCnt": 3,
+        "cost": 20,
+        "respawnTime": 70
+       }
+      }
+     ]
+    },
+    {
+     "maxLevel": 80,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 2324,
+        "atk": 352,
+        "def": 518,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.2,
+        "blockCnt": 3,
+        "cost": 22,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 80,
+       "data": {
+        "maxHp": 3240,
+        "atk": 425,
+        "def": 710,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.2,
+        "blockCnt": 3,
+        "cost": 22,
+        "respawnTime": 70
+       }
+      }
+     ]
+    }
+   ],
+   "skills": [
+    {
+     "skillId": "skchr_liskam_1",
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_0",
+      "level": 1
+     }
+    },
+    {
+     "skillId": "skchr_liskam_2",
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_1",
+      "level": 1
+     }
+    }
+   ],
+   "talents": [
+    {
+     "candidates": [
+      {
+       "unlockCondition": {
+        "phase": "PHASE_1",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Tactical Defense",
+       "description": "Restores 1 Skill Point to this Operator and a random ally in the surrounding tiles when attacked",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "sp",
+         "value": 1
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "candidates": [
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Thunder Resistance",
+       "description": "RES +10",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "magic_resistance",
+         "value": 10
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 4,
+       "name": "Thunder Resistance",
+       "description": "RES +13 <@ba.talpu>(+3)</>",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "magic_resistance",
+         "value": 13
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "potentialRanks": [
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "COST",
+         "formulaItem": "ADDITION",
+         "value": -1,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "RESPAWN_TIME",
+         "formulaItem": "ADDITION",
+         "value": -4,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "DEF",
+         "formulaItem": "ADDITION",
+         "value": 27,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": null
+    },
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "COST",
+         "formulaItem": "ADDITION",
+         "value": -1,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "favorKeyFrames": [
+    {
+     "level": 0,
+     "data": {
+      "maxHp": 0,
+      "atk": 0,
+      "def": 0,
+      "magicResistance": 0,
+      "attackSpeed": 0
+     }
+    },
+    {
+     "level": 50,
+     "data": {
+      "maxHp": 0,
+      "atk": 45,
+      "def": 45,
+      "magicResistance": 0,
+      "attackSpeed": 0
+     }
+    }
+   ]
+  },
+  "skills": [
+   {
+    "excel": {
+     "skillId": "skchr_liskam_1",
+     "levels": [
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 24,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.4
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 24,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.45
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 24,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.5
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 22,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.6
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 22,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.65
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 22,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.7
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 20,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.8
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 20,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.85
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 20,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 0.9
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      },
+      {
+       "name": "Charged Defense",
+       "description": "Blocks the next source of damage; DEF <@ba.vup>+{def:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 18,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "def",
+         "value": 1
+        },
+        {
+         "key": "duration",
+         "value": 8
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "excel": {
+     "skillId": "skchr_liskam_2",
+     "levels": [
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 44,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.85
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.1
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 43,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.9
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.1
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 42,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.95
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.1
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 41,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1.05
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.15
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 40,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1.1
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.15
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 39,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1.15
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.15
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 38,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1.25
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.2
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 37,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1.5
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.2
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 36,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1.75
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.2
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Counter Arc",
+       "description": "Attack Interval <@ba.vdown>increases</>, ATK <@ba.vup>+{atk:0%}</>, attacks deal <@ba.vup>Arts damage</> to at most <@ba.vup>{attack@max_target}</> enemies and have <@ba.vup>{attack@buff_prob:0%}</> chance to <$ba.stun>Stun</> the hit targets for <@ba.vup>{attack@stun}</> seconds\n<@ba.rem>Liskarm is <$ba.stun>Stunned</> for {stun} seconds after the skill duration</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 20,
+       "spData": {
+        "spType": "INCREASE_WHEN_TAKEN_DAMAGE",
+        "spCost": 34,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 2
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0.7
+        },
+        {
+         "key": "attack@buff_prob",
+         "value": 0.25
+        },
+        {
+         "key": "attack@stun",
+         "value": 1
+        },
+        {
+         "key": "stun",
+         "value": 5
+        },
+        {
+         "key": "attack@max_target",
+         "value": 4
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

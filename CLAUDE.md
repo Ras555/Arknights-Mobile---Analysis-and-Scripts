@@ -187,9 +187,10 @@ The important pieces of the expected format are as follows:
                                 "phase": _requiredPhase_,
                                 "level": _requiredLevel_
                             },
-                            "requiredPotentialRank": _requiredPotential_,
+                            "requiredPotentialRank": _requiredPotential_, # 0-5, compared with the roster's potential (from 0)
                             "name": _talentName_,
-                            "description": _talentDescription_,
+                            "description": _talentDescription_, # numbers already filled in, unlike skill templates
+                            "isHideTalent": _isHidden_,
                             "blackboard":
                             [
                                 ...{
@@ -238,6 +239,41 @@ The important pieces of the expected format are as follows:
 }
 ```
 
+
+#### Operator Skill Levels
+
+Each skill's levels are in the operator's `value.skills` list (beside `value.data`, matched to `data.skills` by skill
+id). fetch_operator_value returns the whole value; fetch_operator_data returns only `data`.
+
+```
+"skills":
+[
+    ...{
+        "excel":
+        {
+            "skillId": _skill_id_,
+            "levels": # 10 levels: skill levels 1-7, then masteries 1-3 (7 for skills that can't be mastered)
+            [
+                ...{
+                    "name": _skill_name_,
+                    "description": _template_, # e.g. "ATK <@ba.vup>+{atk:0%}</>, DEF <@ba.vup>+{def:0%}</>"
+                    "skillType": _type_, # MANUAL, AUTO or PASSIVE
+                    "durationType": _duration_type_, # NONE or AMMO
+                    "duration": _seconds_, # 0 for instant effects; -1 for unlimited/toggles AND some one-off effects
+                    "spData": {"spType": _sp_type_, "spCost": _cost_, "initSp": _initial_sp_, ...},
+                    # spType: INCREASE_WITH_TIME, INCREASE_WHEN_ATTACK, INCREASE_WHEN_TAKEN_DAMAGE, or 8 (passive)
+                    "blackboard": [...{"key": _name_, "value": _number_}] # e.g. atk 0.7, attack@times 5
+                }
+            ]
+        }
+    }
+]
+```
+
+The description template shows how each named value is used: `{atk:0%}` is a percentage, `{def}` a plain number,
+`{-def}` the value negated, and the words around it say who it affects ("Targets' DEF -{-def}" lowers enemies' DEF,
+"DEF -{-def:0%}" lowers the operator's own). About a quarter of values don't appear in the text at all. Names may have
+an `attack@` prefix (ignored), and a few templates write names in capitals.
 
 #### Deployable Info
 
@@ -469,6 +505,159 @@ Typically Casters, Supporters and other ranged units other than Snipers deal Art
 
 Damage types are represented by the DamageType enum in src/arkdata/calculations/damage.py (PHYSICAL, ARTS, TRUE, HEAL, NONE). It is a StrEnum, so its members compare equal to the plain strings saved in CSV files.
 
+### Skills
+
+Skills are read from their HellaAPI data (see Operator Skill Levels) by src/arkdata/calculations/skills.py, with
+blackboard.py reading the named values. The full plan for skills, talents and summons is in the project doc
+`claude/skills-talents-plan.md`.
+- Unlocked skills come from each skill's unlockCond (phase and level). The level used is skill level 1-7, then
+masteries 1-3 (index = skill level - 1 + mastery; masteries only exist at skill level 7).
+- Stat values (atk, def, max_hp, magic_resistance) that affect the operator itself become StatModifiers; whether they're
+percentages comes from the template, or, for values not in the text, from their size (atk/def/max_hp up to 3, RES up
+to 1, are percentages), which is recorded as an assumption. attack_speed is flat ASPD, base_attack_time is seconds
+added to the attack interval, block_cnt extra block. Values that affect enemies are kept as enemy_effects (for
+matchups), values that buff allies become notes.
+- Damage: each atk_scale placeholder is one DamagePart, typed by the damage named after it ("410% of ATK Physical
+damage and 410% of ATK Arts damage" is two parts), otherwise the operator's type. times is hits per attack,
+max_target the target limit. "damage type changes to True" (and similar) changes the whole attack. A multiplier only
+dealt to enemies that attack the unit (counter damage) isn't treated as an attack multiplier. Damage "every second" is
+marked per_second.
+- What starts a skill (Skill.trigger, a SkillTrigger): SP for normal skills. Passive skills (skillType PASSIVE, spType
+8) are mostly not always on (8 of 54 are, checked 2026-11-04): "After deployment" wording (also "after Skadi is
+deployed", "Upon deployment") makes them DEPLOYMENT skills, lasting their duration, the {duration} value from the text
+when the data says -1, or until retreat, and "immediately deals" makes them a one-off hit. Passives with a duration
+or that "spend" Coins, happen "when switching" or "rush" are OTHER (started by something else; flagged as assumed).
+The rest are ALWAYS on.
+- Duration: "Unlimited duration" and toggles ("Can switch between") stay on (duration None). "next attack" skills
+and skills with a duration of 0 or less are instant (duration 0); instant skills either replace the next attack or are
+an extra strike. Ammo skills (durationType AMMO) keep duration 0 and set ammo from trigger_time.
+- Known values that don't affect DPS (stun, slow, DP, shift, taunt, regeneration, range and similar) become notes.
+Unknown values are listed as unmodelled. A skill's status is full (everything understood, nothing assumed), partial,
+or none (nothing could be modelled).
+
+How many enemies an attack hits (src/arkdata/calculations/attack_targets.py), in order: the skill's max_target; AoE
+wording in the clause with the skill's multiplier ("all enemies", "nearby enemies", "AOE"...), assumed to be 3 enemies;
+otherwise the archetype's basic attack. AoE archetypes (Artilleryman, Splash/Blast Caster, Flinger, Reaper,
+Spreadshooter, Ambusher, Fortress, Earthshaker) assume 3 enemies; Centurion, Crusher and Pusher hit as many as their
+block count; Chain Casters jump between 4 enemies losing 15% per jump; Earthshakers splash 50% to the others.
+Targets.damage_share is the sum of the damage each enemy takes (3.0 for an even AoE on 3, 2.0 for an Earthshaker).
+Swordmasters hit twice and Flingers add a half-ATK shockwave; Phalanx Casters and Liberators don't attack outside
+their skills.
+
+### Skill Rotation
+
+src/arkdata/calculations/skill_rotation.py models one cycle: charge SP, then the skill is active (SP doesn't charge
+while it's active).
+> Charge time = SP cost × 1 s (SP over time), SP cost × attack interval (SP per attack), or SP cost × seconds between
+> hits taken (SP when hit, = enemy attack interval / attackers)
+>
+> Average DPS = (active DPS × duration + base DPS × charge time) / (charge time + duration)
+
+Instant skills add their extra damage once per cycle (a per-attack "next attack" skill's cycle includes that attack,
+which gains no SP). Skills that stay on and always-on passives average their active DPS. Deployment skills happen once
+per deployment, so they're left out of the average (it's the base DPS), though a timed one still counts towards max
+DPS. Skills started by something else (OTHER) have no average.
+
+Skills that gain SP when hit (1 SP per hit taken, mostly Defenders) need an assumed rate of incoming attacks:
+hit_interval() uses ASSUMED_ENEMY_ATTACK_INTERVAL (3.0 s, the median attack interval of the 1,313 attacking enemies in
+the HellaAPI data) divided by the number of attackers. The main average DPS uses ASSUMED_ATTACKERS (1 enemy); the skill
+details also show the rotation with a full block (block count attackers). Max DPS doesn't depend on this, since it's
+the DPS while the skill is active.
+
+### Talents
+
+Talents are read by src/arkdata/calculations/talents.py, reusing apply_stat_value from skills.py for stat values.
+- The version used is the last candidate whose phase and level the operator has reached and whose requiredPotentialRank
+is at most its potential. Hidden talents (isHideTalent) and ones without a description are skipped.
+- Talent descriptions have their numbers filled in, so each value is found by its number ("8%" for 0.08, "15" for 15,
+"115%" or "15%" for a 1.15 multiplier), and the clause around it decides who it affects (words after the last comma
+before it: enemies, allies, or the unit itself; a value followed by Fragile/Fragility is on enemies) and its group.
+Prefixes (attack@, talent@) and variants (skadi2_t_2[atk][1].atk) are dropped from value names; a second copy of a
+value with a different number is ignored and recorded as an assumption. Stat and damage values that aren't in the
+description aren't plain bonuses (e.g. an "atk" of 1), so they're listed as unmodelled instead of applied.
+- Groups (TalentGroup), checked in this order on each clause holding one of the talent's own effects (or its effects on
+enemies when it has none; the least likely group wins): PER_ENEMY (aerial/enemy drones, unblocked, blocked, elite/leader/boss,
+enemy HP ("enemies with 80% or more HP"), weight, or an enemy type such as "[Infected Creatures]", "Sarkaz enemies" or
+"to Machine enemies", kept as the talent's condition), UNLIKELY (depends on allies, operator counts, tiles or the team),
+LIKELY (after deployment, while the skill is active, HP thresholds, when
+attacking/dealing damage, per attack, per kill, per Slow inflicted, every N seconds deployed...), and ALWAYS (no
+condition words). Wording that no rule recognises, and effects picked at random, are UNLIKELY and flagged for review. ALWAYS and LIKELY talents are
+applied to the operator's figures; PER_ENEMY ones only in matchups against enemies that fit; UNLIKELY ones not at all.
+Every talent's effects are still worked out, whatever its group.
+- Factor (what each value is multiplied by): a chance (prob, or the first of prob1, prob2...) of the talent's own
+effect is its expected value (a 20% chance to deal 160% is a 1.12 multiplier). It only scales the effects in the part of
+the clause (between commas) that mentions the chance ("ASPD +6, 15% chance to increase ATK to 150%" keeps the full ASPD),
+or every effect when only the clause as a whole does. A dodge chance, or a chance of something not modelled, is a note. Stacking
+effects use the average number of stacks over a window (one skill rotation) when they stack per attack, every N
+attacks, or every N seconds; when the rate isn't known (per kill, per Slow) they assume half the maximum stacks
+(UNKNOWN_STACK_FRACTION), flagged as assumed.
+- damage_scale and atk_scale on the unit's attacks become damage_multiplier (1 + (m - 1) × factor). On enemies (Fragile,
+Arts Fragility) they're enemy_effects, as are DEF/RES penetration values. atk_scale not on attacks (e.g. damage when
+deploying), multipliers below 1 (e.g. "at least 33% of ATK") and splash-only multipliers are listed as unmodelled.
+- Talent.status is full, partial or none, as for skills.
+
+#### Talent Override File
+
+src/arkdata/data/talent_conditions.csv (columns operator_id, talent, group, factor, note) overrides the automatic group
+of a talent, and optionally its factor, when the wording rules get it wrong. talent is the talent's number from 1, group
+a TalentGroup name (case doesn't matter), and an empty factor keeps the calculated one. The file ships with the package
+(package-data in pyproject.toml) and is read once with importlib.resources by load_talent_overrides(); an unknown group
+raises a ValueError. Overridden talents are marked overridden and get an "overridden" note (with the row's note).
+
+### Operator Profiles
+
+src/arkdata/calculations/operator_profile.py puts stats, talents and skills together:
+`build_operator_profile(operator_value, phase, level, potential, trust, skill_level, masteries, operator_id)` returns an
+OperatorProfile, and `OperatorProfile.summary()` a ProfileSummary (one row of figures for PR 3's outputs).
+> ATK = (ATK + flat bonuses) × (1 + sum of ATK %), and the same for DEF, HP and RES
+>
+> attack interval = (base attack time + interval change) / (ASPD / 100), with ASPD kept between 20 and 600
+>
+> DPS per target = ATK × ATK multiplier × hits × talent damage multiplier / attack interval
+>
+> total DPS = DPS per target × Targets.damage_share
+
+- Base stats come from OperatorStats (level, potential, trust). The applied talents (ALWAYS and LIKELY) are added, then
+a skill's changes while it's active. Healing isn't multiplied by talent damage multipliers.
+- Hits: a damage part with 1 hit uses the archetype's hits (a Swordmaster's 2), since only skills that change the number
+of hits say so. Damage dealt every second isn't divided by the attack interval, and is added to the normal attack.
+- Phalanx Casters and Liberators don't attack outside their skills (0 DPS with no skill), but do during them.
+- Each skill gets a SkillProfile: stats and damage (one Damage per damage type, per target and in total) while active,
+and its SkillRotation (charging at the attack interval with no skill; SP when hit at 1 attacker every
+ASSUMED_ENEMY_ATTACK_INTERVAL, plus a full-block average with block count attackers).
+  - Instant skills keep the normal attack's damage and add a burst per activation: the skill's strike minus the attack it
+  replaces, its boosted next attack, or an extra strike. An instant skill with no damage and no next attack (e.g.
+  "Blocks the next source of damage") adds nothing.
+  - "Stops attacking" leaves only damage every second. Ammo skills last ammo × their attack interval.
+  - Skills that can only be used once per battle are left out of average and max DPS (noted as assumed).
+- Stacking talents: the no-skill figures average them over DEFAULT_STACK_WINDOW (60 s, noted as assumed); each skill
+averages them over its own rotation (its cycle time), or 60 s for skills that stay on. Talents are built twice each time:
+first to find the attack interval (their ASPD changes it), then with it.
+- Summary: min DPS is with no skill; max DPS is the best active skill that lasts (timed, until retreat, ammo, always on,
+timed deployment; not instant, OTHER or once-per-battle skills); average DPS is the best rotation average, or no skill if
+none is better (so deployment skills never name the average). Each comes per target and in total, naming its skill ("" for
+none). Min/max DEF, RES and HP use the same skills as max DPS. Healing (min/avg/max HPS) is only given for HEAL
+operators. status combines every skill's and talent's status (full, partial, none).
+- Skill levels: a skill that doesn't have the wanted level or mastery (a summon's 1-level skill, or one without masteries)
+uses its nearest level, noted as assumed.
+- Not modelled: modules, operator talents and skills that buff their own summons (Kal'tsit's skills that buff Mon3tr
+are read as her own changes), SP gained from talents, and the chance in a skill's own wording ("15% chance to increase
+ATK to 200%").
+
+#### Summons
+
+- `summon_ids(operator_value)` lists an operator's summons from data.displayTokenDict and each skill's overrideTokenKey
+(some are only in one of them), with the number of the skill that deploys each (or None).
+- `build_summon_profile(...)` profiles a summon at its owner's phase and level. It gets the owner's potential or trust
+only if its own data lists stat bonuses for them; none does (checked 2026-11-04: 797 deployables have neither, and the
+35 with trust key frames list 0 for every stat), so they're 0, noted as assumed.
+- A summon's skills line up with its owner's by slot (Skadi the Corrupting Heart's Seaborn has one skill for each of
+hers; Nearl the Radiant Knight's sword only has skill 3, for her S3), so skill N uses the owner's skill level and skill N
+mastery. Summon skills are counted whenever they'd be active on their own; in game, skill N is only used while the
+owner's skill N is (noted as assumed). Some summons list their skills as null (Mon3tr).
+- `build_summon_profiles(operator_value, deployables, ...)` builds every summon an operator has from a {deployable id:
+value} mapping, logging and skipping missing ones (SilverAsh the Reignfrost's token_10057_svash2_eagle).
+
 
 ## Project Structure
 
@@ -484,7 +673,11 @@ arkdata is a generic Arknights library that any Arknights tool could use. It kno
 files, or its command line, and must never import from arknights_calc (tests/arknights_calc/test_package_boundaries.py
 checks this).
 - calculations/: damage.py (DamageType, damage formulas), operator_stats.py, enemy_stats.py, trust.py, stage.py (enemies
-and spawn counts in a stage) and matchups.py (operator vs. enemy DPS and kill times).
+and spawn counts in a stage), matchups.py (operator vs. enemy DPS and kill times), and for skills (see Calculations):
+blackboard.py (a skill's named values and readable text), skills.py (Skill, StatModifiers, DamagePart, and
+apply_stat_value(s), shared with talents), skill_rotation.py (SkillRotation), attack_targets.py (Targets), talents.py
+(Talent, TalentGroup, the talent override file) and operator_profile.py (OperatorProfile, ProfileSummary, summons).
+- data/: data files that ship with the package: talent_conditions.csv (see Talent Override File).
 - sources/: hella_api.py (HellaAPIClient: the HellaAPI client, with timeouts and retries), hella_cache.py (HellaCache:
 the disk cache in front of the client, see Program Flow) and account.py (arkprts login and roster retrieval).
 
@@ -526,6 +719,10 @@ The io folder is gitignored, since its files are regenerated on every run.
 
 The tests folder stores the pytest suite, split into tests/arkdata and tests/arknights_calc to mirror the packages. The
 tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
+tests/fixtures/skills and tests/fixtures/talents hold trimmed real HellaAPI skill and talent data, and
+tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit and Mon3tr)
+for operator profiles, with their expected figures worked out by hand in the tests (each file names its source). They're
+loaded with load_skill_fixture, load_talent_fixture and load_operator_fixture; make_operator_value builds a fake operator.
 
 ### Other
 

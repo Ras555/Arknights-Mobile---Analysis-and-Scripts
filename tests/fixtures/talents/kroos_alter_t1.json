@@ -1,0 +1,103 @@
+{
+ "source": "HellaAPI operator char_1021_kroos2 (Kroos the Keen Glint), talent 1, retrieved 2026-11-04",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Bullseye",
+    "description": "When attacking, has a 10% chance to deal 150% damage and <$ba.stun>Stun</> the target for 0.2 seconds",
+    "blackboard": [
+     {
+      "key": "prob",
+      "value": 0.1
+     },
+     {
+      "key": "atk_scale",
+      "value": 1.5
+     },
+     {
+      "key": "stun",
+      "value": 0.2
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Bullseye",
+    "description": "When attacking, has a 10% chance to deal 160% <@ba.talpu>(+10%)</> damage and <$ba.stun>Stun</> the target for 0.2 seconds",
+    "blackboard": [
+     {
+      "key": "prob",
+      "value": 0.1
+     },
+     {
+      "key": "atk_scale",
+      "value": 1.6
+     },
+     {
+      "key": "stun",
+      "value": 0.2
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Bullseye",
+    "description": "When attacking, has a 20% chance to deal 150% damage and <$ba.stun>Stun</> the target for 0.2 seconds",
+    "blackboard": [
+     {
+      "key": "prob",
+      "value": 0.2
+     },
+     {
+      "key": "atk_scale",
+      "value": 1.5
+     },
+     {
+      "key": "stun",
+      "value": 0.2
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Bullseye",
+    "description": "When attacking, has a 20% chance to deal 160% <@ba.talpu>(+10%)</> damage and <$ba.stun>Stun</> the target for 0.2 seconds",
+    "blackboard": [
+     {
+      "key": "prob",
+      "value": 0.2
+     },
+     {
+      "key": "atk_scale",
+      "value": 1.6
+     },
+     {
+      "key": "stun",
+      "value": 0.2
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

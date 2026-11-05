@@ -111,6 +111,20 @@ def test_fetch_enemy_data_bad_shape_raises(monkeypatch, value):
         client.fetch_enemy_data('enemy_1')
 
 
+def test_fetch_operator_value_returns_whole_value(monkeypatch):
+    value = {'data': {'name': 'Amiya'}, 'skills': [{'excel': {}}], 'modules': []}
+    calls = _install_urlopen(monkeypatch, {'value': value})
+    assert client.fetch_operator_value('char_002_amiya') == value
+    assert calls[0]['url'].endswith('/operator/char_002_amiya')
+
+
+@pytest.mark.parametrize('value', [{'skills': []}, {'data': None}, [], None])
+def test_fetch_operator_value_bad_shape_raises(monkeypatch, value):
+    _install_urlopen(monkeypatch, {'value': value})
+    with pytest.raises(HellaAPIError, match="^Unexpected HellaAPI response shape for operator 'Amiya'$"):
+        client.fetch_operator_value('Amiya')
+
+
 def test_fetch_deployable_data_returns_whole_value(monkeypatch):
     value = {'data': {'name': 'Mon3tr'}, 'skills': [{'excel': {}}], 'range': {}}
     calls = _install_urlopen(monkeypatch, {'value': value})
@@ -130,6 +144,7 @@ def test_fetch_deployable_data_bad_shape_raises(monkeypatch, value):
     ('fetch_stage_data', 'stage', [{}]),
     ('fetch_enemy_data', 'enemy', {'excel': {}, 'levels': {}}),
     ('fetch_deployable_data', 'deployable', {'data': {}}),
+    ('fetch_operator_value', 'operator', {'data': {}}),
 ])
 def test_fetch_functions_request_their_resource_from_custom_base_url(monkeypatch, fetch, resource, value):
     calls = _install_urlopen(monkeypatch, {'value': value})
@@ -315,6 +330,13 @@ def test_client_fetch_operator_stage_and_enemy_data(monkeypatch):
         'http://api.test/api/operator/Amiya', 'http://api.test/api/stage/main_01-07', 'http://api.test/api/enemy/enemy_1']
 
 
+def test_client_fetch_operator_value(monkeypatch):
+    calls = _install_responses(monkeypatch, [{'value': {'data': {'name': 'Amiya'}, 'skills': []}}])
+    hella, _ = _client()
+    assert hella.fetch_operator_value('Amiya') == {'data': {'name': 'Amiya'}, 'skills': []}
+    assert [call['url'] for call in calls] == ['http://api.test/api/operator/Amiya']
+
+
 def test_client_fetch_deployable_data(monkeypatch):
     calls = _install_responses(monkeypatch, [{'value': {'data': {'name': 'Mon3tr'}, 'skills': []}}])
     hella, _ = _client()
@@ -327,6 +349,7 @@ def test_client_fetch_deployable_data(monkeypatch):
     ('fetch_stage_data', [], "stage 'k'"),
     ('fetch_enemy_data', {'excel': {}}, "enemy 'k'"),
     ('fetch_deployable_data', {'skills': []}, "deployable 'k'"),
+    ('fetch_operator_value', {'skills': []}, "operator 'k'"),
 ])
 def test_client_fetch_data_bad_value_shape_raises(monkeypatch, method, value, message):
     _install_responses(monkeypatch, [{'value': value}])

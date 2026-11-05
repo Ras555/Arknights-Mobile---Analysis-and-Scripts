@@ -1,0 +1,1069 @@
+{
+ "source": "HellaAPI operator char_103_angel (Exusiai), trimmed, retrieved 2026-11-04",
+ "value": {
+  "id": "char_103_angel",
+  "data": {
+   "name": "Exusiai",
+   "description": "Attacks aerial enemies first",
+   "profession": "SNIPER",
+   "subProfessionId": "fastshot",
+   "rarity": "TIER_6",
+   "displayTokenDict": null,
+   "trait": null,
+   "phases": [
+    {
+     "maxLevel": 50,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 711,
+        "atk": 183,
+        "def": 57,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1,
+        "blockCnt": 1,
+        "cost": 12,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 50,
+       "data": {
+        "maxHp": 1016,
+        "atk": 305,
+        "def": 95,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1,
+        "blockCnt": 1,
+        "cost": 12,
+        "respawnTime": 70
+       }
+      }
+     ]
+    },
+    {
+     "maxLevel": 80,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 1016,
+        "atk": 305,
+        "def": 95,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1,
+        "blockCnt": 1,
+        "cost": 14,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 80,
+       "data": {
+        "maxHp": 1338,
+        "atk": 437,
+        "def": 136,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1,
+        "blockCnt": 1,
+        "cost": 14,
+        "respawnTime": 70
+       }
+      }
+     ]
+    },
+    {
+     "maxLevel": 90,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 1338,
+        "atk": 437,
+        "def": 136,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1,
+        "blockCnt": 1,
+        "cost": 14,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 90,
+       "data": {
+        "maxHp": 1673,
+        "atk": 540,
+        "def": 161,
+        "magicResistance": 0,
+        "attackSpeed": 100,
+        "baseAttackTime": 1,
+        "blockCnt": 1,
+        "cost": 14,
+        "respawnTime": 70
+       }
+      }
+     ]
+    }
+   ],
+   "skills": [
+    {
+     "skillId": "skchr_angel_1",
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_0",
+      "level": 1
+     }
+    },
+    {
+     "skillId": "skchr_angel_2",
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_1",
+      "level": 1
+     }
+    },
+    {
+     "skillId": "skchr_angel_3",
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_2",
+      "level": 1
+     }
+    }
+   ],
+   "talents": [
+    {
+     "candidates": [
+      {
+       "unlockCondition": {
+        "phase": "PHASE_1",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Fast Cartridge",
+       "description": "ASPD +6",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "attack_speed",
+         "value": 6
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_1",
+        "level": 1
+       },
+       "requiredPotentialRank": 2,
+       "name": "Fast Cartridge",
+       "description": "ASPD +9 <@ba.talpu>(+3)</>",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "attack_speed",
+         "value": 9
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Fast Cartridge",
+       "description": "ASPD +12",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "attack_speed",
+         "value": 12
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 2,
+       "name": "Fast Cartridge",
+       "description": "ASPD +15 <@ba.talpu>(+3)</>",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "attack_speed",
+         "value": 15
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "candidates": [
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Angel's Blessings",
+       "description": "ATK +6%; Max HP +10%; The same buff is given to a random ally when Exusiai is deployed",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "max_hp",
+         "value": 0.1
+        },
+        {
+         "key": "atk",
+         "value": 0.06
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 5,
+       "name": "Angel's Blessings",
+       "description": "ATK +8% <@ba.talpu>(+2%)</>; Max HP +13% <@ba.talpu>(+3%)</>; The same buff is given to a random ally when Exusiai is deployed",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "max_hp",
+         "value": 0.13
+        },
+        {
+         "key": "atk",
+         "value": 0.08
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "potentialRanks": [
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "COST",
+         "formulaItem": "ADDITION",
+         "value": -1,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": null
+    },
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "ATK",
+         "formulaItem": "ADDITION",
+         "value": 27,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "COST",
+         "formulaItem": "ADDITION",
+         "value": -1,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": null
+    }
+   ],
+   "favorKeyFrames": [
+    {
+     "level": 0,
+     "data": {
+      "maxHp": 0,
+      "atk": 0,
+      "def": 0,
+      "magicResistance": 0,
+      "attackSpeed": 0
+     }
+    },
+    {
+     "level": 50,
+     "data": {
+      "maxHp": 0,
+      "atk": 90,
+      "def": 0,
+      "magicResistance": 0,
+      "attackSpeed": 0
+     }
+    }
+   ]
+  },
+  "skills": [
+   {
+    "excel": {
+     "skillId": "skchr_angel_1",
+     "levels": [
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 5,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.05
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 5,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.07
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 5,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.09
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 4,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.13
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 4,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.15
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 4,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.17
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 4,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.21
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 4,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.29
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 4,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.37
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Charging Mode",
+       "description": "Shoots <@ba.vup>{times}</> times in a row in the next attack, dealing <@ba.vup>{atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 0,
+       "spData": {
+        "spType": "INCREASE_WHEN_ATTACK",
+        "spCost": 4,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.45
+        },
+        {
+         "key": "times",
+         "value": 3
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "excel": {
+     "skillId": "skchr_angel_2",
+     "levels": [
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 45,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 44,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 43,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 42,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.05
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 41,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.05
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 40,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.05
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 39,
+        "initSp": 18
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.1
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 38,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.15
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 37,
+        "initSp": 22
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.2
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Shooting Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row, dealing <@ba.vup>{attack@atk_scale:0%}</> of ATK damage with every shot",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 35,
+        "initSp": 25
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.25
+        },
+        {
+         "key": "attack@times",
+         "value": 4
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "excel": {
+     "skillId": "skchr_angel_3",
+     "levels": [
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 50,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 48,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 46,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": 0
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Very minor</> Attack Interval reduction\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 44,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": -0.05
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Very minor</> Attack Interval reduction\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 42,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": -0.05
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Very minor</> Attack Interval reduction\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 40,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": -0.05
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Minor</> Attack Interval reduction\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 38,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": -0.08
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Minor</> Attack Interval reduction; ATK <@ba.vup>increases to {attack@atk_scale:0%}</>\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 36,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.03
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": -0.08
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Minor</> Attack Interval reduction; ATK <@ba.vup>increases to {attack@atk_scale:0%}</>\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 34,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.07
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": -0.08
+        }
+       ]
+      },
+      {
+       "name": "Overloading Mode",
+       "description": "Shoots <@ba.vup>{attack@times}</> times in a row; <@ba.vup>Slight</> Attack Interval reduction; ATK <@ba.vup>increases to {attack@atk_scale:0%}</>\n<@ba.rem>Automatically activated</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 30,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "attack@atk_scale",
+         "value": 1.1
+        },
+        {
+         "key": "attack@times",
+         "value": 5
+        },
+        {
+         "key": "base_attack_time",
+         "value": -0.11
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ }
+}
