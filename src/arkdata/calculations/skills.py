@@ -56,6 +56,19 @@ PERCENT_LIMIT = {"atk": 3.0, "def": 3.0, "max_hp": 3.0, "magic_resistance": 1.0}
 ATTACK_KEYS = {"attack_speed": "attack_speed", "base_attack_time": "attack_interval_change", "block_cnt": "block"}
 # Values that describe the skill's damage, healing, ammo or charges. They're read separately below.
 DAMAGE_KEYS = {"atk_scale", "times", "max_target", "heal_scale", "trigger_time", "ct"}
+# Values that make attacks ignore part of the enemy's DEF or RES ("attacks ignore 400 of the target's DEF"), mapped
+# to their Penetration field: a fraction of DEF/RES, or a flat amount.
+PENETRATION_KEYS = {
+    "def_penetrate": "def_ratio",
+    "def_penetrate_fixed": "def_flat",
+    "magic_resist_penetrate": "res_ratio",
+    "magic_resist_penetrate_fixed": "res_flat",
+}
+# A skill's DEF/RES value is only read as ignoring DEF/RES when its clause says so, and not for a conditional extra
+# attack ("add an additional attack that ignores 200 enemy DEF when target HP is below 50%"); other uses of the
+# names (Tool Supply Station's "damage received by allied units -30%") stay unmodelled.
+IGNORE_WORDS = re.compile(r'\bignor', re.IGNORECASE)
+IGNORE_EXCEPTIONS = re.compile(r'\bwhen\b|\bif\b|\badditional attack\b', re.IGNORECASE)
 # Values that are understood but don't change DPS or defensive stats, recorded in the notes.
 NOTE_KEYS = {
     "stun": "stuns for {value:g} s",
@@ -176,6 +189,51 @@ class StatModifiers:
 
 
 @dataclass(frozen=True)
+class Penetration:
+    '''
+    How much of the enemy's DEF and RES an attack ignores: def_ratio and
+    res_ratio are fractions (0.6 ignores 60%), def_flat and res_flat flat
+    amounts (400 DEF). chance is how often it applies (1 = every attack).
+
+    In the game's formula the flat amount is taken off first, then the
+    fraction: DEF used = (DEF - def_flat) × (1 - def_ratio), and the same
+    for RES (Arknights Terra Wiki, Damage/Physical and Arts damage).
+    '''
+    def_ratio: float = 0.0
+    def_flat: float = 0.0
+    res_ratio: float = 0.0
+    res_flat: float = 0.0
+    chance: float = 1.0
+
+    @classmethod
+    def from_value(cls, value: BlackboardValue, scale: float = 1.0, chance: float = 1.0) -> 'Penetration':
+        '''
+        Returns the Penetration of one PENETRATION_KEYS value.
+
+        Args:
+            value: A def_penetrate, def_penetrate_fixed,
+                magic_resist_penetrate or magic_resist_penetrate_fixed value.
+            scale: What to multiply the amount by (a talent's average stacks).
+            chance: How often it applies.
+        '''
+        return cls(**{PENETRATION_KEYS[value.key]: value.value * scale}, chance=chance)
+
+    def describe(self) -> str:
+        '''
+        Returns e.g. "ignores 400 DEF", "ignores 60% DEF and 10 RES" or
+        "20% chance to ignore 100% DEF".
+        '''
+        parts = []
+        for flat, ratio, stat in ((self.def_flat, self.def_ratio, 'DEF'), (self.res_flat, self.res_ratio, 'RES')):
+            if flat:
+                parts.append(f'{flat:g} {stat}')
+            if ratio:
+                parts.append(f'{ratio:.0%} {stat}')
+        amounts = ' and '.join(parts)
+        return f'ignores {amounts}' if self.chance >= 1 else f'{self.chance:.0%} chance to ignore {amounts}'
+
+
+@dataclass(frozen=True)
 class DamagePart:
     '''
     One part of an attack's damage: its type, the ATK multiplier per hit,
@@ -201,8 +259,9 @@ class Skill:
     ammo instead, since how long the ammo lasts depends on the attack
     interval. trigger (a SkillTrigger) says what starts the skill: SP, or
     for passives, always on, deployment, or something else. enemy_effects
-    are values that change enemies (e.g. lowering their DEF), kept for the
-    matchup calculations.
+    are values that change enemies (e.g. lowering their DEF), and
+    penetration the DEF/RES its attacks ignore while it's active, kept for
+    the matchup calculations.
     unmodelled lists value names the model doesn't understand; status is
     FULL only when there are none and nothing had to be assumed.
     '''
@@ -228,6 +287,7 @@ class Skill:
     heal_scale: float | None = None
     stops_attacking: bool = False
     enemy_effects: list[BlackboardValue] = field(default_factory=list)
+    penetration: list[Penetration] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     unmodelled: list[str] = field(default_factory=list)
     assumed: list[str] = field(default_factory=list)
@@ -248,7 +308,7 @@ class Skill:
         '''
         modelled = (not self.modifiers.is_empty() or self.damage_parts or self.damage_type is not None
                     or self.heal_scale is not None or self.stops_attacking or self.ammo is not None
-                    or self.enemy_effects)
+                    or self.enemy_effects or self.penetration)
         if not modelled:
             # A skill whose only effects are notes (e.g. a stun) is fully understood; one with no values at
             # all, or only values the model doesn't know, can't be modelled.
@@ -467,6 +527,9 @@ def parse_skill(
             apply_stat_value(skill, value)
         elif value.key in NOTE_KEYS:
             skill.notes.append(NOTE_KEYS[value.key].format(value=value.value))
+        elif value.key in PENETRATION_KEYS and _ignores(text, value):
+            skill.penetration.append(Penetration.from_value(value))
+            skill.notes.append(skill.penetration[-1].describe())
         elif value.key not in DAMAGE_KEYS:
             skill.unmodelled.append(value.raw_key)
 
@@ -506,6 +569,25 @@ def parse_skill(
         # No multiplier, but the attacks change: more hits, more targets, or a new damage type.
         skill.damage_parts = [DamagePart(attack_type, 1.0, hits, targets)]
     return skill
+
+
+def _ignores(text: str, value: BlackboardValue) -> bool:
+    '''
+    Whether a DEF/RES value (PENETRATION_KEYS) makes the skill's attacks
+    ignore DEF/RES: its clause says "ignore", without a condition or an
+    extra attack (IGNORE_EXCEPTIONS). A value without a placeholder is
+    looked for by its number ("attacks ignore 100 DEF").
+
+    Args:
+        text: The description without formatting tags.
+        value: The skill's value.
+    '''
+    clause = _clause_of(text, value.raw_key)
+    if not clause:
+        written = f'{value.value * 100:g}%' if PENETRATION_KEYS[value.key].endswith('ratio') else f'{value.value:g}'
+        number = re.compile(r'(?<![\d.])' + re.escape(written) + r'(?![\d.%])')
+        clause = next((part for part in CLAUSE_BREAK.split(text) if number.search(part)), '')
+    return bool(IGNORE_WORDS.search(clause)) and not IGNORE_EXCEPTIONS.search(clause)
 
 
 def _shown_multiplier(text: str, values: dict[str, BlackboardValue]) -> BlackboardValue | None:

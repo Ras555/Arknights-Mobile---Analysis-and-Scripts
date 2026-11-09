@@ -1,0 +1,71 @@
+{
+ "source": "HellaAPI operator char_126_shotst (Meteor), talent 1, retrieved 2026-11-09",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Anti-Air Specialist",
+    "description": "Increases ATK to 120% when attacking aerial targets",
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.2
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Anti-Air Specialist",
+    "description": "Increases ATK to 125% <@ba.talpu>(+5%)</> when attacking aerial targets",
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.25
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Anti-Air Specialist",
+    "description": "Increases ATK to 135% when attacking aerial targets",
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.35
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Anti-Air Specialist",
+    "description": "Increases ATK to 140% <@ba.talpu>(+5%)</> when attacking aerial targets",
+    "blackboard": [
+     {
+      "key": "atk_scale",
+      "value": 1.4
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

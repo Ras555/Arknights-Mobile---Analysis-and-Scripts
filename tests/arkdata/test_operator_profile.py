@@ -9,8 +9,10 @@ from arkdata.calculations.operator_profile import (
     MAX_ATTACK_SPEED,
     MIN_ATTACK_SPEED,
     Damage,
+    Hit,
     UnitStats,
     apply_modifiers,
+    attack_hits,
     build_operator_profile,
     build_summon_profile,
     build_summon_profiles,
@@ -20,13 +22,14 @@ from arkdata.calculations.operator_profile import (
     has_potential_buffs,
     has_trust_buffs,
     healing_sum,
+    hit_damage,
     overall_status,
     strike_damage,
     subtract,
     summon_ids,
     trait_values,
 )
-from arkdata.calculations.skills import DamagePart, StatModifiers
+from arkdata.calculations.skills import DamagePart, Penetration, StatModifiers
 from factories import (
     load_operator_fixture,
     make_operator_value,
@@ -126,6 +129,52 @@ def test_damage_per_second_without_an_attack_interval():
 def test_strike_damage_is_one_attack():
     [strike] = strike_damage(_unit(attack_interval=2.0), [DamagePart(DamageType.PHYSICAL, 3.0, 1.0, AOE)])
     assert (strike.per_target, strike.total) == (1800, 5400)
+
+
+
+# attack_hits and Hit
+
+PHYSICAL_PART = DamagePart(DamageType.PHYSICAL, 2.0, 1.0, ONE)
+
+
+def test_attack_hits_keep_strikes_and_multipliers_apart():
+    # A Flinger-like (1, 0.5) attack at 200%: each strike's damage before DEF has the ATK multiplier (1.5); the damage
+    # multiplier (1.2) comes after.
+    hits = attack_hits(_unit(), [PHYSICAL_PART], atk_multiplier=1.5, damage_multiplier=1.2, strikes=(1.0, 0.5))
+    assert hits == [Hit(DamageType.PHYSICAL, 600 * 2 * 1.5, 1.2, 1.0, 1.0, ONE),
+                    Hit(DamageType.PHYSICAL, 600 * 2 * 0.5 * 1.5, 1.2, 1.0, 1.0, ONE)]
+    # 1800 × 1.2 + 900 × 1.2 = 3240, the same as 600 × 2 × 1.5 hits × 1.5 × 1.2.
+    assert sum(hit.per_target for hit in hits) == pytest.approx(3240)
+
+
+def test_attack_hits_count_equal_strikes_together():
+    [hit] = attack_hits(_unit(), [PHYSICAL_PART], strikes=(1.0, 1.0))
+    assert (hit.damage, hit.count) == (1200, 2)
+
+
+def test_attack_hits_parts_with_their_own_hits_ignore_strikes():
+    [hit] = attack_hits(_unit(), [DamagePart(DamageType.PHYSICAL, 1.1, 5, ONE)], strikes=(1.0, 1.0))
+    assert (hit.damage, hit.count) == (pytest.approx(660), 5)
+
+
+def test_attack_hits_intervals():
+    unit = _unit(attack_interval=2.0)
+    assert attack_hits(unit, [PHYSICAL_PART])[0].interval == 2.0
+    assert attack_hits(unit, [PHYSICAL_PART], per_strike=True)[0].interval == 1.0
+    assert attack_hits(unit, [DamagePart(DamageType.ARTS, 1.4, 1.0, AOE, per_second=True)])[0].interval == 1.0
+
+
+def test_attack_hits_healing_isnt_multiplied():
+    [heal] = attack_hits(_unit(), [DamagePart(DamageType.HEAL, 1.0, 1.0, ONE)], 1.5, 1.2)
+    assert (heal.damage, heal.amplifier) == (600, 1.0)
+
+
+def test_hit_figures():
+    hit = Hit(DamageType.ARTS, 500.0, 1.2, 2.0, 1.5, AOE)
+    # 500 × 1.2 × 2 / 1.5 = 800 per target, on 3 enemies.
+    assert (hit.per_target, hit.total) == (pytest.approx(800), pytest.approx(2400))
+    assert Hit(DamageType.ARTS, 500.0, 1.0, 1.0, 0.0, ONE).per_target == 0
+    assert hit_damage([hit]) == [Damage(DamageType.ARTS, hit.per_target, hit.total)]
 
 
 def test_subtract_by_type():
@@ -592,7 +641,7 @@ def test_real_bagpipe():
     # ATK 586 + 25 (potential) + 85 (trust) = 696, attack interval 1.0 s.
     # Talent 1 (potential 6): 28% chance of two 130% strikes: 0.72 + 0.28 × 2.6 = 1.448 per hit.
     [talent] = [talent for talent in profile.talents if talent.number == 1]
-    assert talent.damage_multiplier == pytest.approx(1.448)
+    assert talent.multiplier == pytest.approx(1.448)
     assert profile.summary().min_dps == pytest.approx(696 * 1.448)
     s1, s2, s3 = profile.skills
     # S1 M3: ATK +45%, ASPD +45: 1009.2 × 1.448 / (1 / 1.45) = 2118.92, 35 s of a 70 s cycle.
@@ -644,3 +693,75 @@ def test_real_eyjafjalla_s1_versions_and_s2_ignition():
     assert s2.burst[0].per_target == pytest.approx(883.92 * 2.7)
     assert s2.burst[0].total == pytest.approx(883.92 * 3.7 * 2 - 883.92)
     assert s2.average_dps == pytest.approx(552.45 + 883.92 * 2.7 / 5)
+
+
+# Hits, DEF/RES ignore and enemy effects kept for matchups
+
+def test_flinger_hits_keep_the_shockwave_apart():
+    profile = _profile(sub_profession='bombarder')
+    assert [(hit.damage, hit.count) for hit in profile.base_hits] == [(640, 1), (320, 1)]
+    assert profile.base_damage[0].per_target + profile.base_damage[1].per_target == 960
+
+
+def test_talent_atk_and_damage_multipliers_in_hits():
+    profile = _profile(talents=[[make_talent_candidate('ATK increased to 150% when attacking', {'atk_scale': 1.5})],
+                                [make_talent_candidate('Deals 20% more damage when attacking', {'damage_scale': 1.2})]])
+    [hit] = profile.base_hits
+    # 640 × 1.5 = 960 before DEF, then × 1.2 after it: 1152 per second.
+    assert (hit.damage, hit.amplifier) == (960, 1.2)
+    assert profile.base_damage[0].per_target == pytest.approx(1152)
+
+
+def test_instant_skill_hits():
+    profile = _profile(_skill('The next attack deals {atk_scale:0%} ATK', {'atk_scale': 3.0},
+                              sp_type='INCREASE_WHEN_ATTACK', sp_cost=4, duration=0),
+                       _skill('Immediately deals {atk_scale:0%} ATK to nearby enemies', {'atk_scale': 3.0}, sp_cost=10,
+                              duration=0))
+    replacing, extra = profile.skills
+    assert [(hit.damage, hit.interval) for hit in replacing.strike_hits] == [(1920, 1.0)]
+    assert [(hit.damage, hit.interval) for hit in replacing.replaced_hits] == [(640, 1.0)]
+    assert [hit.damage for hit in replacing.hits] == [hit.damage for hit in replacing.base_hits] == [640]
+    assert [(hit.damage, hit.targets.count) for hit in extra.strike_hits] == [(1920, 3)]
+    assert extra.replaced_hits == []
+
+
+def test_def_ignore_and_enemy_effects():
+    profile = _profile(
+        _skill("ATK +{atk:0%} and attacks ignore {def_penetrate_fixed} DEF; Targets' DEF -{-def:0%}",
+               {'atk': 0.5, 'def_penetrate_fixed': 400, 'def': -0.2}),
+        talents=[[make_talent_candidate('Attacks ignore 20 RES', {'magic_resist_penetrate_fixed': 20})],
+                 [make_talent_candidate('Attacks inflict 10% Fragile', {'damage_scale': 1.1})],
+                 [make_talent_candidate('Ignores 200 DEF when attacking enemies with weight greater than or equal to 3',
+                                        {'def_penetrate_fixed': 200})]])
+    # The weight talent only applies to some enemies (PER_ENEMY), so it's left out here.
+    assert profile.penetration == [Penetration(res_flat=20)]
+    assert [value.key for value in profile.enemy_effects] == ['damage_scale']
+    [skill] = profile.skills
+    assert skill.penetration == [Penetration(def_flat=400), Penetration(res_flat=20)]
+    assert [value.key for value in skill.enemy_effects] == ['def', 'damage_scale']
+
+
+def _sums(damage):
+    # (per target, total) of every type, healing included.
+    return sum(part.per_target for part in damage), sum(part.total for part in damage)
+
+
+@pytest.mark.parametrize('name, level', [('exusiai', 90), ('blaze', 90), ('eyjafjalla', 90), ('bagpipe', 80),
+                                         ('siege', 90), ('liskarm', 80), ('kaltsit', 90), ('projekt_red', 80)])
+def test_real_hits_add_up_to_the_damage(name, level):
+    profile = _real(name, level)
+    assert _sums(hit_damage(profile.base_hits)) == pytest.approx(_sums(profile.base_damage))
+    for skill in profile.skills:
+        assert _sums(hit_damage(skill.hits)) == pytest.approx(_sums(skill.damage))
+        if skill.burst:
+            strike, replaced = _sums(hit_damage(skill.strike_hits)), _sums(hit_damage(skill.replaced_hits))
+            assert _sums(skill.burst)[0] == pytest.approx(strike[0] - replaced[0])
+
+
+def test_real_eyjafjalla_ignition_hits():
+    _, s2, _ = _real('eyjafjalla').skills
+    [strike] = s2.strike_hits
+    # 370% of 883.92 on the target, half on the two enemies around it.
+    assert (strike.damage, strike.targets.target_scales) == (pytest.approx(883.92 * 3.7), (1.0, 0.5, 0.5))
+    assert [hit.damage for hit in s2.replaced_hits] == [pytest.approx(883.92)]
+

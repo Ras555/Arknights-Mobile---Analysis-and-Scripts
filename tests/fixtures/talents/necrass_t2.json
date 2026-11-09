@@ -1,0 +1,47 @@
+{
+ "source": "HellaAPI operator char_450_necras (Necrass), talent 2, retrieved 2026-11-09",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Deathbed Deliverance",
+    "description": "When Necrass or her summons attack enemies with less than 50% HP, increases ATK to 140%",
+    "blackboard": [
+     {
+      "key": "hp_ratio",
+      "value": 0.5
+     },
+     {
+      "key": "damage_scale",
+      "value": 1.4
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 2,
+    "name": "Deathbed Deliverance",
+    "description": "When Necrass or her summons attack enemies with less than 60% <@ba.talpu>(+10%)</> HP, increases ATK to 145% <@ba.talpu>(+5%)</>",
+    "blackboard": [
+     {
+      "key": "hp_ratio",
+      "value": 0.6
+     },
+     {
+      "key": "damage_scale",
+      "value": 1.45
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

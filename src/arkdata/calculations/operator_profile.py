@@ -10,7 +10,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-05
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -23,15 +23,19 @@ from dataclasses import dataclass, field
 
 from arkdata.calculations.attack_targets import (
     NO_BASIC_ATTACK_SUB_PROFESSIONS,
-    basic_attack_hits,
+    Targets,
+    basic_attack_strikes,
     basic_attack_targets,
 )
+from arkdata.calculations.blackboard import BlackboardValue
 from arkdata.calculations.damage import DamageType
 from arkdata.calculations.operator_stats import OperatorStats
 from arkdata.calculations.skill_rotation import SkillRotation, SkillTrigger, SpType, hit_interval
 from arkdata.calculations.skills import (
     MAX_SKILL_LEVEL,
+    PENETRATION_KEYS,
     DamagePart,
+    Penetration,
     Skill,
     StatModifiers,
     parse_skill,
@@ -88,6 +92,43 @@ class Damage:
     total: float
 
 
+@dataclass(frozen=True)
+class Hit:
+    '''
+    Hits of one kind, kept so the enemy's DEF or RES can be taken off each
+    one (in matchups).
+
+    damage is one hit's damage on the main target before DEF/RES: ATK ×
+    the hit's ATK multiplier × talent ATK multipliers. amplifier is the
+    talent damage multipliers, counted after DEF/RES (1 for healing).
+    count is how many of these hits land on each enemy per attack (or per
+    second, or per strike), and interval the seconds each count takes (the
+    attack interval; 1 for damage every second and for one strike).
+    targets says which enemies are hit and how much of the damage each
+    takes (Targets.target_scales).
+    '''
+    damage_type: str
+    damage: float
+    amplifier: float
+    count: float
+    interval: float
+    targets: Targets
+
+    @property
+    def per_target(self) -> float:
+        '''
+        Damage per second (or per strike) on the main target, before DEF/RES.
+        '''
+        return self.damage * self.amplifier * self.count / self.interval if self.interval > 0 else 0.0
+
+    @property
+    def total(self) -> float:
+        '''
+        Damage per second (or per strike) over every enemy hit, before DEF/RES.
+        '''
+        return self.per_target * self.targets.damage_share
+
+
 @dataclass
 class SkillProfile:
     '''
@@ -100,6 +141,14 @@ class SkillProfile:
     skills that gain SP when hit, the full_block averages assume every
     enemy the operator can block attacks it. talents are the operator's
     talents averaged over this skill's rotation (window seconds).
+
+    For matchups, the damage is also kept as hits: base_hits with no skill
+    (with this skill's talents), hits while active (the normal attack for
+    instant skills), and for instant skills strike_hits (one activation's
+    strike) and replaced_hits (the normal attack it replaces, if any).
+    penetration is the DEF/RES ignored while the skill is active (the
+    skill's and the applied talents'), and enemy_effects the skill's and
+    applied talents' effects on enemies (DEF/RES ignore left out).
     '''
     skill: Skill
     stats: UnitStats
@@ -113,6 +162,12 @@ class SkillProfile:
     average_hps: float | None = None
     full_block_average_dps: float | None = None
     full_block_average_dps_total: float | None = None
+    base_hits: list[Hit] = field(default_factory=list)
+    hits: list[Hit] = field(default_factory=list)
+    strike_hits: list[Hit] = field(default_factory=list)
+    replaced_hits: list[Hit] = field(default_factory=list)
+    penetration: list[Penetration] = field(default_factory=list)
+    enemy_effects: list[BlackboardValue] = field(default_factory=list)
 
     @property
     def dps(self) -> float:
@@ -197,7 +252,8 @@ class OperatorProfile:
     summons lists the ids of the operator's summons; owner_id is set on a
     summon's own profile. member_of holds the groups it belongs to (class,
     position, rarity, factions; see talents.member_groups), for talents
-    that buff a group.
+    that buff a group. base_hits, penetration and enemy_effects are as in
+    SkillProfile, with no skill.
     '''
     operator_id: str
     name: str
@@ -217,6 +273,9 @@ class OperatorProfile:
     member_of: frozenset[str] = frozenset()
     notes: list[str] = field(default_factory=list)
     assumed: list[str] = field(default_factory=list)
+    base_hits: list[Hit] = field(default_factory=list)
+    penetration: list[Penetration] = field(default_factory=list)
+    enemy_effects: list[BlackboardValue] = field(default_factory=list)
 
     def summary(self) -> ProfileSummary:
         '''
@@ -323,6 +382,58 @@ def apply_modifiers(stats: dict, modifiers: StatModifiers) -> UnitStats:
     )
 
 
+def attack_hits(stats: UnitStats, parts: Iterable[DamagePart], atk_multiplier: float = 1.0,
+                damage_multiplier: float = 1.0, strikes: tuple[float, ...] = (1.0,), per_strike: bool = False) -> list[Hit]:
+    '''
+    Returns the hits of attacks made of parts (see Hit).
+
+    > one hit = ATK × ATK multiplier × strike × talent ATK multiplier
+    > per target = one hit × talent damage multiplier × hits / attack interval
+
+    Parts with 1 hit use strikes (the archetype's strikes,
+    basic_attack_strikes: a Swordmaster's (1, 1), a Flinger's (1, 0.5)), for
+    normal attacks and skills that change them, since only skills that
+    change the number of hits say so; a skill's own one-off strike passes
+    (1,). Equal strikes are counted together. Parts dealt every second
+    (per_second), and every part when per_strike is True (one strike of an
+    instant skill), aren't divided by the attack interval. Healing isn't
+    multiplied by talent multipliers.
+
+    Args:
+        stats: The unit's stats while attacking.
+        parts: The attack's damage parts.
+        atk_multiplier: Talent ATK multipliers, multiplied together.
+        damage_multiplier: Talent damage multipliers, multiplied together.
+        strikes: The archetype's strikes per attack, as fractions of ATK.
+        per_strike: True for one strike rather than per second.
+
+    Returns:
+        The hits, in part order.
+    '''
+    hits = []
+    for part in parts:
+        heal = part.damage_type == DamageType.HEAL
+        atk_scale, amplifier = (1.0, 1.0) if heal else (atk_multiplier, damage_multiplier)
+        interval = 1.0 if per_strike or part.per_second else stats.attack_interval
+        counts: dict[float, float] = {}
+        if part.hits != 1:
+            counts[1.0] = part.hits
+        else:
+            for strike in strikes:
+                counts[strike] = counts.get(strike, 0.0) + 1.0
+        for strike, count in counts.items():
+            hits.append(Hit(part.damage_type, stats.atk * part.atk_scale * strike * atk_scale, amplifier, count, interval,
+                            part.targets))
+    return hits
+
+
+def hit_damage(hits: Iterable[Hit]) -> list[Damage]:
+    '''
+    Returns one Damage (per target and in total, before DEF/RES) per hit.
+    '''
+    return [Damage(hit.damage_type, hit.per_target, hit.total) for hit in hits]
+
+
 def damage_per_second(stats: UnitStats, parts: Iterable[DamagePart], damage_multiplier: float = 1.0,
                       basic_hits: float = 1.0) -> list[Damage]:
     '''
@@ -336,7 +447,8 @@ def damage_per_second(stats: UnitStats, parts: Iterable[DamagePart], damage_mult
     Swordmaster's 2, for normal attacks and skills that change them), since
     only skills that change the number of hits say so; a skill's own
     one-off strike passes 1.
-    Healing isn't multiplied by damage_multiplier.
+    Healing isn't multiplied by damage_multiplier. (attack_hits keeps
+    each strike apart and the two kinds of talent multiplier apart.)
 
     Args:
         stats: The unit's stats while attacking.
@@ -347,11 +459,7 @@ def damage_per_second(stats: UnitStats, parts: Iterable[DamagePart], damage_mult
     Returns:
         One Damage per part.
     '''
-    damage = []
-    for part, amount in _amounts(stats, parts, damage_multiplier, basic_hits):
-        rate = amount if part.per_second else (amount / stats.attack_interval if stats.attack_interval > 0 else 0.0)
-        damage.append(Damage(part.damage_type, rate, rate * part.targets.damage_share))
-    return damage
+    return hit_damage(attack_hits(stats, parts, 1.0, damage_multiplier, (basic_hits,)))
 
 
 def strike_damage(stats: UnitStats, parts: Iterable[DamagePart], damage_multiplier: float = 1.0,
@@ -360,21 +468,7 @@ def strike_damage(stats: UnitStats, parts: Iterable[DamagePart], damage_multipli
     Returns the damage of one strike made of parts (an instant skill, or
     one normal attack), per target and in total. See damage_per_second.
     '''
-    return [Damage(part.damage_type, amount, amount * part.targets.damage_share)
-            for part, amount in _amounts(stats, parts, damage_multiplier, basic_hits)]
-
-
-def _amounts(stats: UnitStats, parts: Iterable[DamagePart], damage_multiplier: float,
-             basic_hits: float) -> list[tuple[DamagePart, float]]:
-    '''
-    Returns (part, damage of one attack on one enemy) for each part.
-    '''
-    amounts = []
-    for part in parts:
-        hits = part.hits if part.hits != 1 else basic_hits
-        multiplier = 1.0 if part.damage_type == DamageType.HEAL else damage_multiplier
-        amounts.append((part, stats.atk * part.atk_scale * hits * multiplier))
-    return amounts
+    return hit_damage(attack_hits(stats, parts, 1.0, damage_multiplier, (basic_hits,), per_strike=True))
 
 
 def subtract(strike: list[Damage], normal: list[Damage]) -> list[Damage]:
@@ -494,7 +588,7 @@ def build_operator_profile(
     masteries = list(masteries)
     traits = trait_values(data, phase, level, potential)
     sub_profession = data.get('subProfessionId')
-    basic_hits = basic_attack_hits(sub_profession, traits)
+    strikes = basic_attack_strikes(sub_profession, traits)
 
     # No skill: talents averaged over the default window. They're built twice: first to find the attack interval
     # (which their ASPD changes), then with it, for stacks gained per attack.
@@ -509,12 +603,13 @@ def build_operator_profile(
     # The normal attack, used during skills; outside them, Phalanx Casters and Liberators don't attack.
     attack_parts = [DamagePart(operator.damage_type, 1.0, 1.0, basic_targets)]
     base_parts = [] if sub_profession in NO_BASIC_ATTACK_SUB_PROFESSIONS else attack_parts
+    base_hits = attack_hits(base_stats, base_parts, *_talent_multipliers(talents), strikes)
     profile = OperatorProfile(
         operator_id=operator_id, name=operator.name, profession=operator.profession,
         sub_profession_id=sub_profession or '', damage_type=operator.damage_type, phase=phase, level=level,
-        potential=potential, trust=trust, base_stats=base_stats,
-        base_damage=damage_per_second(base_stats, base_parts, _talent_multiplier(talents), basic_hits),
-        talents=talents, summons=list(summon_ids(operator_value)), member_of=member_of,
+        potential=potential, trust=trust, base_stats=base_stats, base_damage=hit_damage(base_hits),
+        talents=talents, summons=list(summon_ids(operator_value)), member_of=member_of, base_hits=base_hits,
+        penetration=_talent_penetration(talents), enemy_effects=_talent_enemy_effects(talents),
     )
     if any(STACK_WORDS.search(talent.description) for talent in talents):
         profile.assumed.append(f'stacking talents averaged over {DEFAULT_STACK_WINDOW:g} s with no skill')
@@ -526,7 +621,7 @@ def build_operator_profile(
         if changed:
             skill.assumed.append(f'skill level {skill_level} mastery {mastery} not available; '
                                  f'used level {fitted_level} mastery {fitted_mastery}')
-        profile.skills.append(_skill_profile(skill, data, operator, profile, (base_parts, attack_parts), basic_hits))
+        profile.skills.append(_skill_profile(skill, data, operator, profile, (base_parts, attack_parts), strikes))
     return profile
 
 
@@ -541,20 +636,37 @@ def _talent_modifiers(talents: Iterable[Talent]) -> StatModifiers:
     return total
 
 
-def _talent_multiplier(talents: Iterable[Talent]) -> float:
+def _talent_multipliers(talents: Iterable[Talent]) -> tuple[float, float]:
     '''
-    Returns the damage multipliers of the talents that are applied,
-    multiplied together.
+    Returns (ATK multipliers, damage multipliers) of the talents that are
+    applied, each multiplied together.
     '''
-    multiplier = 1.0
+    atk_multiplier = damage_multiplier = 1.0
     for talent in talents:
         if talent.applied:
-            multiplier *= talent.damage_multiplier
-    return multiplier
+            atk_multiplier *= talent.atk_multiplier
+            damage_multiplier *= talent.damage_multiplier
+    return atk_multiplier, damage_multiplier
+
+
+def _talent_penetration(talents: Iterable[Talent]) -> list[Penetration]:
+    '''
+    Returns the DEF/RES ignored by the talents that are applied.
+    '''
+    return [penetration for talent in talents if talent.applied for penetration in talent.penetration]
+
+
+def _talent_enemy_effects(talents: Iterable[Talent]) -> list[BlackboardValue]:
+    '''
+    Returns the effects on enemies of the talents that are applied, without
+    DEF/RES ignore (see _talent_penetration).
+    '''
+    return [value for talent in talents if talent.applied for value in talent.enemy_effects
+            if value.key not in PENETRATION_KEYS]
 
 
 def _skill_profile(skill: Skill, data: dict, operator: OperatorStats, profile: OperatorProfile,
-                   parts: tuple[list[DamagePart], list[DamagePart]], basic_hits: float) -> SkillProfile:
+                   parts: tuple[list[DamagePart], list[DamagePart]], strikes: tuple[float, ...]) -> SkillProfile:
     '''
     Works out one skill's stats, damage, burst and rotation.
 
@@ -562,20 +674,22 @@ def _skill_profile(skill: Skill, data: dict, operator: OperatorStats, profile: O
     rotation, then again over that rotation (its cycle time), and the
     skill is worked out with the second set. parts is (the attack with no
     skill, empty for archetypes that don't attack outside their skills;
-    the normal attack used during skills).
+    the normal attack used during skills), and strikes the archetype's
+    (basic_attack_strikes).
     '''
     base_parts = parts[0]
-    first = _skill_state(skill, operator, profile.talents, parts, basic_hits)
+    first = _skill_state(skill, operator, profile.talents, parts, strikes)
     window = first.rotation.cycle_time or 0.0
     if window <= 0:
         window = DEFAULT_STACK_WINDOW
     talents = build_talents(data, operator.phase, operator.level, operator.potential, profile.operator_id,
                             first.stats.attack_interval, window, member_of=profile.member_of)
-    state = _skill_state(skill, operator, talents, parts, basic_hits)
+    state = _skill_state(skill, operator, talents, parts, strikes)
     state.window = window
 
     base_stats = apply_modifiers(operator.stats, _talent_modifiers(talents))
-    base_damage = damage_per_second(base_stats, base_parts, _talent_multiplier(talents), basic_hits)
+    state.base_hits = attack_hits(base_stats, base_parts, *_talent_multipliers(talents), strikes)
+    base_damage = hit_damage(state.base_hits)
     base_dps, base_total = damage_sum(base_damage)
     active_dps, active_total = damage_sum(state.damage)
     burst_dps, burst_total = damage_sum(state.burst)
@@ -596,41 +710,45 @@ def _skill_profile(skill: Skill, data: dict, operator: OperatorStats, profile: O
 
 
 def _skill_state(skill: Skill, operator: OperatorStats, talents: list[Talent],
-                 parts: tuple[list[DamagePart], list[DamagePart]], basic_hits: float) -> SkillProfile:
+                 parts: tuple[list[DamagePart], list[DamagePart]], strikes: tuple[float, ...]) -> SkillProfile:
     '''
     Returns a SkillProfile (without averages) for the skill with the given
-    talents: its stats and damage while active, its burst, and its
-    rotation. parts is as in _skill_profile.
+    talents: its stats and damage (and hits) while active, its burst, and
+    its rotation. parts and strikes are as in _skill_profile.
     '''
     talent_modifiers = _talent_modifiers(talents)
-    multiplier = _talent_multiplier(talents)
+    multipliers = _talent_multipliers(talents)
     base_stats = apply_modifiers(operator.stats, talent_modifiers)
     stats = apply_modifiers(operator.stats, talent_modifiers + skill.modifiers)
     base_parts, attack_parts = parts
     skill_parts = _skill_parts(skill, operator.damage_type, attack_parts)
 
     burst: list[Damage] = []
+    strike_hits: list[Hit] = []
+    replaced_hits: list[Hit] = []
     if skill.instant:
         # The normal attack keeps going, and each activation adds a strike: the skill's own damage (an extra strike,
         # or an attack it replaces, counting only what it adds), or a boosted next attack. An instant skill with no
         # damage that doesn't change the next attack (e.g. "Blocks the next source of damage") adds nothing.
-        # Archetype hits (a Swordmaster's 2) are part of normal attacks only: a skill's own strike hits as often as
+        # Archetype strikes (a Swordmaster's 2) are part of normal attacks only: a skill's own strike hits as often as
         # the skill says (Ch'en's Sheathed Strike hits once), while a boosted next attack is still a normal attack.
-        damage = damage_per_second(base_stats, base_parts, multiplier, basic_hits)
-        normal = strike_damage(base_stats, base_parts, multiplier, basic_hits)
-        strike_hits = 1.0 if skill.damage_parts else basic_hits
+        hits = attack_hits(base_stats, base_parts, *multipliers, strikes)
+        skill_strikes = (1.0,) if skill.damage_parts else strikes
         if skill.replaces_attack:
-            burst = subtract(strike_damage(stats, skill_parts, multiplier, strike_hits), normal)
+            strike_hits = attack_hits(stats, skill_parts, *multipliers, skill_strikes, per_strike=True)
+            replaced_hits = attack_hits(base_stats, base_parts, *multipliers, strikes, per_strike=True)
+            burst = subtract(hit_damage(strike_hits), hit_damage(replaced_hits))
         elif skill.damage_parts:
-            burst = strike_damage(stats, skill.damage_parts, multiplier, strike_hits)
+            strike_hits = attack_hits(stats, skill.damage_parts, *multipliers, skill_strikes, per_strike=True)
+            burst = hit_damage(strike_hits)
     elif skill.stops_attacking:
-        damage = damage_per_second(stats, [part for part in skill.damage_parts if part.per_second], multiplier,
-                                   basic_hits)
+        hits = attack_hits(stats, [part for part in skill.damage_parts if part.per_second], *multipliers, strikes)
     else:
         # A skill with only damage every second deals it on top of the normal attack.
         attacks = [part for part in skill_parts if not part.per_second] or attack_parts
         per_second = [part for part in skill_parts if part.per_second]
-        damage = damage_per_second(stats, attacks + per_second, multiplier, basic_hits)
+        hits = attack_hits(stats, attacks + per_second, *multipliers, strikes)
+    damage = hit_damage(hits)
 
     duration = skill.duration
     if skill.ammo is not None:
@@ -639,7 +757,9 @@ def _skill_state(skill: Skill, operator: OperatorStats, talents: list[Talent],
     rotation = SkillRotation(skill.sp_type, skill.sp_cost, duration, base_stats.attack_interval, skill.trigger,
                              skill.replaces_attack, hit_interval())
     return SkillProfile(skill=skill, stats=stats, damage=damage, burst=burst, rotation=rotation,
-                        window=DEFAULT_STACK_WINDOW, talents=talents)
+                        window=DEFAULT_STACK_WINDOW, talents=talents, hits=hits, strike_hits=strike_hits,
+                        replaced_hits=replaced_hits, penetration=skill.penetration + _talent_penetration(talents),
+                        enemy_effects=skill.enemy_effects + _talent_enemy_effects(talents))
 
 
 def _skill_parts(skill: Skill, damage_type: str, attack_parts: list[DamagePart]) -> list[DamagePart]:

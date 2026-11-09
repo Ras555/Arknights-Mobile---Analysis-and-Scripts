@@ -1,0 +1,47 @@
+{
+ "source": "HellaAPI operator char_197_poca (Rosa), talent 1, retrieved 2026-11-09",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Bone Piercer",
+    "description": "When attacking a heavy enemy, ignores 40% of its DEF (enemies with 3 weight or higher count for this effect)",
+    "blackboard": [
+     {
+      "key": "value",
+      "value": 3
+     },
+     {
+      "key": "def_penetrate",
+      "value": 0.4
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Bone Piercer",
+    "description": "When attacking a heavy enemy, ignores 60% of its DEF (enemies with 3 weight or higher count for this effect)",
+    "blackboard": [
+     {
+      "key": "value",
+      "value": 3
+     },
+     {
+      "key": "def_penetrate",
+      "value": 0.6
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

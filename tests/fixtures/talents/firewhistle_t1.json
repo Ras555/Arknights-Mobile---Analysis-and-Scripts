@@ -1,0 +1,87 @@
+{
+ "source": "HellaAPI operator char_493_firwhl (Firewhistle), talent 1, retrieved 2026-11-09",
+ "talent": {
+  "candidates": [
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Flexible Fighter",
+    "description": "ATK +6% when not blocking an enemy, DEF +6% when blocking an enemy",
+    "blackboard": [
+     {
+      "key": "atk",
+      "value": 0.06
+     },
+     {
+      "key": "def",
+      "value": 0.06
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_1",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Flexible Fighter",
+    "description": "ATK +8% <@ba.talpu>(+2%)</> when not blocking an enemy, DEF +8% <@ba.talpu>(+2%)</> when blocking an enemy",
+    "blackboard": [
+     {
+      "key": "atk",
+      "value": 0.08
+     },
+     {
+      "key": "def",
+      "value": 0.08
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 0,
+    "name": "Flexible Fighter",
+    "description": "ATK +12% when not blocking an enemy, DEF +12% when blocking an enemy",
+    "blackboard": [
+     {
+      "key": "atk",
+      "value": 0.12
+     },
+     {
+      "key": "def",
+      "value": 0.12
+     }
+    ],
+    "isHideTalent": false
+   },
+   {
+    "unlockCondition": {
+     "phase": "PHASE_2",
+     "level": 1
+    },
+    "requiredPotentialRank": 4,
+    "name": "Flexible Fighter",
+    "description": "ATK +14% <@ba.talpu>(+2%)</> when not blocking an enemy, DEF +14% <@ba.talpu>(+2%)</> when blocking an enemy",
+    "blackboard": [
+     {
+      "key": "atk",
+      "value": 0.14
+     },
+     {
+      "key": "def",
+      "value": 0.14
+     }
+    ],
+    "isHideTalent": false
+   }
+  ]
+ }
+}

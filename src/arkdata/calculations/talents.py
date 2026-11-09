@@ -18,6 +18,7 @@ Last Modified by: Claude
 import csv
 import io
 import re
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from enum import StrEnum
 from functools import lru_cache
@@ -33,7 +34,17 @@ from arkdata.calculations.blackboard import (
     value_name,
 )
 from arkdata.calculations.operator_stats import parse_phase
-from arkdata.calculations.skills import ATTACK_KEYS, NOTE_KEYS, STAT_KEYS, StatModifiers, apply_stat_value, is_stat_value
+from arkdata.calculations.skills import (
+    ATTACK_KEYS,
+    NOTE_KEYS,
+    PENETRATION_KEYS,
+    STAT_KEYS,
+    Penetration,
+    StatEffects,
+    StatModifiers,
+    apply_stat_value,
+    is_stat_value,
+)
 
 # Constants
 
@@ -68,6 +79,31 @@ PER_ENEMY_CONDITIONS = {
         re.IGNORECASE,
     ),
 }
+# Details of a PER_ENEMY condition, for matchups (see parse_condition).
+# "not blocking any enemies", "enemies that are not blocked by this unit", "enemies that are not Elites or Leaders".
+NOT_WORDS = re.compile(r"\bnot (?:\w+ )?(?:block|elite)", re.IGNORECASE)
+# "when two or more enemies are blocked", "when blocking 2 or more enemies".
+COUNT_OR_MORE = re.compile(r"\b(\d+|two|three|four|five) or more\b", re.IGNORECASE)
+NUMBER_WORDS = {'two': 2, 'three': 3, 'four': 4, 'five': 5}
+# "enemies with 3 weight or higher", "weight greater than or equal to 3"; "enemies with 3 or less weight".
+WEIGHT_AT_LEAST = re.compile(r"(\d+) weight or (?:higher|more|above|greater)"
+                             r"|weight (?:greater than or equal to|of at least|at least) (\d+)", re.IGNORECASE)
+WEIGHT_AT_MOST = re.compile(r"(\d+) or (?:less|lower|fewer) weight"
+                            r"|weight (?:less than or equal to|of at most|at most) (\d+)", re.IGNORECASE)
+# "enemies with less than 60% (+10%) HP"; "enemies with 80% or more HP"; "an enemy with full HP".
+HP_BELOW = re.compile(r"(?:less than|below|under|lower than) (\d+(?:\.\d+)?)%(?: \([^)]*\))? (?:of (?:its |their )?)?(?:max )?HP",
+                      re.IGNORECASE)
+HP_AT_LEAST = re.compile(r"(\d+(?:\.\d+)?)%(?: \([^)]*\))? or (?:more|higher|above) (?:of (?:its |their )?)?(?:max )?HP",
+                         re.IGNORECASE)
+FULL_HP = re.compile(r"\bfull HP\b", re.IGNORECASE)
+# The enemy type a condition names: "[Infected Creatures]", "[Sarkaz] enemies", "Sarkaz enemies", "ranged enemies".
+ENEMY_TYPE_NAME = re.compile(r"\[([^\]]+)\](?= enem)|attacking \[([^\]]+)\]|\b(\w+) enemies\b", re.IGNORECASE)
+# Enemy type names as written, mapped to the HellaAPI enemyTags (enemyData.enemyTags), or to "ranged" (applyWay
+# RANGED) and "ground" (motion WALK). Names not listed (e.g. "sleeping", "stationary") are kept as written.
+ENEMY_TYPE_TAGS = {'infected creature': 'infection', 'sarkaz': 'sarkaz', 'machine': 'machine', 'sea monster': 'seamonster',
+                   'drone': 'drone', 'ranged': 'ranged', 'ground': 'ground'}
+ENEMY_STATUS_NAME = re.compile(r"\b(slowed|stunned|frozen|feared|bound)\b", re.IGNORECASE)
+
 # Buffs to a group of operators that the operator itself belongs to ("All Vanguard Operators' ATK +10%" for Siege,
 # "all [Abyssal Hunter] Operators" for Skadi, "All allies' ASPD +8", "This unit and allied Operators..."): the group is
 # the words before one of these nouns, in the value's part of the clause.
@@ -148,8 +184,20 @@ DEPLOY_WORDS = re.compile(r'\bdeploy', re.IGNORECASE)
 
 # Talent values that multiply the operator's damage.
 DAMAGE_KEYS = {'damage_scale', 'atk_scale'}
-# Values that make attacks ignore part of the enemy's DEF or RES ("Attacks ignore 23% DEF"), kept for matchups.
-PENETRATION_KEYS = {'def_penetrate', 'def_penetrate_fixed', 'magic_resist_penetrate', 'magic_resist_penetrate_fixed'}
+# Whether a multiplier raises ATK (before DEF/RES) or the damage dealt (after), from the words next to its number,
+# whatever the value's name: "Increases ATK to 140%", "ATK +43%", "deals 133% ATK as Physical damage" and "160% of
+# ATK" raise ATK; "20% more damage", "attacks deal 117% damage" and "increase the current damage of that attack to
+# 160%" raise damage. The words after the number are checked first; before it, the nearest "ATK" or "damage" up to
+# five words back, ending in "to", "by" or "+" ("increase the ATK of the current attack to 190%", "Damage when skill
+# is active increases by 16%").
+ATK_AFTER = re.compile(r"^\s*(?:\([^)]*\)\s*)?(?:of\s+(?:[\w'’.-]+\s+){0,2}?)?ATK\b", re.IGNORECASE)
+DAMAGE_AFTER = re.compile(r"^\s*(?:\([^)]*\)\s*)?(?:(?:more|increased|additional|extra|bonus)\s+)?"
+                          r"(?:(?:Physical|Arts|True)\s+)?damage\b", re.IGNORECASE)
+MULTIPLIER_BEFORE = re.compile(r"\b(ATK|damage)\b(?:\s+(?!(?:ATK|damage)\b)[\w'’]+){0,5}?\s*(?:to|by|\+)\s*$",
+                               re.IGNORECASE)
+# The number itself, at the start of the words after it.
+LEADING_NUMBER = re.compile(r'^[\d.]+%?')
+ATK_MULTIPLIER, DAMAGE_MULTIPLIER = 'atk', 'damage'
 # Values that are understood but don't change DPS or defensive stats, recorded in the notes.
 TALENT_NOTE_KEYS = {
     **NOTE_KEYS,
@@ -187,6 +235,76 @@ class TalentOverride:
     note: str = ''
 
 
+@dataclass(frozen=True)
+class TalentCondition:
+    '''
+    What a PER_ENEMY talent needs from the enemy (or the fight), for
+    matchups.
+
+    kind is the condition's name (a PER_ENEMY_CONDITIONS key: "aerial",
+    "blocked", "unblocked", "elite", "enemy HP", "weight", "enemy status"
+    or "enemy type"). negated is True for "not blocking", "not blocked by
+    this unit" and "not Elites". minimum and maximum are the limits the
+    text gives: weight ("3 weight or higher" is minimum 3), the enemy's HP
+    as a fraction ("less than 60% HP" is maximum 0.6, "full HP" minimum 1)
+    or the number of enemies blocked ("2 or more" is minimum 2). tag is the
+    enemy type (an enemyTags name such as "sarkaz" or "infection", or
+    "ranged", "ground", or the words as written, e.g. "sleeping") or the
+    enemy status ("stunned").
+    '''
+    kind: str
+    negated: bool = False
+    minimum: float | None = None
+    maximum: float | None = None
+    tag: str | None = None
+
+    def describe(self) -> str:
+        '''
+        Returns the condition in a few words, e.g. "weight 3 or more",
+        "not blocked", "enemy HP below 60%", "enemy type: sarkaz".
+        '''
+        text = f'not {self.kind}' if self.negated else self.kind
+        if self.tag:
+            text += f': {self.tag}'
+        if self.kind == 'enemy HP':
+            if self.minimum is not None:
+                text += ' full' if self.minimum >= 1 else f' {self.minimum:.0%} or more'
+            if self.maximum is not None:
+                text += f' below {self.maximum:.0%}'
+            return text
+        if self.minimum is not None:
+            text += f' {self.minimum:g} or more'
+        if self.maximum is not None:
+            text += f' {self.maximum:g} or less'
+        return text
+
+
+@dataclass
+class TalentEffect:
+    '''
+    One effect of a talent (one of its values) with the condition of the
+    part of the description it's in, so talents whose effects need
+    different things ("ATK +14% when not blocking an enemy, DEF +14% when
+    blocking an enemy") can be judged one effect at a time in matchups.
+
+    group and condition are the effect's own (the talent's group is the
+    least likely of its effects'). scale is what the value was multiplied
+    by (its chance and average stacks). modifiers, atk_multiplier and
+    damage_multiplier are already scaled; enemy_effect is the value as
+    written (e.g. a Fragile on enemies), and penetration the DEF/RES its
+    attacks ignore (with its chance).
+    '''
+    key: str
+    group: str
+    condition: TalentCondition | None = None
+    scale: float = 1.0
+    modifiers: StatModifiers = field(default_factory=StatModifiers)
+    atk_multiplier: float = 1.0
+    damage_multiplier: float = 1.0
+    enemy_effect: BlackboardValue | None = None
+    penetration: Penetration | None = None
+
+
 @dataclass
 class Talent:
     '''
@@ -196,24 +314,38 @@ class Talent:
     applied: a chance (0.2 for "20% chance") times the average number of
     stacks, or 1. Values outside the part of the description with the
     chance ("ASPD +6" in "ASPD +6, 15% chance to...") only get the stacks.
-    modifiers (stat changes) and damage_multiplier (1.12 = 12% more damage)
-    are already multiplied. They're worked out for every group, but
-    only applied to the operator's figures when applied is True. condition
-    names the enemy a PER_ENEMY talent needs (e.g. "aerial").
+    modifiers (stat changes), atk_multiplier ("Increases ATK to 140%",
+    counted before the enemy's DEF/RES) and damage_multiplier ("20% more
+    damage", counted after it) are already multiplied; multiplier is the
+    two together. They're worked out for every group, but only applied to
+    the operator's figures when applied is True. condition is what a
+    PER_ENEMY talent needs (e.g. aerial). penetration is the DEF/RES its
+    attacks ignore, and effects lists each effect with its own condition.
     '''
     number: int
     name: str
     description: str
     group: str = TalentGroup.ALWAYS
     factor: float = 1.0
-    condition: str | None = None
+    condition: TalentCondition | None = None
     modifiers: StatModifiers = field(default_factory=StatModifiers)
+    atk_multiplier: float = 1.0
     damage_multiplier: float = 1.0
     enemy_effects: list[BlackboardValue] = field(default_factory=list)
+    penetration: list[Penetration] = field(default_factory=list)
+    effects: list[TalentEffect] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     unmodelled: list[str] = field(default_factory=list)
     assumed: list[str] = field(default_factory=list)
     overridden: bool = False
+
+    @property
+    def multiplier(self) -> float:
+        '''
+        The talent's ATK and damage multipliers together (1.12 = 12% more
+        damage before the enemy's DEF/RES).
+        '''
+        return self.atk_multiplier * self.damage_multiplier
 
     @property
     def applied(self) -> bool:
@@ -228,7 +360,7 @@ class Talent:
         "full" when every value was understood and nothing was assumed,
         "none" when nothing could be modelled, and "partial" otherwise.
         '''
-        modelled = (not self.modifiers.is_empty() or self.damage_multiplier != 1.0 or self.enemy_effects or self.notes)
+        modelled = (not self.modifiers.is_empty() or self.multiplier != 1.0 or self.enemy_effects or self.notes)
         if not modelled:
             return 'none'
         return 'partial' if self.unmodelled or self.assumed else 'full'
@@ -274,16 +406,23 @@ def unlocked_candidate(talent: dict, phase: int, level: int, potential: int) -> 
     return unlocked
 
 
-def find_value(text: str, value: float, key: str = '') -> tuple[bool | None, int | None]:
+def find_value(text: str, value: float, key: str = '', used: Collection[int] = ()) -> tuple[bool | None, int | None]:
     '''
     Finds where a value is written in a description that has its numbers
     filled in (as talent descriptions do): 0.08 as "8%", 15 as "15", and a
     damage multiplier of 1.15 as "115%" or "15%".
 
+    When the number is written more than once, the first place not in used
+    (where earlier values were found) is taken, so in "ATK +14% when not
+    blocking an enemy, DEF +14% when blocking an enemy" the second 14% is
+    DEF's. When every place is used, the first is shared ("ATK and DEF
+    +14%").
+
     Args:
         text: The description without formatting tags.
         value: The value from the blackboard.
         key: The value's plain name (multipliers get the extra form).
+        used: Positions already taken by other values.
 
     Returns:
         (is it written as a percentage, its position), or (None, None) when
@@ -297,9 +436,9 @@ def find_value(text: str, value: float, key: str = '') -> tuple[bool | None, int
     for written, is_percent in forms:
         # Not part of a longer number: "8%" mustn't match "18%", and "15" mustn't match "1.5" or "15%".
         ending = '' if is_percent else r'(?![\d.%])'
-        match = re.search(r'(?<![\d.])' + re.escape(written) + ending, text)
-        if match:
-            return is_percent, match.start()
+        positions = [match.start() for match in re.finditer(r'(?<![\d.])' + re.escape(written) + ending, text)]
+        if positions:
+            return is_percent, next((position for position in positions if position not in used), positions[0])
     return None, None
 
 
@@ -431,6 +570,57 @@ def clause_group(clause: str) -> tuple[str | None, str | None]:
     return None, None
 
 
+def parse_condition(kind: str, clause: str) -> TalentCondition:
+    '''
+    Returns a PER_ENEMY condition with the details its clause gives (see
+    TalentCondition).
+
+    Args:
+        kind: The condition's name, from clause_group.
+        clause: The clause it was found in.
+    '''
+    negated = kind in ('blocked', 'elite') and bool(NOT_WORDS.search(clause))
+    minimum = maximum = None
+    tag = None
+    if kind == 'blocked':
+        count = COUNT_OR_MORE.search(clause)
+        if count:
+            word = count.group(1).lower()
+            minimum = float(NUMBER_WORDS.get(word) or word)
+    elif kind == 'weight':
+        at_least, at_most = WEIGHT_AT_LEAST.search(clause), WEIGHT_AT_MOST.search(clause)
+        if at_least:
+            minimum = float(at_least.group(1) or at_least.group(2))
+        if at_most:
+            maximum = float(at_most.group(1) or at_most.group(2))
+    elif kind == 'enemy HP':
+        below, at_least = HP_BELOW.search(clause), HP_AT_LEAST.search(clause)
+        if FULL_HP.search(clause):
+            minimum = 1.0
+        elif at_least:
+            minimum = float(at_least.group(1)) / 100
+        if below:
+            maximum = float(below.group(1)) / 100
+    elif kind == 'enemy type':
+        named = ENEMY_TYPE_NAME.search(clause)
+        if named:
+            name = group_name(named.group(1) or named.group(2) or named.group(3))
+            tag = ENEMY_TYPE_TAGS.get(name, name)
+    elif kind == 'enemy status':
+        status = ENEMY_STATUS_NAME.search(clause)
+        tag = status.group(1).lower() if status else None
+    return TalentCondition(kind, negated, minimum, maximum, tag)
+
+
+def clause_condition(clause: str) -> tuple[str | None, TalentCondition | None]:
+    '''
+    Returns (group, condition) for one clause: clause_group's group, with
+    the PER_ENEMY condition's details (parse_condition).
+    '''
+    group, kind = clause_group(clause)
+    return group, (parse_condition(kind, clause) if kind else None)
+
+
 def average_stacks(max_stacks: float, seconds_per_stack: float | None, window: float | None) -> float | None:
     '''
     Returns the average number of stacks over a time window that starts
@@ -502,6 +692,10 @@ def build_talent(
     values: dict[str, BlackboardValue] = {}
     clauses: dict[str, str] = {}
     pieces: dict[str, str] = {}
+    # The words before and after each value's number in its clause, to tell what a multiplier multiplies.
+    around: dict[str, tuple[str, str]] = {}
+    # Where values were found, so a number written twice is matched to each place in turn.
+    used: set[int] = set()
     # Buffs to a group the operator belongs to: {value name: the words naming the group}.
     shared: dict[str, str] = {}
     for entry in candidate.get('blackboard') or []:
@@ -513,11 +707,12 @@ def build_talent(
             if entry['value'] != values[key].value:
                 talent.assumed.append(f'{entry["key"]} ignored (another version of {key})')
             continue
-        is_percent, position = find_value(text, entry['value'], key)
+        is_percent, position = find_value(text, entry['value'], key, used)
         if position is None:
             values[key] = BlackboardValue(key, entry['key'], entry['value'], None, Target.UNKNOWN)
-            clauses[key], pieces[key] = text, ''
+            clauses[key], pieces[key], around[key] = text, '', ('', '')
         else:
+            used.add(position)
             clause, words_before = _clause_at(text, position)
             words_after = clause[len(words_before):]
             target = _target_of(words_before, words_after)
@@ -529,6 +724,7 @@ def build_talent(
             values[key] = BlackboardValue(key, entry['key'], entry['value'], is_percent, target)
             clauses[key] = clause
             pieces[key] = words_before.split(',')[-1] + words_after.split(',')[0]
+            around[key] = (words_before, LEADING_NUMBER.sub('', words_after))
 
     # The group comes from the clauses holding the talent's own effects; the least likely one decides. Effects that
     # aren't in the description (it shows every number) aren't plain bonuses, so they're left out (and unmodelled).
@@ -538,7 +734,7 @@ def build_talent(
     group_keys = effect_keys or [key for key, value in values.items()
                                  if (is_stat_value(value) or key in DAMAGE_KEYS or key in PENETRATION_KEYS)
                                  and value.target == Target.ENEMY]
-    groups = [clause_group(_group_clause(clauses[key], shared.get(key))) for key in group_keys] or [clause_group(text)]
+    groups = [clause_condition(_group_clause(clauses[key], shared.get(key))) for key in group_keys] or [clause_condition(text)]
     if any(group is None for group, _ in groups):
         talent.group = TalentGroup.UNLIKELY
         talent.assumed.append('condition not recognised, so not applied (review)')
@@ -568,19 +764,57 @@ def build_talent(
     for key, value in values.items():
         if key in (chance_key, 'max_stack_cnt'):
             continue
+        group, condition = _effect_condition(clauses[key], pieces[key], shared.get(key))
+        talent_effect = TalentEffect(key, talent.group if override is not None else group, condition, scales[key])
         if value.target == Target.UNKNOWN and (is_stat_value(value) or key in DAMAGE_KEYS):
             talent.unmodelled.append(f'{value.raw_key} (not in the description)')
         elif is_stat_value(value):
-            apply_stat_value(talent, value, scales[key])
+            collected = StatEffects()
+            apply_stat_value(collected, value, scales[key])
+            talent.modifiers = talent.modifiers + collected.modifiers
+            talent.enemy_effects += collected.enemy_effects
+            talent.notes += collected.notes
+            talent.assumed += collected.assumed
+            if not collected.modifiers.is_empty() or collected.enemy_effects:
+                talent_effect.modifiers = collected.modifiers
+                talent_effect.enemy_effect = collected.enemy_effects[0] if collected.enemy_effects else None
+                talent.effects.append(talent_effect)
         elif key in DAMAGE_KEYS:
-            _apply_damage_value(talent, value, clauses[key], scales[key])
+            if _apply_damage_value(talent, talent_effect, value, clauses[key], around[key]):
+                talent.effects.append(talent_effect)
         elif key in PENETRATION_KEYS:
             talent.enemy_effects.append(value)
+            # A chance in the value's clause ("50% chance to ignore 50% DEF") is how often it applies; stacks
+            # scale the amount.
+            chance_value = values[chance_key].value if chance_key is not None else 1.0
+            applies = CHANCE_WORDS.search(clauses[key]) and not DODGE_WORDS.search(clauses[key])
+            talent_effect.penetration = Penetration.from_value(value, stacks, chance_value if applies else 1.0)
+            talent.penetration.append(talent_effect.penetration)
+            talent.effects.append(talent_effect)
         elif key in TALENT_NOTE_KEYS:
             talent.notes.append(TALENT_NOTE_KEYS[key].format(value=value.value))
         else:
             talent.unmodelled.append(value.raw_key)
     return talent
+
+
+def _effect_condition(clause: str, piece: str, group: str | None) -> tuple[str, TalentCondition | None]:
+    '''
+    Returns (group, condition) of one effect: from its own piece of the
+    clause (between commas) when that names an enemy condition ("DEF +14%
+    when blocking an enemy"), otherwise from the whole clause ("When
+    attacking aerial targets, increases ATK to 123%"). Wording no rule
+    recognises gives UNLIKELY.
+
+    Args:
+        clause: The value's clause.
+        piece: The value's piece of the clause.
+        group: The words naming the group, for a buff to a group the
+            operator belongs to (see _group_clause), or None.
+    '''
+    own = clause_condition(_group_clause(piece, group))
+    found = own if own[0] == TalentGroup.PER_ENEMY else clause_condition(_group_clause(clause, group))
+    return (found[0] or TalentGroup.UNLIKELY), found[1]
 
 
 def _group_clause(clause: str, group: str | None) -> str:
@@ -637,12 +871,41 @@ def _factor(talent: Talent, values: dict[str, BlackboardValue], clauses: dict[st
     return chance, chance_keys, stacks
 
 
-def _apply_damage_value(talent: Talent, value: BlackboardValue, clause: str, scale: float) -> None:
+def multiplier_kind(words_before: str, words_after: str) -> str | None:
     '''
-    Adds a damage multiplier (damage_scale or atk_scale) to the talent, or
-    records it as an enemy effect (e.g. Arts Fragility) or as unmodelled
-    (an ally's, one not on attacks, one below 1, or one for splash damage
-    only).
+    Returns whether a talent multiplier raises ATK (ATK_MULTIPLIER, counted
+    before the enemy's DEF/RES) or the damage dealt (DAMAGE_MULTIPLIER,
+    counted after), from the words next to its number: the words after it
+    first ("20% more damage", "133% ATK as Physical damage"), then the words
+    before it ("Increases ATK to 140%", "the current damage of that attack
+    to 160%"; the nearest of the two words counts). None when neither says.
+
+    Args:
+        words_before: The clause's words before the number.
+        words_after: The clause's words after the number.
+    '''
+    if ATK_AFTER.search(words_after):
+        return ATK_MULTIPLIER
+    if DAMAGE_AFTER.search(words_after):
+        return DAMAGE_MULTIPLIER
+    before = MULTIPLIER_BEFORE.search(words_before)
+    if before:
+        return ATK_MULTIPLIER if before.group(1).upper() == 'ATK' else DAMAGE_MULTIPLIER
+    return None
+
+
+def _apply_damage_value(talent: Talent, effect: TalentEffect, value: BlackboardValue, clause: str,
+                        around: tuple[str, str]) -> bool:
+    '''
+    Adds an ATK or damage multiplier (damage_scale or atk_scale) to the
+    talent and the effect, or records it as an enemy effect (e.g. Arts
+    Fragility) or as unmodelled (an ally's, one not on attacks, one below
+    1, or one for splash damage only). Returns whether the effect has
+    anything in it.
+
+    Whether it raises ATK or damage comes from its wording
+    (multiplier_kind); when the wording doesn't say, from its name
+    (atk_scale raises ATK), recorded as an assumption.
 
     A multiplier m with scale f (its chance and stacks) becomes
     1 + (m - 1) * f: a 20% chance to deal 160% damage averages
@@ -652,20 +915,33 @@ def _apply_damage_value(talent: Talent, value: BlackboardValue, clause: str, sca
     '''
     if value.target == Target.ENEMY:
         talent.enemy_effects.append(value)
-        return
+        effect.enemy_effect = value
+        return True
     not_on_attacks = value.key == 'atk_scale' and (not ATTACK_WORDS.search(clause) or DEPLOY_WORDS.search(clause))
     # Below 1 isn't a bonus but something else, e.g. a minimum ("Deals at least 33% of ATK damage every attack").
     if value.target == Target.ALLY or not_on_attacks or value.value < 1:
         talent.unmodelled.append(f'{value.raw_key} (not an attack multiplier)')
-        return
+        return False
     if SPLASH_WORDS.search(clause):
         talent.unmodelled.append(f'{value.raw_key} (splash damage only)')
-        return
+        return False
     strikes = 1
     if EXTRA_STRIKE.search(clause):
         strikes = 2
         talent.notes.append('the boosted attack strikes twice')
-    talent.damage_multiplier *= 1 + (value.value * strikes - 1) * scale
+    multiplier = 1 + (value.value * strikes - 1) * effect.scale
+    kind = multiplier_kind(*around)
+    if kind is None:
+        kind = ATK_MULTIPLIER if value.key == 'atk_scale' else DAMAGE_MULTIPLIER
+        talent.assumed.append(f"{value.raw_key}: the text doesn't say whether it raises ATK or damage; "
+                              f"counted as {kind} by its name (review)")
+    if kind == ATK_MULTIPLIER:
+        talent.atk_multiplier *= multiplier
+        effect.atk_multiplier = multiplier
+    else:
+        talent.damage_multiplier *= multiplier
+        effect.damage_multiplier = multiplier
+    return True
 
 
 def parse_talent_overrides(text: str) -> dict[tuple[str, int], TalentOverride]:
