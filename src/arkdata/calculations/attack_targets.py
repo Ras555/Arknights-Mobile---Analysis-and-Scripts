@@ -8,7 +8,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-04
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -61,6 +61,14 @@ AOE_WORDS = re.compile(
     r'|all targets|every enemy',
     re.IGNORECASE,
 )
+# Skill text for a hit that also splashes half its damage around the target ("Deals half damage to enemies around
+# the target", Eyjafjalla's Ignition). It can be in a different clause from the multiplier.
+HALF_SPLASH = re.compile(
+    r'half (?:the )?damage to (?:the )?(?:enemies|targets) (?:around|near|surrounding)|half damage to (?:nearby|surrounding) '
+    r'enemies',
+    re.IGNORECASE,
+)
+HALF_SPLASH_SCALE = 0.5
 
 
 @dataclass(frozen=True)
@@ -98,6 +106,19 @@ def _blackboard_value(trait_blackboard: dict | None, key: str, default: float) -
     return default
 
 
+def splash_targets(splash: float, note: str) -> Targets:
+    '''
+    Returns the Targets of an attack that hits its target in full and
+    splashes a fraction of its damage on the enemies around it (assumed to
+    be AOE_TARGETS enemies in all, as for other AoE).
+
+    Args:
+        splash: The fraction of the damage the others take (0.5 for half).
+        note: The note to show with the targets.
+    '''
+    return Targets(AOE_TARGETS, 1 + (AOE_TARGETS - 1) * splash, aoe=True, note=note)
+
+
 def basic_attack_targets(sub_profession: str | None, block_count: int, trait_blackboard: dict | None = None) -> Targets:
     '''
     Returns the enemies an operator's basic attack hits, from its archetype.
@@ -122,8 +143,7 @@ def basic_attack_targets(sub_profession: str | None, block_count: int, trait_bla
         return Targets(count, share, note=f'jumps between {count} enemies, 15% less damage per jump')
     if sub_profession == HAMMER_SUB_PROFESSION:
         splash = _blackboard_value(trait_blackboard, 'atk_scale_2', DEFAULT_SPLASH_SCALE)
-        return Targets(AOE_TARGETS, 1 + (AOE_TARGETS - 1) * splash, aoe=True,
-                       note=f'AoE (no target limit): {splash:.0%} ATK splash to enemies around the target')
+        return splash_targets(splash, f'AoE (no target limit): {splash:.0%} ATK splash to enemies around the target')
     if sub_profession in AOE_SUB_PROFESSIONS:
         note = 'AoE (no target limit)'
         if sub_profession == 'fortress':

@@ -273,7 +273,8 @@ id). fetch_operator_value returns the whole value; fetch_operator_data returns o
 The description template shows how each named value is used: `{atk:0%}` is a percentage, `{def}` a plain number,
 `{-def}` the value negated, and the words around it say who it affects ("Targets' DEF -{-def}" lowers enemies' DEF,
 "DEF -{-def:0%}" lowers the operator's own). About a quarter of values don't appear in the text at all. Names may have
-an `attack@` prefix (ignored), and a few templates write names in capitals.
+an `attack@` prefix (ignored), some have a variant prefix ("amgoat_s_1[b].atk", "burn.atk_scale"; see Skills), and a
+few templates write names in capitals.
 
 #### Deployable Info
 
@@ -517,13 +518,22 @@ percentages comes from the template, or, for values not in the text, from their 
 to 1, are percentages), which is recorded as an assumption. attack_speed is flat ASPD, base_attack_time is seconds
 added to the attack interval, block_cnt extra block. Values that affect enemies are kept as enemy_effects (for
 matchups), values that buff allies become notes.
+- Variant names ("prefix.name"): when the prefix comes in versions with different bracket tags and there's no plain
+value of that name, they're versions of one value, read under the plain name with the first one listed used
+(Eyjafjalla's S1 has amgoat_s_1[a] for its first use and amgoat_s_1[b] from the second use, so its ASPD and ATK both
+count); a later version with a different number is ignored and recorded as an assumption. Other variants are separate
+effects and keep their whole name, so they're listed as unmodelled (Ifrit's burn.atk_scale, Ch'en the Dawnstreak's
+chen3_s2[respawn_buff].atk). Checked 2026-11-09: this and the shown damage rule below change 6 skills in the game
+(Eyjafjalla S1 and S2, Nian S3, Waai Fu S1, Pinecone S2, Humus S2).
 - Damage: each atk_scale placeholder is one DamagePart, typed by the damage named after it ("410% of ATK Physical
 damage and 410% of ATK Arts damage" is two parts), otherwise the operator's type. times is hits per attack; without
 it, hits written in the text count ("attacks hit 3 times in a row" = 3; "strikes an additional time", "attacks hit
 twice", "deals 170% ATK as Arts damage twice" and "double strikes" = 2), unless the clause makes them occasional or
 someone else's ("20% chance of striking twice", "after this skill has been used 5 times", "During Fever", "Overload:",
 "if", "when", "its attacks"; checked 2026-11-05: 34 skills in the game gain hits this way). max_target the target
-limit. "damage type changes to True" (and similar) changes the whole attack. A multiplier only
+limit. When the skill has an atk_scale its text never shows, but the text shows another value as "{x:0%} of ATK Arts
+damage" (or Physical or True), that value is the damage (Eyjafjalla's Ignition: its 370% "fk"; its atk_scale is half
+of it, the splash), recorded as an assumption. "damage type changes to True" (and similar) changes the whole attack. A multiplier only
 dealt to enemies that attack the unit (counter damage) isn't treated as an attack multiplier. Damage "every second" is
 marked per_second.
 - What starts a skill (Skill.trigger, a SkillTrigger): SP for normal skills. Passive skills (skillType PASSIVE, spType
@@ -541,7 +551,10 @@ or none (nothing could be modelled).
 
 How many enemies an attack hits (src/arkdata/calculations/attack_targets.py), in order: the skill's max_target; AoE
 wording in the clause with the skill's multiplier ("all enemies", "nearby enemies", "AOE"...), assumed to be 3 enemies;
-otherwise the archetype's basic attack. AoE archetypes (Artilleryman, Splash/Blast Caster, Flinger, Reaper,
+otherwise the archetype's basic attack. With no target limit and no AoE, "half damage to enemies around the target"
+anywhere in the text splashes half damage on the other 2 assumed enemies (damage_share 2.0, splash_targets; only
+Eyjafjalla's Ignition says this, checked 2026-11-09; it's checked after the AoE wording, so the same words in the
+multiplier's own clause would count as an even AoE). AoE archetypes (Artilleryman, Splash/Blast Caster, Flinger, Reaper,
 Spreadshooter, Ambusher, Fortress, Earthshaker) assume 3 enemies; Centurion, Crusher and Pusher hit as many as their
 block count; Chain Casters jump between 4 enemies losing 15% per jump; Earthshakers splash 50% to the others.
 Targets.damage_share is the sum of the damage each enemy takes (3.0 for an even AoE on 3, 2.0 for an Earthshaker).
@@ -751,7 +764,7 @@ The tests folder stores the pytest suite, split into tests/arkdata and tests/ark
 tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
 tests/fixtures/skills and tests/fixtures/talents hold trimmed real HellaAPI skill and talent data, and
 tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit, Mon3tr,
-Bagpipe and Siege; Siege's file also keeps her factions and position)
+Bagpipe, Siege and Eyjafjalla; Siege's and Eyjafjalla's files also keep their factions and position)
 for operator profiles, with their expected figures worked out by hand in the tests (each file names its source). They're
 loaded with load_skill_fixture, load_talent_fixture and load_operator_fixture; make_operator_value builds a fake operator.
 

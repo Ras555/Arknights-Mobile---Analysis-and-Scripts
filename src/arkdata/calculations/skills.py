@@ -9,7 +9,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-05
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -21,7 +21,7 @@ from dataclasses import dataclass, field, fields
 from enum import StrEnum
 from typing import Protocol
 
-from arkdata.calculations.attack_targets import Targets, skill_targets
+from arkdata.calculations.attack_targets import HALF_SPLASH, HALF_SPLASH_SCALE, Targets, skill_targets, splash_targets
 from arkdata.calculations.blackboard import (
     CLAUSE_BREAK,
     PLACEHOLDER,
@@ -115,6 +115,8 @@ TWO_HITS = re.compile(
 # 5 times", "During Fever", "Overload:"), a condition ("if", "when"), or a summon's attacks ("its attacks hit twice").
 CONDITIONAL_HITS = re.compile(r'\bchance\b|\bduring\b|\boverload\b|\bits attacks\b|\bafter this skill\b|\bif\b|\bwhen\b',
                               re.IGNORECASE)
+# What follows a multiplier shown as the skill's damage: "{fk:0%} of ATK Arts damage", "{x:0%} ATK as Physical damage".
+SHOWN_DAMAGE = re.compile(r'\s*(?:of )?ATK(?: as)? (?:Physical|Arts|True) damage', re.IGNORECASE)
 STOPS_ATTACKING = re.compile(r'stops? attacking|(?:cannot|can not|can\'t|does not|unable to) attack', re.IGNORECASE)
 DAMAGE_TYPE_NAMES = {"physical": DamageType.PHYSICAL, "arts": DamageType.ARTS, "true": DamageType.TRUE}
 
@@ -428,13 +430,21 @@ def parse_skill(
     data = levels[level_index(skill_level, mastery, len(levels))]
     sp_data = data.get('spData') or {}
     text = strip_tags(data.get('description'))
-    values = read_blackboard(data)
+    ignored: list[str] = []
+    values = read_blackboard(data, ignored)
 
     skill = Skill(
         skill_id=excel.get('skillId', ''), number=number, name=data.get('name', ''), level=skill_level, mastery=mastery,
         skill_type=data.get('skillType', ''), sp_type=str(sp_data.get('spType', '')), sp_cost=sp_data.get('spCost', 0),
         initial_sp=sp_data.get('initSp', 0), duration=data.get('duration', 0), description=render_description(data),
     )
+    skill.assumed.extend(ignored)
+    shown = _shown_multiplier(text, values)
+    if shown is not None:
+        skill.assumed.append(f"atk_scale isn't in the text; used {shown.raw_key} ({shown.value:.0%}), which the text "
+                             'shows as the damage')
+        values = {**values, 'atk_scale': BlackboardValue('atk_scale', shown.raw_key, shown.value, shown.is_percent,
+                                                         shown.target)}
     is_ammo = data.get('durationType') == 'AMMO'
     # "the next attack" makes the skill instant even when its duration says otherwise (e.g. Ifrit's Pyroclasm,
     # which stores charges and is marked as never ending).
@@ -450,7 +460,9 @@ def parse_skill(
         skill.instant = True
         skill.duration = 0
 
-    for value in values.values():
+    for key, value in values.items():
+        if shown is not None and key == shown.key:
+            continue
         if is_stat_value(value):
             apply_stat_value(skill, value)
         elif value.key in NOTE_KEYS:
@@ -481,6 +493,8 @@ def parse_skill(
         # their later explosion ("to the target and nearby enemies") is AoE.
         clause = _clause_of(text, values['atk_scale'].raw_key) or text
         targets = skill_targets(max_target, clause, basic_targets)
+        if max_target is None and not targets.aoe and HALF_SPLASH.search(text):
+            targets = splash_targets(HALF_SPLASH_SCALE, 'AoE (no target limit): half damage to enemies around the target')
         if COUNTER_DAMAGE.search(clause):
             skill.unmodelled.append(f'{values["atk_scale"].raw_key} (counter damage)')
         else:
@@ -492,6 +506,28 @@ def parse_skill(
         # No multiplier, but the attacks change: more hits, more targets, or a new damage type.
         skill.damage_parts = [DamagePart(attack_type, 1.0, hits, targets)]
     return skill
+
+
+def _shown_multiplier(text: str, values: dict[str, BlackboardValue]) -> BlackboardValue | None:
+    '''
+    Returns the value the text shows as the skill's damage ("Deals
+    {fk:0%} of ATK Arts damage"), when the skill has an atk_scale value
+    that its text never shows (Eyjafjalla's Ignition, whose 155% atk_scale
+    is its half-damage splash and whose 310% is called "fk"). Otherwise
+    None, and atk_scale is used as it is.
+
+    Args:
+        text: The description without formatting tags.
+        values: The skill's values.
+    '''
+    if 'atk_scale' not in values or values['atk_scale'].in_text:
+        return None
+    by_raw_key = {value.raw_key.lower(): value for value in values.values()}
+    for match in PLACEHOLDER.finditer(text):
+        value = by_raw_key.get(match.group(2).lower())
+        if value is not None and '%' in (match.group(3) or '') and SHOWN_DAMAGE.match(text, match.end()):
+            return value
+    return None
 
 
 def _set_passive_trigger(skill: Skill, text: str, values: dict[str, BlackboardValue]) -> None:

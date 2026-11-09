@@ -9,7 +9,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-04
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -37,6 +37,10 @@ ALLY_WORDS = re.compile(r'\b(all(y|ies)|allied|friendly|other operators|operator
 
 # Prefix the HellaAPI puts on some value names (e.g. attack@atk_scale). It doesn't change the meaning.
 ATTACK_PREFIX = 'attack@'
+# All the prefixes that don't change a value's meaning.
+KEY_PREFIXES = (ATTACK_PREFIX, 'talent@')
+# Bracket tags in a variant name: the "[b]" in "amgoat_s_1[b].atk" (Eyjafjalla's S1 from its second use).
+VARIANT_TAG = re.compile(r'\[[^\]]*\]')
 
 
 class Target(StrEnum):
@@ -124,17 +128,76 @@ def _target_of(text: str, position: int) -> Target:
     return Target.SELF
 
 
-def read_blackboard(level: dict) -> dict[str, BlackboardValue]:
+def value_name(raw_key: str) -> str:
+    '''
+    Returns a value's plain name, without prefixes (KEY_PREFIXES) and
+    variants (everything up to the last "."): "attack@prob" -> "prob",
+    "amgoat_s_1[b].atk" -> "atk", "skadi2_t_2[atk][1].atk" -> "atk".
+
+    Args:
+        raw_key: The name as the HellaAPI gives it.
+
+    Returns:
+        The plain name.
+    '''
+    key = raw_key.split('.')[-1]
+    for prefix in KEY_PREFIXES:
+        key = key.removeprefix(prefix)
+    return key
+
+
+def _variant_prefix(raw_key: str) -> str:
+    '''
+    Returns the part of a variant name before its last ".", without
+    prefixes: "attack@amgoat_s_1[b].atk" -> "amgoat_s_1[b]".
+    '''
+    prefix = raw_key.rsplit('.', 1)[0]
+    for key_prefix in KEY_PREFIXES:
+        prefix = prefix.removeprefix(key_prefix)
+    return prefix
+
+
+def _value_key(raw_key: str, plain_names: set[str], versions: dict[str, set[str]]) -> str:
+    '''
+    Returns the key a skill value is read under (see read_blackboard).
+
+    Args:
+        raw_key: The name as the HellaAPI gives it.
+        plain_names: The plain names of the level's values without a ".".
+        versions: {variant base (prefix without tags): its prefixes}.
+    '''
+    if '.' not in raw_key:
+        return value_name(raw_key)
+    prefix = _variant_prefix(raw_key)
+    if value_name(raw_key) not in plain_names and len(versions[VARIANT_TAG.sub('', prefix)]) > 1:
+        return value_name(raw_key)
+    # A separate effect with its own name ("burn.atk_scale", "extrabomb.atk_scale"): kept whole.
+    return raw_key.removeprefix(ATTACK_PREFIX)
+
+
+def read_blackboard(level: dict, ignored: list[str] | None = None) -> dict[str, BlackboardValue]:
     '''
     Reads every named value of a skill or talent level.
+
+    Values are keyed by their name without the "attack@" prefix. A variant
+    name ("prefix.name") is read as a version of the plain value when
+    its prefix has versions with different bracket tags and there's no
+    plain value of that name: Eyjafjalla's S1 has "amgoat_s_1[a]" (first
+    use) and "amgoat_s_1[b]" (from the second use), so its
+    "amgoat_s_1[b].atk" is read as "atk". Other variants are separate
+    effects ("burn.atk_scale", "extrabomb.atk_scale",
+    "chen3_s2[respawn_buff].atk") and keep their whole name, so they're
+    listed as unmodelled. When a key appears more than once (with and
+    without a prefix, or as versions), the first one listed is kept.
 
     Args:
         level: One level of a skill (excel.levels[i]) or a talent candidate,
             with "description" and "blackboard".
+        ignored: If given, a message is added to it for each later version
+            whose number differs from the one kept.
 
     Returns:
-        {key (without "attack@"): BlackboardValue}. If a name appears both
-        with and without the prefix, the first one listed is kept.
+        {key: BlackboardValue}.
     '''
     text = strip_tags(level.get('description'))
     # The first placeholder for each name decides its format and target. Names are matched ignoring case,
@@ -143,11 +206,21 @@ def read_blackboard(level: dict) -> dict[str, BlackboardValue]:
     for match in PLACEHOLDER.finditer(text):
         placeholders.setdefault(match.group(2).lower(), match)
 
+    entries = [entry for entry in level.get('blackboard') or [] if entry.get('value') is not None]
+    plain_names = {value_name(entry['key']) for entry in entries if '.' not in entry['key']}
+    versions: dict[str, set[str]] = {}
+    for entry in entries:
+        if '.' in entry['key']:
+            prefix = _variant_prefix(entry['key'])
+            versions.setdefault(VARIANT_TAG.sub('', prefix), set()).add(prefix)
+
     values: dict[str, BlackboardValue] = {}
-    for entry in level.get('blackboard') or []:
+    for entry in entries:
         raw_key = entry['key']
-        key = raw_key.removeprefix(ATTACK_PREFIX)
-        if key in values or entry.get('value') is None:
+        key = _value_key(raw_key, plain_names, versions)
+        if key in values:
+            if ignored is not None and entry['value'] != values[key].value:
+                ignored.append(f'{raw_key} ignored (another version of {key} is used)')
             continue
         found = placeholders.get(raw_key.lower())
         if found is None:

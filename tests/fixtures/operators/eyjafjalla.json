@@ -1,0 +1,1286 @@
+{
+ "source": "HellaAPI operator char_180_amgoat (Eyjafjalla), trimmed, retrieved 2026-11-09",
+ "value": {
+  "id": "char_180_amgoat",
+  "data": {
+   "name": "Eyjafjalla",
+   "description": "Deals <@ba.kw>Arts damage</>",
+   "profession": "CASTER",
+   "subProfessionId": "corecaster",
+   "rarity": "TIER_6",
+   "displayTokenDict": null,
+   "trait": null,
+   "phases": [
+    {
+     "maxLevel": 50,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 732,
+        "atk": 292,
+        "def": 46,
+        "magicResistance": 10,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.6,
+        "blockCnt": 1,
+        "cost": 19,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 50,
+       "data": {
+        "maxHp": 1046,
+        "atk": 406,
+        "def": 79,
+        "magicResistance": 10,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.6,
+        "blockCnt": 1,
+        "cost": 19,
+        "respawnTime": 70
+       }
+      }
+     ]
+    },
+    {
+     "maxLevel": 80,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 1046,
+        "atk": 406,
+        "def": 79,
+        "magicResistance": 15,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.6,
+        "blockCnt": 1,
+        "cost": 21,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 80,
+       "data": {
+        "maxHp": 1359,
+        "atk": 535,
+        "def": 109,
+        "magicResistance": 15,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.6,
+        "blockCnt": 1,
+        "cost": 21,
+        "respawnTime": 70
+       }
+      }
+     ]
+    },
+    {
+     "maxLevel": 90,
+     "attributesKeyFrames": [
+      {
+       "level": 1,
+       "data": {
+        "maxHp": 1359,
+        "atk": 535,
+        "def": 109,
+        "magicResistance": 20,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.6,
+        "blockCnt": 1,
+        "cost": 21,
+        "respawnTime": 70
+       }
+      },
+      {
+       "level": 90,
+       "data": {
+        "maxHp": 1743,
+        "atk": 645,
+        "def": 122,
+        "magicResistance": 20,
+        "attackSpeed": 100,
+        "baseAttackTime": 1.6,
+        "blockCnt": 1,
+        "cost": 21,
+        "respawnTime": 70
+       }
+      }
+     ]
+    }
+   ],
+   "skills": [
+    {
+     "skillId": "skchr_amgoat_1",
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_0",
+      "level": 1
+     }
+    },
+    {
+     "skillId": "skchr_amgoat_2",
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_1",
+      "level": 1
+     }
+    },
+    {
+     "skillId": "skchr_amgoat_3",
+     "overrideTokenKey": null,
+     "unlockCond": {
+      "phase": "PHASE_2",
+      "level": 1
+     }
+    }
+   ],
+   "talents": [
+    {
+     "candidates": [
+      {
+       "unlockCondition": {
+        "phase": "PHASE_1",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Pyrobreath",
+       "description": "All [Caster] Operators' ATK +7% when Eyjafjalla is deployed",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.07
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_1",
+        "level": 1
+       },
+       "requiredPotentialRank": 5,
+       "name": "Pyrobreath",
+       "description": "All [Caster] Operators' ATK +9% <@ba.talpu>(+2%)</> when Eyjafjalla is deployed",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.09
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Pyrobreath",
+       "description": "All [Caster] Operators' ATK +14% when Eyjafjalla is deployed",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.14
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 5,
+       "name": "Pyrobreath",
+       "description": "All [Caster] Operators' ATK +16% <@ba.talpu>(+2%)</> when Eyjafjalla is deployed",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.16
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "candidates": [
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 0,
+       "name": "Wild Fire",
+       "description": "Immediately obtains 7 to 15 SP randomly after deployment",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "sp_min",
+         "value": 7
+        },
+        {
+         "key": "sp_max",
+         "value": 16
+        }
+       ]
+      },
+      {
+       "unlockCondition": {
+        "phase": "PHASE_2",
+        "level": 1
+       },
+       "requiredPotentialRank": 2,
+       "name": "Wild Fire",
+       "description": "Immediately obtains 10 <@ba.talpu>(+3)</> to 19 <@ba.talpu>(+4)</> SP randomly after deployment",
+       "isHideTalent": false,
+       "blackboard": [
+        {
+         "key": "sp_min",
+         "value": 10
+        },
+        {
+         "key": "sp_max",
+         "value": 20
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "potentialRanks": [
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "COST",
+         "formulaItem": "ADDITION",
+         "value": -1,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": null
+    },
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "ATK",
+         "formulaItem": "ADDITION",
+         "value": 27,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": {
+      "attributes": {
+       "abnormalFlags": null,
+       "abnormalImmunes": null,
+       "abnormalAntis": null,
+       "abnormalCombos": null,
+       "abnormalComboImmunes": null,
+       "attributeModifiers": [
+        {
+         "attributeType": "COST",
+         "formulaItem": "ADDITION",
+         "value": -1,
+         "loadFromBlackboard": false,
+         "fetchBaseValueFromSourceEntity": false
+        }
+       ]
+      }
+     }
+    },
+    {
+     "buff": null
+    }
+   ],
+   "favorKeyFrames": [
+    {
+     "level": 0,
+     "data": {
+      "maxHp": 0,
+      "atk": 0,
+      "def": 0,
+      "magicResistance": 0,
+      "attackSpeed": 0
+     }
+    },
+    {
+     "level": 50,
+     "data": {
+      "maxHp": 0,
+      "atk": 90,
+      "def": 0,
+      "magicResistance": 0,
+      "attackSpeed": 0
+     }
+    }
+   ],
+   "position": "RANGED"
+  },
+  "skills": [
+   {
+    "excel": {
+     "skillId": "skchr_amgoat_1",
+     "levels": [
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 45,
+        "initSp": 10
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 30
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 30
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.3
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 44,
+        "initSp": 10
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 32
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 32
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.32
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 43,
+        "initSp": 10
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 35
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 35
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.35
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 42,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 38
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 38
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.38
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 41,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 40
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 40
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.4
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 40,
+        "initSp": 15
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 42
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 42
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.42
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 39,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 45
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 45
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.45
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 38,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 50
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 50
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.5
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 37,
+        "initSp": 20
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 55
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 55
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.55
+        }
+       ]
+      },
+      {
+       "name": "Duetto",
+       "description": "ASPD <@ba.vup>+{amgoat_s_1[a].attack_speed}</>\nStarting from the second use of the skill, ATK <@ba.vup>+{amgoat_s_1[b].atk:0%}</>",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 25,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 35,
+        "initSp": 25
+       },
+       "blackboard": [
+        {
+         "key": "amgoat_s_1[a].attack_speed",
+         "value": 60
+        },
+        {
+         "key": "amgoat_s_1[b].attack_speed",
+         "value": 60
+        },
+        {
+         "key": "amgoat_s_1[b].atk",
+         "value": 0.6
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "excel": {
+     "skillId": "skchr_amgoat_2",
+     "levels": [
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 7,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.2
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.2
+        },
+        {
+         "key": "fk",
+         "value": 2.4
+        },
+        {
+         "key": "ct",
+         "value": 1
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.1
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 7,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.25
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.25
+        },
+        {
+         "key": "fk",
+         "value": 2.5
+        },
+        {
+         "key": "ct",
+         "value": 1
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.1
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 7,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.3
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.3
+        },
+        {
+         "key": "fk",
+         "value": 2.6
+        },
+        {
+         "key": "ct",
+         "value": 1
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.1
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 7,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.375
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.375
+        },
+        {
+         "key": "fk",
+         "value": 2.75
+        },
+        {
+         "key": "ct",
+         "value": 2
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.15
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 7,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.425
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.425
+        },
+        {
+         "key": "fk",
+         "value": 2.85
+        },
+        {
+         "key": "ct",
+         "value": 2
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.15
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 7,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.475
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.475
+        },
+        {
+         "key": "fk",
+         "value": 2.95
+        },
+        {
+         "key": "ct",
+         "value": 2
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.15
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 6,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.55
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.55
+        },
+        {
+         "key": "fk",
+         "value": 3.1
+        },
+        {
+         "key": "ct",
+         "value": 2
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.2
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 6,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.65
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.65
+        },
+        {
+         "key": "fk",
+         "value": 3.3
+        },
+        {
+         "key": "ct",
+         "value": 3
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.2
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 6,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.75
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.75
+        },
+        {
+         "key": "fk",
+         "value": 3.5
+        },
+        {
+         "key": "ct",
+         "value": 3
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.2
+        }
+       ]
+      },
+      {
+       "name": "Ignition",
+       "description": "Deals <@ba.vup>{fk:0%}</> of ATK Arts damage in the next attack; Deals half damage to enemies around the target and their RES <@ba.vup>-{-magic_resistance:0%}</> for <@ba.vup>{duration}</> seconds\n<@ba.rem>Can store {ct} charge(s)</>",
+       "skillType": "AUTO",
+       "durationType": "NONE",
+       "duration": -1,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 5,
+        "initSp": 0
+       },
+       "blackboard": [
+        {
+         "key": "atk_scale",
+         "value": 1.85
+        },
+        {
+         "key": "atk_scale_2",
+         "value": 1.85
+        },
+        {
+         "key": "fk",
+         "value": 3.7
+        },
+        {
+         "key": "ct",
+         "value": 3
+        },
+        {
+         "key": "duration",
+         "value": 6
+        },
+        {
+         "key": "magic_resistance",
+         "value": -0.25
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "excel": {
+     "skillId": "skchr_amgoat_3",
+     "levels": [
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 30
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.55
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 31
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.6
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 32
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.65
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 3
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 33
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.7
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 34
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.75
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 35
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.8
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 4
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 40
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 0.85
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 5
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 45
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 5
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 50
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1.15
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 5
+        }
+       ]
+      },
+      {
+       "name": "Volcano",
+       "description": "ATK <@ba.vup>+{atk:0%}</>; Range <@ba.vup>increases</>; Attack Interval <@ba.vup>reduces significantly</>; Attack becomes randomly shooting lava that can hit at most <@ba.vup>{attack@max_target}</> enemies within range",
+       "skillType": "MANUAL",
+       "durationType": "NONE",
+       "duration": 15,
+       "spData": {
+        "spType": "INCREASE_WITH_TIME",
+        "spCost": 80,
+        "initSp": 55
+       },
+       "blackboard": [
+        {
+         "key": "atk",
+         "value": 1.3
+        },
+        {
+         "key": "base_attack_time",
+         "value": -1.1
+        },
+        {
+         "key": "attack@max_target",
+         "value": 6
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ],
+  "factions": [
+   {
+    "nationPower": {
+     "powerId": "leithanien",
+     "orderNum": 13,
+     "powerLevel": 0,
+     "powerName": "Leithanien",
+     "powerCode": "Leithanien",
+     "color": "000000",
+     "isLimited": false,
+     "isRaw": false
+    },
+    "groupPower": null,
+    "teamPower": null
+   }
+  ]
+ }
+}

@@ -624,3 +624,23 @@ def test_real_siege_gets_her_own_vanguard_buff():
     # S3 M3: ATK to 380%, attack interval 1.05 + 1 = 2.05 s: 1223.41 DPS for 25 s of a 55 s cycle.
     assert s3.dps == pytest.approx(660 * 3.8 / 2.05)
     assert s3.average_dps == pytest.approx((660 * 3.8 / 2.05 * 25 + 660 / 1.05 * 30) / 55)
+
+
+def test_real_eyjafjalla_s1_versions_and_s2_ignition():
+    profile = _real('eyjafjalla')
+    # Talent 1 ("All [Caster] Operators' ATK +16%") includes Eyjafjalla.
+    # ATK (645 + 27 potential + 90 trust) × 1.16 = 883.92; arts, interval 1.6 s: 552.45 DPS.
+    assert profile.base_stats.atk == pytest.approx(883.92)
+    assert profile.summary().min_dps == pytest.approx(552.45)
+    s1, s2, _ = profile.skills
+    # S1 M3: ATK +60% (counted from the first use) and ASPD +60: 762 × (1 + 0.16 + 0.6) = 1341.12 ATK,
+    # interval 1.6 / 1.6 = 1 s: 1341.12 DPS for 25 s of a 60 s cycle: (1341.12 × 25 + 552.45 × 35) / 60 = 881.06.
+    assert s1.stats.attack_interval == pytest.approx(1.0)
+    assert s1.dps == pytest.approx(1341.12)
+    assert s1.average_dps == pytest.approx((1341.12 * 25 + 552.45 * 35) / 60)
+    # S2 M3: the next attack deals 370% (fk) instead of 100%: 883.92 × 2.7 = 2386.58 more on the target.
+    # Half damage splashes on 2 others: 883.92 × 3.7 × 2.0 - 883.92 = 5657.09 more in total.
+    # SP 5 over time: 552.45 + 2386.58 / 5 = 1029.77.
+    assert s2.burst[0].per_target == pytest.approx(883.92 * 2.7)
+    assert s2.burst[0].total == pytest.approx(883.92 * 3.7 * 2 - 883.92)
+    assert s2.average_dps == pytest.approx(552.45 + 883.92 * 2.7 / 5)

@@ -20,7 +20,7 @@ from arkdata.calculations.skills import (
     text_hits,
     unlocked_skills,
 )
-from factories import load_skill_fixture, make_skill_entry, make_skill_level
+from factories import load_operator_fixture, load_skill_fixture, make_skill_entry, make_skill_level
 
 ONE = Targets()
 AOE = Targets(3, 3.0, True, 'AoE (no target limit)')
@@ -441,6 +441,59 @@ def test_skill_keeps_basic_targets_when_it_doesnt_change_them():
     assert skill.damage_parts[0].targets == blocked
 
 
+# The damage the text shows, half-damage splash, and ignored versions
+
+SPLASH = Targets(3, 2.0, True, 'AoE (no target limit): half damage to enemies around the target')
+
+
+def test_damage_shown_in_the_text_replaces_an_atk_scale_the_text_never_shows():
+    skill = _parse(make_skill_level('Deals {fk:0%} of ATK Arts damage in the next attack', {'atk_scale': 1.2, 'fk': 2.4}))
+    assert skill.damage_parts == [DamagePart(DamageType.ARTS, 2.4, 1.0, ONE)]
+    assert skill.assumed == ["atk_scale isn't in the text; used fk (240%), which the text shows as the damage"]
+    # fk is used as the damage, so it isn't listed as unmodelled.
+    assert skill.unmodelled == []
+
+
+@pytest.mark.parametrize('description, blackboard', [
+    # atk_scale is in the text: it's used as it is.
+    ('Deals {atk_scale:0%} of ATK Arts damage, then {fk:0%} of ATK Arts damage', {'atk_scale': 1.2, 'fk': 2.4}),
+    # The other value isn't a percentage of ATK dealt as damage.
+    ('Deals {fk} damage', {'atk_scale': 1.2, 'fk': 2.4}),
+    ('ATK +{fk:0%}', {'atk_scale': 1.2, 'fk': 2.4}),
+])
+def test_atk_scale_is_kept_unless_the_text_shows_other_damage(description, blackboard):
+    skill = _parse(make_skill_level(description, blackboard))
+    assert skill.damage_parts[0].atk_scale == 1.2
+    assert not any('atk_scale' in note for note in skill.assumed)
+
+
+@pytest.mark.parametrize('description', [
+    'Deals {atk_scale:0%} of ATK; deals half damage to enemies around the target',
+    'Deals {atk_scale:0%} of ATK; half the damage to the targets near it',
+    'Deals {atk_scale:0%} of ATK; deals half damage to surrounding enemies',
+])
+def test_half_damage_splash(description):
+    skill = _parse(make_skill_level(description, {'atk_scale': 2.0}))
+    assert skill.damage_parts[0].targets == SPLASH
+
+
+def test_half_damage_splash_doesnt_change_a_target_limit_or_aoe():
+    text = 'Deals {atk_scale:0%} of ATK to {max_target} enemies; half damage to enemies around the target'
+    skill = _parse(make_skill_level(text, {'atk_scale': 2.0, 'max_target': 2}))
+    assert skill.damage_parts[0].targets.count == 2
+    skill = _parse(make_skill_level('Deals {atk_scale:0%} of ATK and half damage to nearby enemies', {'atk_scale': 2.0}),
+                   basic=AOE)
+    assert skill.damage_parts[0].targets == AOE
+
+
+def test_ignored_versions_are_assumptions():
+    level = make_skill_level('ATK +{x[a].atk:0%}', None)
+    level['blackboard'] = [{'key': 'x[a].atk', 'value': 0.3}, {'key': 'x[b].atk', 'value': 0.5}]
+    skill = _parse(level)
+    assert skill.modifiers == StatModifiers(atk_percent=0.3)
+    assert skill.assumed == ['x[b].atk ignored (another version of atk is used)']
+
+
 @pytest.mark.parametrize('description, expected', [
     ('damage type changes to True', DamageType.TRUE),
     ('Normal attacks deal Arts damage', DamageType.ARTS),
@@ -576,3 +629,29 @@ def test_real_liskarm_s2_gains_sp_when_hit():
     assert (skill.trigger, skill.sp_type, skill.sp_cost, skill.duration) == (
         SkillTrigger.SP, 'INCREASE_WHEN_TAKEN_DAMAGE', 34, 20)
     assert skill.modifiers == StatModifiers(atk_percent=2.0, attack_interval_change=0.7)
+
+
+# real skills from operator fixtures (tests/fixtures/operators), skill level 7 mastery 3
+
+def _real_operator_skill(name, number, damage_type=DamageType.PHYSICAL, basic=ONE):
+    return parse_skill(load_operator_fixture(name)['skills'][number - 1], number, 7, 3, damage_type, basic)
+
+
+def test_real_eyjafjalla_s1_reads_both_versions():
+    skill = _real_operator_skill('eyjafjalla', 1, DamageType.ARTS)
+    # "ASPD +60 ... Starting from the second use of the skill, ATK +60%"
+    assert skill.modifiers == StatModifiers(atk_percent=0.6, attack_speed=60)
+    assert (skill.duration, skill.sp_cost, skill.initial_sp) == (25, 35, 25)
+    assert (skill.assumed, skill.unmodelled, skill.status) == ([], [], SkillStatus.FULL)
+
+
+def test_real_eyjafjalla_s2_ignition():
+    skill = _real_operator_skill('eyjafjalla', 2, DamageType.ARTS)
+    # "Deals 370% of ATK Arts damage in the next attack; Deals half damage to enemies around the target"
+    assert (skill.instant, skill.replaces_attack, skill.charges, skill.sp_cost) == (True, True, 3, 5)
+    assert skill.damage_parts == [DamagePart(DamageType.ARTS, 3.7, 1.0, SPLASH)]
+    assert [(effect.key, effect.value) for effect in skill.enemy_effects] == [('magic_resistance', -0.25)]
+    assert skill.assumed == ["atk_scale isn't in the text; used fk (370%), which the text shows as the damage"]
+    # atk_scale_2 (185%) is the splash, already counted as half damage.
+    assert skill.unmodelled == ['atk_scale_2']
+    assert skill.status == SkillStatus.PARTIAL

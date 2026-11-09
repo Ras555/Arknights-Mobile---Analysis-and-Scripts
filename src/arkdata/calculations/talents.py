@@ -9,7 +9,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-05
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -23,7 +23,15 @@ from enum import StrEnum
 from functools import lru_cache
 from importlib import resources
 
-from arkdata.calculations.blackboard import ALLY_WORDS, CLAUSE_BREAK, ENEMY_WORDS, BlackboardValue, Target, strip_tags
+from arkdata.calculations.blackboard import (
+    ALLY_WORDS,
+    CLAUSE_BREAK,
+    ENEMY_WORDS,
+    BlackboardValue,
+    Target,
+    strip_tags,
+    value_name,
+)
 from arkdata.calculations.operator_stats import parse_phase
 from arkdata.calculations.skills import ATTACK_KEYS, NOTE_KEYS, STAT_KEYS, StatModifiers, apply_stat_value, is_stat_value
 
@@ -138,8 +146,6 @@ PER_SECOND = re.compile(r'(?:each|every|per) second', re.IGNORECASE)
 ATTACK_WORDS = re.compile(r'\battack|\bhit', re.IGNORECASE)
 DEPLOY_WORDS = re.compile(r'\bdeploy', re.IGNORECASE)
 
-# Prefixes on talent value names that don't change their meaning.
-KEY_PREFIXES = ('attack@', 'talent@')
 # Talent values that multiply the operator's damage.
 DAMAGE_KEYS = {'damage_scale', 'atk_scale'}
 # Values that make attacks ignore part of the enemy's DEF or RES ("Attacks ignore 23% DEF"), kept for matchups.
@@ -231,7 +237,8 @@ class Talent:
 def talent_key(raw_key: str) -> str:
     '''
     Returns a talent value's name without prefixes and variants:
-    "attack@prob" -> "prob", "skadi2_t_2[atk][1].atk" -> "atk".
+    "attack@prob" -> "prob", "skadi2_t_2[atk][1].atk" -> "atk". The same
+    as blackboard.value_name, which skills use too.
 
     Args:
         raw_key: The name as the HellaAPI gives it.
@@ -239,10 +246,7 @@ def talent_key(raw_key: str) -> str:
     Returns:
         The plain name.
     '''
-    key = raw_key.split('.')[-1]
-    for prefix in KEY_PREFIXES:
-        key = key.removeprefix(prefix)
-    return key
+    return value_name(raw_key)
 
 
 def unlocked_candidate(talent: dict, phase: int, level: int, potential: int) -> dict | None:
