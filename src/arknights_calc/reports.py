@@ -8,7 +8,7 @@ Created: 2026-11-05
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-05
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -239,9 +239,10 @@ def _talent_row(profile: OperatorProfile, talent: Talent, unlocks_at: str) -> di
     return {
         'operator_id': profile.operator_id, 'name': profile.name, 'talent_number': talent.number,
         'talent_name': talent.name, 'unlocked': True, 'unlocks_at': unlocks_at, 'description': talent.description,
-        'group': str(talent.group), 'condition': talent.condition or '', 'applied': talent.applied,
-        'factor': talent.factor, 'modifiers': describe_modifiers(talent.modifiers),
-        'damage_multiplier': talent.damage_multiplier, 'enemy_effects': describe_values(talent.enemy_effects),
+        'group': str(talent.group), 'condition': talent.condition.kind if talent.condition else '',
+        'applied': talent.applied, 'factor': talent.factor, 'modifiers': describe_modifiers(talent.modifiers),
+        # The ATK and damage multipliers together (talent.multiplier).
+        'damage_multiplier': talent.multiplier, 'enemy_effects': describe_values(talent.enemy_effects),
         'status': talent.status, 'overridden': talent.overridden, 'unmodelled': join(talent.unmodelled),
         'notes': join(talent.notes), 'assumed': join(talent.assumed),
     }

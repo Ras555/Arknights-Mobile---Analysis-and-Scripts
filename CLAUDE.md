@@ -545,6 +545,12 @@ The rest are ALWAYS on.
 - Duration: "Unlimited duration" and toggles ("Can switch between") stay on (duration None). "next attack" skills
 and skills with a duration of 0 or less are instant (duration 0); instant skills either replace the next attack or are
 an extra strike. Ammo skills (durationType AMMO) keep duration 0 and set ammo from trigger_time.
+- DEF/RES ignore (def_penetrate, def_penetrate_fixed, magic_resist_penetrate, magic_resist_penetrate_fixed) becomes the
+skill's penetration (a Penetration: % and flat DEF/RES ignored, with a chance; noted as "ignores 400 DEF"), kept for
+matchups, when its clause says "ignore" without "when", "if" or "additional attack" (Luo Xiaohei's conditional extra
+attack and Tachanka's burning zone stay unmodelled, as does Tool Supply Station's damage reduction for allies, which
+uses the same names). A value with no placeholder is found by its number ("attacks ignore 100 DEF"). Checked
+2026-11-09: 10 skills in the game ignore DEF/RES this way.
 - Known values that don't affect DPS (stun, slow, DP, shift, taunt, regeneration, range and similar) become notes.
 Unknown values are listed as unmodelled. A skill's status is full (everything understood, nothing assumed), partial,
 or none (nothing could be modelled).
@@ -557,9 +563,11 @@ Eyjafjalla's Ignition says this, checked 2026-11-09; it's checked after the AoE 
 multiplier's own clause would count as an even AoE). AoE archetypes (Artilleryman, Splash/Blast Caster, Flinger, Reaper,
 Spreadshooter, Ambusher, Fortress, Earthshaker) assume 3 enemies; Centurion, Crusher and Pusher hit as many as their
 block count; Chain Casters jump between 4 enemies losing 15% per jump; Earthshakers splash 50% to the others.
-Targets.damage_share is the sum of the damage each enemy takes (3.0 for an even AoE on 3, 2.0 for an Earthshaker).
-Swordmasters hit twice and Flingers add a half-ATK shockwave; Phalanx Casters and Liberators don't attack outside
-their skills.
+Targets.damage_share is the sum of the damage each enemy takes (3.0 for an even AoE on 3, 2.0 for an Earthshaker), and
+Targets.scales the share of each enemy when they differ ((1, 0.5, 0.5) for an Earthshaker or half splash, (1, 0.85,
+0.7225, 0.614) for a Chain Caster; left out of comparisons), for matchups. Swordmasters hit twice and Flingers add a
+half-ATK shockwave: basic_attack_strikes gives each strike's share of ATK ((1, 1) and (1, 0.5)), since DEF is taken off
+each strike, and basic_attack_hits their sum. Phalanx Casters and Liberators don't attack outside their skills.
 
 ### Skill Rotation
 
@@ -589,13 +597,17 @@ is at most its potential. Hidden talents (isHideTalent) and ones without a descr
 - Talent descriptions have their numbers filled in, so each value is found by its number ("8%" for 0.08, "15" for 15,
 "115%" or "15%" for a 1.15 multiplier), and the clause around it decides who it affects (words after the last comma
 before it: enemies, allies, or the unit itself; a value followed by Fragile/Fragility is on enemies) and its group.
+When a number is written more than once, each value takes the next place not already taken ("ATK +14% when not
+blocking, DEF +14% when blocking"; Shalem's "25% chance to reduce the target's RES by 25%"), and shares the first when
+there's only one ("ATK and DEF +14%").
 Prefixes (attack@, talent@) and variants (skadi2_t_2[atk][1].atk) are dropped from value names; a second copy of a
 value with a different number is ignored and recorded as an assumption. Stat and damage values that aren't in the
 description aren't plain bonuses (e.g. an "atk" of 1), so they're listed as unmodelled instead of applied.
 - Groups (TalentGroup), checked in this order on each clause holding one of the talent's own effects (or its effects on
 enemies when it has none; the least likely group wins): PER_ENEMY (aerial/enemy drones, unblocked, blocked, elite/leader/boss,
 enemy HP ("enemies with 80% or more HP"), weight, an enemy status ("to Slowed or Feared enemies"), or an enemy type such
-as "[Infected Creatures]", "Sarkaz enemies" or "to Machine enemies", kept as the talent's condition), UNLIKELY (depends
+as "[Infected Creatures]", "Sarkaz enemies" or "to Machine enemies", kept as the talent's condition, a
+TalentCondition; see below), UNLIKELY (depends
 on allies, operator counts ("at least one more Medic Operator"), tiles or the team),
 LIKELY (after deployment, while the skill is active, HP thresholds, when
 attacking/dealing damage, per attack, per kill, per Slow inflicted, every N seconds deployed...), and ALWAYS (no
@@ -625,9 +637,33 @@ twice, to the same enemy unless the first strike defeats it: 1 + (2m - 1) × cha
 effects use the average number of stacks over a window (one skill rotation) when they stack per attack, every N
 attacks, or every N seconds; when the rate isn't known (per kill, per Slow) they assume half the maximum stacks
 (UNKNOWN_STACK_FRACTION), flagged as assumed.
-- damage_scale and atk_scale on the unit's attacks become damage_multiplier (1 + (m - 1) × factor). On enemies (Fragile,
-Arts Fragility) they're enemy_effects, as are DEF/RES penetration values. atk_scale not on attacks (e.g. damage when
-deploying), multipliers below 1 (e.g. "at least 33% of ATK") and splash-only multipliers are listed as unmodelled.
+- damage_scale and atk_scale on the unit's attacks become multipliers (1 + (m - 1) × factor): an atk_multiplier,
+counted before the enemy's DEF/RES, or a damage_multiplier, counted after it, decided by the wording, not the value's
+name (decided by the owner 2026-11-09; multiplier_kind): ATK next to the number ("Increases ATK to 140%", "ATK +43%",
+"133% ATK as Physical damage", "160% of ATK", "increase the ATK of the current attack to 190%"; Necrass's T2 is a
+damage_scale worded this way) raises ATK, and damage next to it ("20% more damage", "attacks deal 117% damage",
+"increase the current damage of that attack to 160%", "Damage ... increases by 16%"; Harmonie's T1 is an atk_scale
+worded this way) raises damage. The words after the number count first, then the nearest "ATK" or "damage" up to five
+words before it. When neither says, the value's name decides (atk_scale raises ATK), noted for review (none in the
+game, checked 2026-11-09: 28 ATK and 19 damage multipliers). Talent.multiplier is the two together, the figure the
+operator_talents.csv damage_multiplier column shows. On enemies (Fragile, Arts Fragility) they're enemy_effects.
+atk_scale not on attacks (e.g. damage when deploying), multipliers below 1 (e.g. "at least 33% of ATK") and
+splash-only multipliers are listed as unmodelled.
+- DEF/RES ignore values become the talent's penetration (Penetration; average stacks scale the amount, and a chance in
+the value's clause, "50% chance to ignore 50% DEF", is how often it applies), and stay in enemy_effects for the reports.
+- Each value that does something gets a TalentEffect (its stat changes, multipliers, effect on enemies or DEF/RES
+ignore, scale, group and condition), so talents whose effects need different things can be judged one effect at a
+time in matchups. An effect's group and condition come from its own part of the clause (between commas) when that
+names an enemy condition ("DEF +14% when blocking an enemy"), otherwise from the whole clause ("When attacking aerial
+targets, increases ATK to 123%"); wording no rule recognises makes the effect UNLIKELY, and an overridden talent's
+effects take its group. The talent's own totals and group are unchanged.
+- TalentCondition (parse_condition) holds a PER_ENEMY condition's details: kind (the condition's name), negated ("not
+blocking", "not blocked by this unit", "not Elites"), minimum and maximum (weight "3 or higher"/"3 or less", enemy HP as
+a fraction, "less than 60%" = maximum 0.6, "80% or more" = minimum 0.8, "full HP" = minimum 1, or enemies blocked "2
+or more"), and tag (an enemy type mapped to the HellaAPI enemyTags: [Infected Creatures] = infection, Sarkaz = sarkaz,
+Machine = machine, [Sea Monster] = seamonster, plus ranged and ground; other names, e.g. "sleeping", kept as written;
+or an enemy status such as "stunned"). A bracketed name only counts when "enemies" follows it (Delphine's
+"[The Whirlpool that is Passion]" is a game mode).
 - Talent.status is full, partial or none, as for skills.
 
 #### Talent Override File
@@ -647,7 +683,9 @@ OperatorProfile, and `OperatorProfile.summary()` a ProfileSummary (one row of fi
 >
 > attack interval = (base attack time + interval change) / (ASPD / 100), with ASPD kept between 20 and 600
 >
-> DPS per target = ATK × ATK multiplier × hits × talent damage multiplier / attack interval
+> one hit = ATK × the hit's ATK multiplier × strike × talent ATK multipliers (before DEF/RES)
+>
+> DPS per target = one hit × talent damage multipliers × hits / attack interval
 >
 > total DPS = DPS per target × Targets.damage_share
 
@@ -659,6 +697,15 @@ of its own ("The next attack has ATK +100%"); a one-off strike with its own dama
 Xiao - Unsheath) hits as often as the skill says (confirmed by the owner 2026-11-05). Damage dealt every second isn't
 divided by the attack interval, and is added to the normal attack.
 - Phalanx Casters and Liberators don't attack outside their skills (0 DPS with no skill), but do during them.
+- For matchups, damage is also kept as Hits (attack_hits): each kind of hit's damage before DEF/RES, its damage
+multiplier (applied after DEF/RES), how many per attack and the seconds they take, and its targets. Equal strikes are
+counted together; a Flinger's shockwave is its own hit at half ATK. The Damage figures are worked out from the hits
+(hit_damage), so they're the same as before (checked 2026-11-09 over all 514 operator and summon profiles: no DPS
+figure changed). OperatorProfile.base_hits is the attack with no skill; each SkillProfile keeps base_hits (with that skill's
+talents), hits while active, and for instant skills strike_hits (one activation) and replaced_hits (the normal attack it
+replaces). Both also keep penetration (the skill's and the applied talents' DEF/RES ignore) and enemy_effects (the
+skill's and the applied talents' effects on enemies, without DEF/RES ignore). damage_per_second and strike_damage
+still take one combined multiplier and whole hits, for simple cases.
 - Each skill gets a SkillProfile: stats and damage (one Damage per damage type, per target and in total) while active,
 and its SkillRotation (charging at the attack interval with no skill; SP when hit at 1 attacker every
 ASSUMED_ENEMY_ATTACK_INTERVAL, plus a full-block average with block count attackers).
@@ -918,8 +965,8 @@ to 2 decimals, ref/ keeps full precision; the pages round numbers the same way a
    (per target and total), burst per activation, averages (and full-block averages for SP-when-hit skills), uptime and
    cycle time, stats while active, healing, status, and unmodelled values, notes and assumptions (joined with "; ").
    - io/operator_talents.csv: one row per talent. Unlocked talents show the current version (unlocks_at is what
-   unlocked that version), group, condition, whether it's applied, factor, stat changes, damage multiplier, enemy
-   effects, status and notes; talents not unlocked yet show their first version's description and what unlocks them.
+   unlocked that version), group, condition, whether it's applied, factor, stat changes, damage multiplier (the ATK and
+   damage multipliers together), enemy effects, status and notes; talents not unlocked yet show their first version's description and what unlocks them.
    Hidden talents and ones without a description are left out.
    - io/summon_stats.csv and io/summon_skills.csv: each summon at its owner's level, with its owner, what deploys it
    (skill N, or talent or any skill), stats and summary columns; and its skills in the operator_skills format.

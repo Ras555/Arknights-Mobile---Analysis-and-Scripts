@@ -15,7 +15,7 @@ Last Modified by: Claude
 # Imports
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # Constants
 
@@ -52,8 +52,8 @@ DEFAULT_SPLASH_SCALE = 0.5
 # Flingers add "a shockwave that has half the normal ATK" (append_atk_scale) to every attack.
 BOMBARDER_SUB_PROFESSION = "bombarder"
 DEFAULT_SHOCKWAVE_SCALE = 0.5
-# Swordmasters' "Normal attacks deal damage twice".
-SUB_PROFESSION_HITS = {"sword": 2}
+# Swordmasters' "Normal attacks deal damage twice": two full strikes per attack.
+SUB_PROFESSION_STRIKES = {"sword": (1.0, 1.0)}
 
 # Skill text that means the skill hits every enemy in an area rather than a set number.
 AOE_WORDS = re.compile(
@@ -81,11 +81,26 @@ class Targets:
     count for an even AoE, 1 + 2 * 0.5 = 2.0 for an Earthshaker's splash
     on 3 enemies. aoe is True when there is no target limit (count is then
     AOE_TARGETS, an assumption). note explains anything unusual.
+
+    scales holds the fraction each enemy takes, the main target first,
+    when they differ ((1, 0.5, 0.5) for an Earthshaker's splash, (1, 0.85,
+    0.7225, ...) for a Chain Caster); it's empty when every enemy takes the
+    full damage. It's left out of comparisons, since damage_share already
+    sums it.
     '''
     count: int = 1
     damage_share: float = 1.0
     aoe: bool = False
     note: str = ''
+    scales: tuple[float, ...] = field(default=(), compare=False)
+
+    @property
+    def target_scales(self) -> tuple[float, ...]:
+        '''
+        The fraction of the damage each enemy hit takes, the main target
+        first: scales, or 1 for each of count enemies.
+        '''
+        return self.scales or (1.0,) * self.count
 
 
 def _blackboard_value(trait_blackboard: dict | None, key: str, default: float) -> float:
@@ -116,7 +131,8 @@ def splash_targets(splash: float, note: str) -> Targets:
         splash: The fraction of the damage the others take (0.5 for half).
         note: The note to show with the targets.
     '''
-    return Targets(AOE_TARGETS, 1 + (AOE_TARGETS - 1) * splash, aoe=True, note=note)
+    return Targets(AOE_TARGETS, 1 + (AOE_TARGETS - 1) * splash, aoe=True, note=note,
+                   scales=(1.0,) + (splash,) * (AOE_TARGETS - 1))
 
 
 def basic_attack_targets(sub_profession: str | None, block_count: int, trait_blackboard: dict | None = None) -> Targets:
@@ -139,8 +155,8 @@ def basic_attack_targets(sub_profession: str | None, block_count: int, trait_bla
     if sub_profession == CHAIN_SUB_PROFESSION:
         count = int(_blackboard_value(trait_blackboard, 'max_target', DEFAULT_CHAIN_TARGETS))
         # Each jump deals 15% less than the one before: 1 + 0.85 + 0.85^2 + ...
-        share = sum(CHAIN_JUMP_DAMAGE ** jump for jump in range(count))
-        return Targets(count, share, note=f'jumps between {count} enemies, 15% less damage per jump')
+        scales = tuple(CHAIN_JUMP_DAMAGE ** jump for jump in range(count))
+        return Targets(count, sum(scales), note=f'jumps between {count} enemies, 15% less damage per jump', scales=scales)
     if sub_profession == HAMMER_SUB_PROFESSION:
         splash = _blackboard_value(trait_blackboard, 'atk_scale_2', DEFAULT_SPLASH_SCALE)
         return splash_targets(splash, f'AoE (no target limit): {splash:.0%} ATK splash to enemies around the target')
@@ -152,11 +168,31 @@ def basic_attack_targets(sub_profession: str | None, block_count: int, trait_bla
     return Targets()
 
 
+def basic_attack_strikes(sub_profession: str | None, trait_blackboard: dict | None = None) -> tuple[float, ...]:
+    '''
+    Returns the strikes one basic attack makes on each enemy it hits, as
+    fractions of ATK: (1, 1) for Swordmasters, (1, 0.5) for Flingers (a
+    full hit plus a half-ATK shockwave), and (1,) otherwise. Each strike is
+    reduced by DEF or RES on its own, so a weak shockwave loses more to DEF
+    than its share of a whole attack would.
+
+    Args:
+        sub_profession: The operator's subProfessionId.
+        trait_blackboard: {name: value} from the operator's trait.
+
+    Returns:
+        The fraction of ATK of each strike.
+    '''
+    if sub_profession == BOMBARDER_SUB_PROFESSION:
+        return (1.0, _blackboard_value(trait_blackboard, 'append_atk_scale', DEFAULT_SHOCKWAVE_SCALE))
+    return SUB_PROFESSION_STRIKES.get(sub_profession or '', (1.0,))
+
+
 def basic_attack_hits(sub_profession: str | None, trait_blackboard: dict | None = None) -> float:
     '''
     Returns how many times ATK one basic attack deals to each enemy it hits,
-    before any skill: 2 for Swordmasters, 1.5 for Flingers (a full hit plus
-    a half-ATK shockwave), and 1 otherwise.
+    before any skill: the sum of its strikes (basic_attack_strikes), so 2
+    for Swordmasters, 1.5 for Flingers, and 1 otherwise.
 
     Args:
         sub_profession: The operator's subProfessionId.
@@ -165,9 +201,7 @@ def basic_attack_hits(sub_profession: str | None, trait_blackboard: dict | None 
     Returns:
         The ATK multiple per enemy hit.
     '''
-    if sub_profession == BOMBARDER_SUB_PROFESSION:
-        return 1 + _blackboard_value(trait_blackboard, 'append_atk_scale', DEFAULT_SHOCKWAVE_SCALE)
-    return SUB_PROFESSION_HITS.get(sub_profession or '', 1)
+    return sum(basic_attack_strikes(sub_profession, trait_blackboard))
 
 
 def skill_targets(max_target: float | None, description: str, basic: Targets) -> Targets:

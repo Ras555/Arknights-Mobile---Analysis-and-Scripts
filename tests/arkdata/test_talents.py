@@ -1,19 +1,26 @@
 import pytest
 
 from arkdata.calculations import talents as talents_module
+from arkdata.calculations.skills import Penetration, StatModifiers
 from arkdata.calculations.talents import (
+    ATK_MULTIPLIER,
+    DAMAGE_MULTIPLIER,
     UNKNOWN_STACK_FRACTION,
     Talent,
+    TalentCondition,
     TalentGroup,
     TalentOverride,
     average_stacks,
     build_talent,
     build_talents,
+    clause_condition,
     clause_group,
     find_value,
     group_name,
     load_talent_overrides,
     member_groups,
+    multiplier_kind,
+    parse_condition,
     parse_talent_overrides,
     shared_group,
     talent_key,
@@ -183,7 +190,7 @@ def test_identity_is_kept():
 
 def test_the_least_likely_clause_decides_the_group():
     talent = _talent('ATK +10%; when attacking aerial units, ASPD +20', {'atk': 0.1, 'attack_speed': 20})
-    assert (talent.group, talent.condition) == (TalentGroup.PER_ENEMY, 'aerial')
+    assert (talent.group, talent.condition) == (TalentGroup.PER_ENEMY, TalentCondition('aerial'))
     assert not talent.applied
     # Worked out anyway, for matchups.
     assert talent.modifiers.attack_speed == 20
@@ -207,7 +214,7 @@ def test_enemy_only_talent_takes_its_group_from_the_enemy_effects():
                      'more than 7 seconds', {'damage_scale': 1.12, 'damage_scale_max': 1.16})
     assert talent.group == TalentGroup.LIKELY
     assert [value.key for value in talent.enemy_effects] == ['damage_scale']
-    assert talent.damage_multiplier == 1.0
+    assert talent.multiplier == 1.0
     assert talent.unmodelled == ['damage_scale_max']
 
 
@@ -225,7 +232,7 @@ def test_condition_on_an_enemy_before_the_comma_doesnt_make_the_value_an_enemys(
 def test_enemy_effects_are_recorded_not_applied(description, blackboard):
     talent = _talent(description, blackboard)
     assert [value.key for value in talent.enemy_effects] == list(blackboard)
-    assert talent.modifiers.is_empty() and talent.damage_multiplier == 1.0
+    assert talent.modifiers.is_empty() and talent.multiplier == 1.0
 
 
 @pytest.mark.parametrize('description', ['[Abyssal Hunter] Operators gain ATK +10%', 'Ave Mujica members gain ATK +10%'])
@@ -245,7 +252,7 @@ def test_penetration_is_an_enemy_effect():
 def test_effects_missing_from_the_text_are_unmodelled(key, value):
     # Suzuran's talent 2 has an "atk" of 1 that isn't in its description.
     talent = _talent('Enemies in range that are Slowed are inflicted with 23% Fragile', {'atk_scale': 1.23, key: value})
-    assert talent.modifiers.is_empty() and talent.damage_multiplier == 1.0
+    assert talent.modifiers.is_empty() and talent.multiplier == 1.0
     assert [value.key for value in talent.enemy_effects] == ['atk_scale']
     assert talent.unmodelled == [f'{key} (not in the description)']
     assert talent.group == TalentGroup.ALWAYS
@@ -296,14 +303,14 @@ def test_boosted_attack_that_strikes_again_deals_the_multiplier_twice(wording):
     # Bagpipe's talent 1: 75% of attacks deal 100%, 25% deal two strikes of 130%: 0.75 + 0.25 × 2.6 = 1.4.
     talent = _talent(f'When attacking, has a 25% chance to increase ATK to 130% {wording}',
                      {'prob': 0.25, 'atk_scale': 1.3})
-    assert talent.damage_multiplier == pytest.approx(1.4)
+    assert talent.multiplier == pytest.approx(1.4)
     assert talent.notes == ['the boosted attack strikes twice']
 
 
 def test_chance_of_a_damage_multiplier_is_its_expected_value():
     talent = _talent('When attacking, has a 20% chance to deal 160% damage', {'prob': 0.2, 'atk_scale': 1.6})
     assert talent.factor == 0.2
-    assert talent.damage_multiplier == pytest.approx(1.12)
+    assert talent.multiplier == pytest.approx(1.12)
 
 
 def test_chance_of_a_stat_scales_the_stat():
@@ -316,7 +323,7 @@ def test_chance_only_scales_the_effects_in_its_part_of_the_clause():
     talent = _talent('ASPD +6, 15% chance to increase ATK to 150% when attacking', {'attack_speed': 6, 'prob': 0.15,
                                                                                    'atk_scale': 1.5})
     assert talent.modifiers.attack_speed == 6
-    assert talent.damage_multiplier == pytest.approx(1.075)
+    assert talent.multiplier == pytest.approx(1.075)
     assert talent.factor == 0.15
 
 
@@ -351,19 +358,19 @@ def test_chance_of_something_unmodelled_is_a_note():
 ])
 def test_atk_scale_that_isnt_an_attack_multiplier(description, blackboard):
     talent = _talent(description, blackboard)
-    assert talent.damage_multiplier == 1.0
+    assert talent.multiplier == 1.0
     assert talent.unmodelled == ['atk_scale (not an attack multiplier)']
 
 
 def test_splash_only_multiplier_is_unmodelled():
     talent = _talent('Physical damage caused by Trait splash effect increases by 24%', {'damage_scale': 1.24})
-    assert talent.damage_multiplier == 1.0
+    assert talent.multiplier == 1.0
     assert talent.unmodelled == ['damage_scale (splash damage only)']
 
 
 def test_damage_scale_is_a_multiplier():
     talent = _talent('Increases damage dealt by 15%', {'damage_scale': 1.15})
-    assert talent.damage_multiplier == pytest.approx(1.15)
+    assert talent.multiplier == pytest.approx(1.15)
 
 
 # build_talent: stacks
@@ -528,15 +535,15 @@ def test_real_astgenne_alter_t1_per_slow_stacks():
 
 def test_real_toddifons_t1_per_enemy_type():
     talent = _real('toddifons_t1')
-    assert (talent.group, talent.condition) == (TalentGroup.PER_ENEMY, 'enemy type')
+    assert (talent.group, talent.condition) == (TalentGroup.PER_ENEMY, TalentCondition('enemy type', tag='sarkaz'))
     assert not talent.applied
-    assert talent.damage_multiplier == 1.5
+    assert talent.multiplier == 1.5
 
 
 def test_real_kroos_alter_t1_chance_multiplier():
     talent = _real('kroos_alter_t1')
     assert talent.group == TalentGroup.LIKELY
-    assert talent.damage_multiplier == pytest.approx(1.12)
+    assert talent.multiplier == pytest.approx(1.12)
     assert talent.notes == ['stuns for 0.2 s']
     assert talent.status == 'full'
 
@@ -545,7 +552,7 @@ def test_real_reed_alter_t1_enemy_debuffs():
     talent = _real('reed_alter_t1')
     assert talent.group == TalentGroup.LIKELY
     assert [(value.key, value.value) for value in talent.enemy_effects] == [('atk', -0.22), ('damage_scale', 1.32)]
-    assert talent.damage_multiplier == 1.0 and talent.modifiers.is_empty()
+    assert talent.multiplier == 1.0 and talent.modifiers.is_empty()
     assert talent.notes == ['30% chance of an effect', 'effect lasts 6 s']
     # Potential 3 (rank 2) unlocks the stronger version.
     assert _real('reed_alter_t1', potential=1).enemy_effects[0].value == -0.2
@@ -652,7 +659,7 @@ def test_faction_buffs_and_aliases():
 def test_shared_damage_multiplier():
     talent = _talent('When deployed, Ave Mujica members deal 15% more damage', {'damage_scale': 1.15},
                      member_of=frozenset({'ave mujica'}))
-    assert talent.damage_multiplier == pytest.approx(1.15)
+    assert talent.multiplier == pytest.approx(1.15)
     assert talent.notes == ['also buffs Ave Mujica members']
 
 
@@ -677,4 +684,259 @@ def test_build_talents_passes_the_groups_on():
 
 def test_enemy_status_condition():
     talent = _talent('When deployed, deals 15% more damage to Slowed or Feared enemies', {'damage_scale': 1.15})
-    assert (talent.group, talent.condition) == (TalentGroup.PER_ENEMY, 'enemy status')
+    assert (talent.group, talent.condition) == (TalentGroup.PER_ENEMY, TalentCondition('enemy status', tag='slowed'))
+
+
+# ATK or damage multiplier, from the wording
+
+@pytest.mark.parametrize('description, blackboard, expected', [
+    ('Increases ATK to 140% (+5%) when attacking aerial targets', {'atk_scale': 1.4}, ATK_MULTIPLIER),
+    ('Prioritize attacking drones; ATK +43% (+3%) when attacking drones', {'atk_scale': 1.43}, ATK_MULTIPLIER),
+    ('The next attack deals 133% (+3%) ATK as Physical damage', {'atk_scale': 1.33}, ATK_MULTIPLIER),
+    ('Attacks have a 30% chance to deal 160% (+10%) of ATK as Physical damage', {'prob': 0.3, 'atk_scale': 1.6},
+     ATK_MULTIPLIER),
+    ('Has a 20% chance to increase the ATK of the current attack to 190% (+10%) when attacking',
+     {'prob': 0.2, 'atk_scale': 1.9}, ATK_MULTIPLIER),
+    # Necrass: a damage_scale, but the text says ATK.
+    ('When Necrass or her summons attack enemies with less than 60% (+10%) HP, increases ATK to 145% (+5%)',
+     {'hp_ratio': 0.6, 'damage_scale': 1.45}, ATK_MULTIPLIER),
+    # Harmonie: an atk_scale, but the text says damage.
+    ('Deal 20% (+3%) more damage when attacking blocked enemies', {'atk_scale': 1.2}, DAMAGE_MULTIPLIER),
+    ('Deals +25% (+5%) damage when attacking enemies that are not blocked by this unit', {'damage_scale': 1.25},
+     DAMAGE_MULTIPLIER),
+    ('When attacking, has a 20% chance to increase the current damage of that attack to 160% (+10%)',
+     {'prob': 0.2, 'atk_scale': 1.6}, DAMAGE_MULTIPLIER),
+    # Mountain: only the words before "and" count.
+    ("20% chance for attacks to deal 165% (+5%) damage and reduce the target's ATK by 15% for 3 seconds",
+     {'prob': 0.2, 'atk_scale': 1.65}, DAMAGE_MULTIPLIER),
+    ('Damage when skill is active increases by 16% (+1%) from second skill activation onward', {'damage_scale': 1.16},
+     DAMAGE_MULTIPLIER),
+])
+def test_multiplier_kind_comes_from_the_wording(description, blackboard, expected):
+    talent = _talent(description, blackboard)
+    raised, unchanged = ((talent.atk_multiplier, talent.damage_multiplier) if expected == ATK_MULTIPLIER
+                         else (talent.damage_multiplier, talent.atk_multiplier))
+    assert raised > 1 and unchanged == 1
+    assert talent.multiplier == raised
+    assert not any('ATK or damage' in note for note in talent.assumed)
+
+
+@pytest.mark.parametrize('before, after, expected', [
+    ('', ' bonus', None),
+    # The nearest word before the number counts.
+    ('Deals damage, ATK +', '', ATK_MULTIPLIER),
+    ('ATK and damage +', '', DAMAGE_MULTIPLIER),
+    # Too far from the number.
+    ('ATK is one of many things that rise to', '', None),
+])
+def test_multiplier_kind(before, after, expected):
+    assert multiplier_kind(before, after) == expected
+
+
+def test_multiplier_kind_falls_back_to_the_name():
+    talent = _talent('When attacking, gains a 20% bonus', {'damage_scale': 1.2})
+    assert (talent.atk_multiplier, talent.damage_multiplier) == (1.0, 1.2)
+    assert talent.assumed == ["damage_scale: the text doesn't say whether it raises ATK or damage; counted as damage by "
+                              "its name (review)"]
+    assert _talent('When attacking, gains a 20% bonus', {'atk_scale': 1.2}).atk_multiplier == 1.2
+
+
+def test_atk_and_damage_multipliers_together():
+    talent = _talent('When attacking, ATK increased to 150% and deals 20% more damage',
+                     {'atk_scale': 1.5, 'damage_scale': 1.2})
+    assert (talent.atk_multiplier, talent.damage_multiplier) == (1.5, 1.2)
+    assert talent.multiplier == pytest.approx(1.8)
+
+
+# parse_condition and TalentCondition
+
+@pytest.mark.parametrize('kind, clause, expected', [
+    ('aerial', 'Increases ATK to 140% when attacking aerial targets', TalentCondition('aerial')),
+    ('blocked', 'DEF +19% (+3%) when two or more enemies are blocked', TalentCondition('blocked', minimum=2)),
+    ('blocked', 'Increases ATK and DEF by 14% (+2%) when blocking 2 or more enemies', TalentCondition('blocked', minimum=2)),
+    ('blocked', 'ATK and DEF +14% (+2%) when Cliffheart is not blocking any enemies',
+     TalentCondition('blocked', negated=True)),
+    ('blocked', 'Deals 45% (+5%) more damage to enemies that are not blocked by this unit',
+     TalentCondition('blocked', negated=True)),
+    ('elite', 'Applies 18% (+2%) Fragile effect to enemies that are not Elites or Leaders within range',
+     TalentCondition('elite', negated=True)),
+    ('weight', 'When attacking a heavy enemy, ignores 60% of its DEF (enemies with 3 weight or higher count for this '
+               'effect)', TalentCondition('weight', minimum=3)),
+    ('weight', 'Ignores 200 (+20) DEF when attacking enemies with weight greater than or equal to 3',
+     TalentCondition('weight', minimum=3)),
+    ('weight', 'When attacking enemies with 3 or less weight, increase ATK to 136% (+6%)',
+     TalentCondition('weight', maximum=3)),
+    ('enemy HP', 'When Necrass or her summons attack enemies with less than 60% (+10%) HP, increases ATK to 145% (+5%)',
+     TalentCondition('enemy HP', maximum=0.6)),
+    ('enemy HP', 'When attacking enemies with 80% or more HP, Passenger will deal 25% (+5%) increased damage',
+     TalentCondition('enemy HP', minimum=0.8)),
+    ('enemy HP', 'ATK increased to 125% (+5%) when hitting an enemy with full HP', TalentCondition('enemy HP', minimum=1)),
+    ('enemy HP', 'ATK increased to 112% when attacking enemies with an HP percentage equal to or lower than their own',
+     TalentCondition('enemy HP')),
+    ('enemy type', 'Increases ATK to 150% (+5%) when attacking [Infected Creatures]',
+     TalentCondition('enemy type', tag='infection')),
+    ('enemy type', 'When attacking Sarkaz enemies, increase ATK to 150% (+5%)', TalentCondition('enemy type', tag='sarkaz')),
+    ('enemy type', 'ATK increases to 145% (+5%) when attacking ranged enemies',
+     TalentCondition('enemy type', tag='ranged')),
+    ('enemy type', 'Deals 22% (+2) more Physical damage to ground enemies that have not yet dealt damage to her',
+     TalentCondition('enemy type', tag='ground')),
+    ('enemy type', 'Receive 25% less Physical and Arts damage from [Sea Monster] enemies',
+     TalentCondition('enemy type', tag='seamonster')),
+    ('enemy type', 'Deal 20% more damage to Machine enemies', TalentCondition('enemy type', tag='machine')),
+    # Delphine: the first bracket names a game mode, not the enemies.
+    ('enemy type', 'In [The Whirlpool that is Passion], ATK is increased to 120% against [Sarkaz] enemies',
+     TalentCondition('enemy type', tag='sarkaz')),
+    # Not an enemyTags type: kept as written.
+    ('enemy type', 'Increase ATK to 144% (+4%) when attacking Sleeping enemies',
+     TalentCondition('enemy type', tag='sleeping')),
+    ('enemy type', 'Deals more damage', TalentCondition('enemy type')),
+    ('enemy status', 'Increase ATK to 165% (+5%) when attacking Stunned enemies',
+     TalentCondition('enemy status', tag='stunned')),
+    ('enemy status', 'Deals more damage', TalentCondition('enemy status')),
+])
+def test_parse_condition(kind, clause, expected):
+    assert parse_condition(kind, clause) == expected
+
+
+@pytest.mark.parametrize('condition, expected', [
+    (TalentCondition('aerial'), 'aerial'),
+    (TalentCondition('blocked', negated=True), 'not blocked'),
+    (TalentCondition('blocked', minimum=2), 'blocked 2 or more'),
+    (TalentCondition('weight', minimum=3), 'weight 3 or more'),
+    (TalentCondition('weight', maximum=3), 'weight 3 or less'),
+    (TalentCondition('enemy HP', maximum=0.6), 'enemy HP below 60%'),
+    (TalentCondition('enemy HP', minimum=0.8), 'enemy HP 80% or more'),
+    (TalentCondition('enemy HP', minimum=1), 'enemy HP full'),
+    (TalentCondition('enemy type', tag='sarkaz'), 'enemy type: sarkaz'),
+])
+def test_condition_describe(condition, expected):
+    assert condition.describe() == expected
+
+
+def test_clause_condition():
+    assert clause_condition('ATK +10%') == (TalentGroup.ALWAYS, None)
+    assert clause_condition('When attacking aerial targets, ATK +10%') == (TalentGroup.PER_ENEMY, TalentCondition('aerial'))
+
+
+# find_value with places already used
+
+def test_find_value_takes_the_next_unused_place_of_a_repeated_number():
+    text = 'ATK +14% when not blocking, DEF +14% when blocking'
+    first = text.index('14%')
+    second = text.index('14%', first + 1)
+    assert find_value(text, 0.14) == (True, first)
+    assert find_value(text, 0.14, used={first}) == (True, second)
+    # Every place used: the first is shared ("ATK and DEF +14%").
+    assert find_value(text, 0.14, used={first, second}) == (True, first)
+
+
+def test_same_number_for_the_chance_and_an_enemy_debuff():
+    # Shalem's T2: the RES debuff's 25% is the second one, so it's on the target, not on Shalem.
+    talent = _talent("Attacks have 25% (+5%) chance to reduce the target's RES by 25% for 3 seconds",
+                     {'prob': 0.25, 'magic_resistance': -0.25, 'duration': 3})
+    assert talent.modifiers.is_empty()
+    assert [value.key for value in talent.enemy_effects] == ['magic_resistance']
+
+
+# TalentEffect: each effect with its own condition
+
+def test_effects_judged_one_at_a_time():
+    # Firewhistle's T1: both 14%, one when not blocking and one when blocking.
+    talent = _talent('ATK +14% (+2%) when not blocking an enemy, DEF +14% (+2%) when blocking an enemy',
+                     {'atk': 0.14, 'def': 0.14})
+    assert talent.modifiers == StatModifiers(atk_percent=0.14, def_percent=0.14)
+    atk, defense = talent.effects
+    assert (atk.key, atk.condition, atk.modifiers) == ('atk', TalentCondition('blocked', negated=True),
+                                                        StatModifiers(atk_percent=0.14))
+    assert (defense.key, defense.condition, defense.modifiers) == ('def', TalentCondition('blocked'),
+                                                                    StatModifiers(def_percent=0.14))
+    assert atk.group == defense.group == TalentGroup.PER_ENEMY
+
+
+def test_effect_condition_from_the_whole_clause():
+    talent = _talent('When attacking aerial targets, increases ATK to 123% (+3%)', {'atk_scale': 1.23})
+    [effect] = talent.effects
+    assert (effect.group, effect.condition, effect.atk_multiplier) == (TalentGroup.PER_ENEMY, TalentCondition('aerial'),
+                                                                       1.23)
+
+
+def test_effect_without_a_condition():
+    [effect] = _talent('ATK +10%', {'atk': 0.1}).effects
+    assert (effect.group, effect.condition, effect.scale) == (TalentGroup.ALWAYS, None, 1.0)
+
+
+def test_effect_with_unrecognised_wording_is_unlikely():
+    [effect] = _talent('ATK +10% if it rains', {'atk': 0.1}).effects
+    assert effect.group == TalentGroup.UNLIKELY
+
+
+def test_effect_scale_and_multiplier():
+    [effect] = _talent('When attacking, has a 20% chance to deal 150% damage', {'prob': 0.2, 'atk_scale': 1.5}).effects
+    assert (effect.key, effect.scale) == ('atk_scale', 0.2)
+    assert (effect.atk_multiplier, effect.damage_multiplier) == (1.0, pytest.approx(1.1))
+
+
+def test_effects_on_enemies():
+    [fragile] = _talent('Enemies within attack range gain 12% Fragile', {'damage_scale': 1.12}).effects
+    assert fragile.enemy_effect.key == 'damage_scale'
+    [debuff] = _talent("Attacks reduce the target's DEF by 10%", {'def': -0.1}).effects
+    assert (debuff.enemy_effect.key, debuff.modifiers.is_empty()) == ('def', True)
+
+
+def test_ally_buffs_have_no_effect():
+    talent = _talent('Allies within range gain ATK +10%', {'atk': 0.1})
+    assert talent.effects == [] and talent.notes
+
+
+def test_def_ignore_talents():
+    talent = _talent('Attacks ignore 175 (+15) DEF', {'def_penetrate_fixed': 175})
+    assert talent.penetration == [Penetration(def_flat=175)]
+    # Still listed with the effects on enemies, for the reports.
+    assert [value.key for value in talent.enemy_effects] == ['def_penetrate_fixed']
+    assert talent.effects[0].penetration == Penetration(def_flat=175)
+
+
+def test_def_ignore_with_a_chance():
+    # Irene's T1: the chance is how often it applies, not how much is ignored.
+    talent = _talent('Physical damage has a 50% chance to ignore 50% DEF', {'prob': 0.5, 'def_penetrate': 0.5})
+    assert talent.penetration == [Penetration(def_ratio=0.5, chance=0.5)]
+
+
+def test_overridden_effects_take_the_talents_group():
+    overrides = {('', 1): TalentOverride(TalentGroup.UNLIKELY)}
+    [effect] = _talent('ATK +10%', {'atk': 0.1}, overrides=overrides).effects
+    assert effect.group == TalentGroup.UNLIKELY
+
+
+# Real talents (tests/fixtures/talents) for matchups, at Elite 2, potential 6
+
+def test_real_meteor_t1_aerial_atk_multiplier():
+    talent = _real('meteor_t1')
+    # "Increases ATK to 140% (+5%) when attacking aerial targets"
+    assert (talent.group, talent.condition, talent.applied) == (TalentGroup.PER_ENEMY, TalentCondition('aerial'), False)
+    assert (talent.atk_multiplier, talent.damage_multiplier) == (1.4, 1.0)
+    assert [(effect.key, effect.condition) for effect in talent.effects] == [('atk_scale', TalentCondition('aerial'))]
+
+
+def test_real_necrass_t2_low_hp_atk_multiplier():
+    talent = _real('necrass_t2')
+    # "...attack enemies with less than 60% (+10%) HP, increases ATK to 145% (+5%)": a damage_scale worded as ATK.
+    assert talent.condition == TalentCondition('enemy HP', maximum=0.6)
+    assert (talent.atk_multiplier, talent.damage_multiplier) == (1.45, 1.0)
+
+
+def test_real_rosa_t1_heavy_enemies_def_ignore():
+    talent = _real('rosa_t1')
+    # "When attacking a heavy enemy, ignores 60% of its DEF (enemies with 3 weight or higher count for this effect)"
+    assert talent.condition == TalentCondition('weight', minimum=3)
+    assert talent.penetration == [Penetration(def_ratio=0.6)]
+    assert talent.effects[0].condition == TalentCondition('weight', minimum=3)
+
+
+def test_real_firewhistle_t1_each_effect_its_own_condition():
+    talent = _real('firewhistle_t1')
+    # "ATK +14% (+2%) when not blocking an enemy, DEF +14% (+2%) when blocking an enemy"
+    assert talent.modifiers == StatModifiers(atk_percent=0.14, def_percent=0.14)
+    assert [(effect.key, effect.condition.describe()) for effect in talent.effects] == [('atk', 'not blocked'),
+                                                                                        ('def', 'blocked')]
+

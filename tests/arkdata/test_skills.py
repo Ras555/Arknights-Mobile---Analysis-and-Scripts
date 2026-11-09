@@ -8,6 +8,7 @@ from arkdata.calculations.skills import (
     MAX_MASTERY,
     MAX_SKILL_LEVEL,
     DamagePart,
+    Penetration,
     SkillStatus,
     SkillType,
     StatEffects,
@@ -655,3 +656,67 @@ def test_real_eyjafjalla_s2_ignition():
     # atk_scale_2 (185%) is the splash, already counted as half damage.
     assert skill.unmodelled == ['atk_scale_2']
     assert skill.status == SkillStatus.PARTIAL
+
+
+# DEF/RES ignore (Penetration)
+
+@pytest.mark.parametrize('key, value, expected', [
+    ('def_penetrate', 0.6, Penetration(def_ratio=0.6)),
+    ('def_penetrate_fixed', 400, Penetration(def_flat=400)),
+    ('magic_resist_penetrate', 0.3, Penetration(res_ratio=0.3)),
+    ('magic_resist_penetrate_fixed', 10, Penetration(res_flat=10)),
+])
+def test_penetration_from_value(key, value, expected):
+    assert Penetration.from_value(_value(key, value)) == expected
+
+
+def test_penetration_from_value_with_stacks_and_chance():
+    assert Penetration.from_value(_value('def_penetrate', 0.1), 2.5, 0.5) == Penetration(def_ratio=0.25, chance=0.5)
+
+
+@pytest.mark.parametrize('penetration, expected', [
+    (Penetration(def_flat=400), 'ignores 400 DEF'),
+    (Penetration(def_ratio=0.6, res_flat=10), 'ignores 60% DEF and 10 RES'),
+    (Penetration(def_flat=100, def_ratio=0.2, res_ratio=0.3), 'ignores 100 DEF and 20% DEF and 30% RES'),
+    (Penetration(res_ratio=0.3, chance=0.2), '20% chance to ignore 30% RES'),
+])
+def test_penetration_describe(penetration, expected):
+    assert penetration.describe() == expected
+
+
+def test_skill_reads_def_ignore_from_its_clause():
+    # Indra's Armorcrusher.
+    skill = _parse(make_skill_level("The ATK of the next hit +{atk:0%} and ignores {def_penetrate:0%} of the target's DEF",
+                                    {'atk': 1.4, 'def_penetrate': 0.6}))
+    assert skill.penetration == [Penetration(def_ratio=0.6)]
+    assert (skill.notes, skill.unmodelled) == (['ignores 60% DEF'], [])
+
+
+def test_skill_reads_def_ignore_written_as_a_number():
+    # Stormeye's Skyshatter writes the 100 itself instead of a placeholder.
+    skill = _parse(make_skill_level('ATK +{atk:0%}, ASPD +{attack_speed}; attacks ignore 100 DEF',
+                                    {'atk': 0.2, 'attack_speed': 80, 'def_penetrate_fixed': 100}))
+    assert skill.penetration == [Penetration(def_flat=100)]
+    assert skill.status == SkillStatus.FULL
+
+
+@pytest.mark.parametrize('description', [
+    # Luo Xiaohei: only an extra attack, and only below 50% HP.
+    'ATK +{atk:0%}, and add an additional attack that ignores {def_penetrate_fixed} enemy DEF when target HP is below 50%',
+    # Tachanka: only inside the burning zone.
+    'Tachanka ignores {def_penetrate_fixed} DEF when attacking enemies within the burning zone',
+    # Tool Supply Station: not DEF ignore at all.
+    'Physical and Arts damage received by allied units -{def_penetrate_fixed}',
+    # Not in the text, and its number isn't either.
+    'Stuns all surrounding targets',
+])
+def test_def_ignore_values_that_arent_read(description):
+    skill = _parse(make_skill_level(description, {'def_penetrate_fixed': 200}))
+    assert skill.penetration == []
+    assert skill.unmodelled == ['def_penetrate_fixed']
+
+
+def test_def_ignore_alone_counts_as_modelled():
+    skill = _parse(make_skill_level('Attacks ignore {def_penetrate_fixed} DEF', {'def_penetrate_fixed': 250}))
+    assert skill.status == SkillStatus.FULL
+
