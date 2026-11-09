@@ -4,11 +4,14 @@ from arkdata.calculations.attack_targets import (
     AOE_SUB_PROFESSIONS,
     AOE_TARGETS,
     BLOCK_TARGET_SUB_PROFESSIONS,
+    HALF_SPLASH,
+    HALF_SPLASH_SCALE,
     NO_BASIC_ATTACK_SUB_PROFESSIONS,
     Targets,
     basic_attack_hits,
     basic_attack_targets,
     skill_targets,
+    splash_targets,
 )
 
 
@@ -63,6 +66,27 @@ def test_earthshaker_splash_uses_trait_scale():
     assert basic_attack_targets('hammer', 1, {'atk_scale_2': 0.6}).damage_share == pytest.approx(2.2)
     assert basic_attack_targets('hammer', 1).damage_share == 2.0
 
+
+
+# splash_targets and HALF_SPLASH
+
+def test_splash_targets_hit_the_target_in_full_and_splash_the_rest():
+    # 1 + 2 others × 50% = 2.0; 1 + 2 × 0.3 = 1.6
+    assert splash_targets(0.5, 'note') == Targets(3, 2.0, True, 'note')
+    assert splash_targets(0.3, '').damage_share == pytest.approx(1.6)
+
+
+@pytest.mark.parametrize('text, expected', [
+    ('Deals half damage to enemies around the target', True),
+    ('half the damage to the targets near it', True),
+    ('half damage to surrounding enemies', True),
+    ('half damage to nearby enemies', True),
+    ('Deals damage to enemies around the target', False),
+    ('takes half damage', False),
+])
+def test_half_splash_wording(text, expected):
+    assert bool(HALF_SPLASH.search(text)) == expected
+    assert HALF_SPLASH_SCALE == 0.5
 
 # basic_attack_hits
 

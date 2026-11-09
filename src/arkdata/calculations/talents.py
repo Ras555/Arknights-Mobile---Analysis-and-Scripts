@@ -9,7 +9,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-04
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -23,9 +23,17 @@ from enum import StrEnum
 from functools import lru_cache
 from importlib import resources
 
-from arkdata.calculations.blackboard import ALLY_WORDS, CLAUSE_BREAK, ENEMY_WORDS, BlackboardValue, Target, strip_tags
+from arkdata.calculations.blackboard import (
+    ALLY_WORDS,
+    CLAUSE_BREAK,
+    ENEMY_WORDS,
+    BlackboardValue,
+    Target,
+    strip_tags,
+    value_name,
+)
 from arkdata.calculations.operator_stats import parse_phase
-from arkdata.calculations.skills import NOTE_KEYS, StatModifiers, apply_stat_value, is_stat_value
+from arkdata.calculations.skills import ATTACK_KEYS, NOTE_KEYS, STAT_KEYS, StatModifiers, apply_stat_value, is_stat_value
 
 # Constants
 
@@ -48,6 +56,9 @@ PER_ENEMY_CONDITIONS = {
     # "attacking enemies with 80% or more HP", "hitting an enemy with full HP".
     'enemy HP': re.compile(r'enem(?:y|ies) with [^.;,]*\bhp\b|with full hp', re.IGNORECASE),
     'weight': re.compile(r'\bweight\b', re.IGNORECASE),
+    # "more damage to Slowed or Feared enemies", "Stunned targets".
+    'enemy status': re.compile(r'\bto (?:slowed|stunned|frozen|feared|bound)\b'
+                               r'|\b(?:slowed|stunned|frozen|feared|bound) (?:or \w+ )?(?:enem|target)', re.IGNORECASE),
     # "[Infected Creatures] enemies", "when attacking [Infected Creatures]", "when attacking Sarkaz enemies",
     # "more damage to Machine enemies" (but not "to all/nearby/surrounding... enemies").
     'enemy type': re.compile(
@@ -57,18 +68,45 @@ PER_ENEMY_CONDITIONS = {
         re.IGNORECASE,
     ),
 }
+# Buffs to a group of operators that the operator itself belongs to ("All Vanguard Operators' ATK +10%" for Siege,
+# "all [Abyssal Hunter] Operators" for Skadi, "All allies' ASPD +8", "This unit and allied Operators..."): the group is
+# the words before one of these nouns, in the value's part of the clause.
+GROUP_NOUN = re.compile(r"\b(?:operators?|allies|(?:allied )?units|members)\b'?", re.IGNORECASE)
+# Buffs to everyone ("All allies", "all allied units", "all Operators").
+EVERYONE = re.compile(r"\ball (?:allied |friendly )?$", re.IGNORECASE)
+INCLUDES_THIS_UNIT = re.compile(r'\bthis unit and\b', re.IGNORECASE)
+# Group buffs limited by position ("allies within range", "Melee allies in the 8 surrounding tiles") or by a condition
+# ("Operators with ammo-type skills"): whether the operator itself counts varies, so they stay ally buffs.
+GROUP_LIMIT = re.compile(r"^\W*(?:within|in the|in \d|surrounding|adjacent|around|with|that|who)\b", re.IGNORECASE)
+# Range wording removed (with the group) from a "This unit and..." buff's clause before its condition is judged.
+RANGE_TEXT = re.compile(r'\b(?:in|within) (?:the )?(?:\d+ )?(?:surrounding |adjacent )?(?:\d+ )?(?:tiles?|attack range|range)'
+                        r'(?: around (?:her|him|it|them))?', re.IGNORECASE)
+# Where the group's own words start, for notes ("Restores the HP of all allies" -> "all allies").
+GROUP_START = re.compile(r"\b(?:this unit and|all|allied|friendly|deployed)\b.*$|[\['].*$", re.IGNORECASE)
+# Always true for the operator itself, so removed before a shared buff's condition is judged.
+SELF_PRESENT = re.compile(r'when this unit is in the squad,?', re.IGNORECASE)
+# Class names as written in talents, by the HellaAPI profession.
+CLASS_NAMES = {'PIONEER': 'vanguard', 'WARRIOR': 'guard', 'TANK': 'defender', 'SNIPER': 'sniper', 'CASTER': 'caster',
+               'MEDIC': 'medic', 'SUPPORT': 'supporter', 'SPECIAL': 'specialist'}
+RARITY_NAMES = {'TIER_1': 'one-star', 'TIER_2': 'two-star', 'TIER_3': 'three-star', 'TIER_4': 'four-star',
+                'TIER_5': 'five-star', 'TIER_6': 'six-star'}
+# Faction names written differently in talents than in the faction data ("'Minoan' Operators" for Minos).
+FACTION_ALIASES = {'minoan': 'minos'}
+# Words that aren't group names, ignored when matching the words before a group noun.
+GROUP_FILLER = {'all', 'allied', 'friendly', 'the', 'of', 'and', 'deployed', 'this', 'unit'}
+
 # Effects picked at random ("randomly trigger one of the following effects") can't be told apart: flagged for review.
 RANDOM_WORDS = re.compile(r'\brandom', re.IGNORECASE)
 # Conditions that depend on other operators, the map or the team: not applied.
 UNLIKELY_WORDS = re.compile(
     r"\ball(?:y|ies)\b|\ballied\b|\bfriendly\b|other operators|\boperators\b|\bsquad\b|\bterrain\b|\btiles?\b|\bteam\b"
-    r"|when there (?:is|are)",
+    r"|when there (?:is|are)|at least one more",
     re.IGNORECASE,
 )
 # Conditions the operator meets by itself in most fights: applied.
 LIKELY_WORDS = re.compile(
     r"after (?:being )?deploy|when deployed|after each deployment|on the field|seconds? after"
-    r"|while (?:the |a |this unit's )?skill|during (?:the )?(?:duration|skill)|skill is active"
+    r"|while (?:the |a |this unit's )?skill|during (?:the )?(?:duration|skill)|skill is activ(?:e|ated)"
     r"|\bhp\b[^.;]*?\b(?:above|below|beneath|under|less than|more than)\b"
     r"|when attacking|when dealing damage|when hitting|\battacks? (?:have|has|inflict)\b"
     r"|(?:each|every|per) (?:\d+ )?(?:attacks?|hits?)\b|when this unit attacks"
@@ -89,6 +127,10 @@ TALENT_ALLY_WORDS = re.compile(r'\boperators\b|\bmembers\b', re.IGNORECASE)
 FRAGILE_AFTER = re.compile(r'^[^,]*?\bfragil', re.IGNORECASE)
 # A damage multiplier for splash damage only ("damage caused by Trait splash effect increases by 24%").
 SPLASH_WORDS = re.compile(r'\bsplash', re.IGNORECASE)
+# A boosted attack that also strikes again ("increase ATK to 130% and strike an additional target"): the extra strike
+# deals the same boosted damage, to the same enemy unless the first defeats it (Bagpipe's talent 1).
+EXTRA_STRIKE = re.compile(r'\b(?:strikes?|attacks?|hits?) (?:an? |one )?(?:additional|extra|another) (?:target|time)',
+                          re.IGNORECASE)
 
 DODGE_WORDS = re.compile(r'\bdodge\b', re.IGNORECASE)
 CHANCE_WORDS = re.compile(r'\bchance\b', re.IGNORECASE)
@@ -104,8 +146,6 @@ PER_SECOND = re.compile(r'(?:each|every|per) second', re.IGNORECASE)
 ATTACK_WORDS = re.compile(r'\battack|\bhit', re.IGNORECASE)
 DEPLOY_WORDS = re.compile(r'\bdeploy', re.IGNORECASE)
 
-# Prefixes on talent value names that don't change their meaning.
-KEY_PREFIXES = ('attack@', 'talent@')
 # Talent values that multiply the operator's damage.
 DAMAGE_KEYS = {'damage_scale', 'atk_scale'}
 # Values that make attacks ignore part of the enemy's DEF or RES ("Attacks ignore 23% DEF"), kept for matchups.
@@ -197,7 +237,8 @@ class Talent:
 def talent_key(raw_key: str) -> str:
     '''
     Returns a talent value's name without prefixes and variants:
-    "attack@prob" -> "prob", "skadi2_t_2[atk][1].atk" -> "atk".
+    "attack@prob" -> "prob", "skadi2_t_2[atk][1].atk" -> "atk". The same
+    as blackboard.value_name, which skills use too.
 
     Args:
         raw_key: The name as the HellaAPI gives it.
@@ -205,10 +246,7 @@ def talent_key(raw_key: str) -> str:
     Returns:
         The plain name.
     '''
-    key = raw_key.split('.')[-1]
-    for prefix in KEY_PREFIXES:
-        key = key.removeprefix(prefix)
-    return key
+    return value_name(raw_key)
 
 
 def unlocked_candidate(talent: dict, phase: int, level: int, potential: int) -> dict | None:
@@ -299,6 +337,75 @@ def _target_of(words_before: str, words_after: str = '') -> Target:
     return Target.SELF
 
 
+def group_name(name: str) -> str:
+    '''
+    Returns a group name (class, position, rarity or faction) in a form that
+    matches however it's written: lowercase, without brackets or quotes,
+    aliases resolved (FACTION_ALIASES), and without a final "s" ("[Abyssal
+    Hunter]" and "Abyssal Hunters" are both "abyssal hunter").
+    '''
+    name = re.sub(r"[\[\]'\"’]", '', name.lower())
+    name = re.sub(r'\s+', ' ', name).strip()
+    name = FACTION_ALIASES.get(name, name)
+    return name[:-1] if len(name) > 3 and name.endswith('s') else name
+
+
+def member_groups(operator_value: dict) -> frozenset[str]:
+    '''
+    Returns the groups an operator belongs to, as group_name()s: its class
+    ("vanguard"), position ("melee"), rarity ("five-star") and factions
+    (the name, code and id of each nation, group and team in "factions",
+    e.g. "abyssal hunter", "egir").
+
+    Args:
+        operator_value: The operator's whole HellaAPI value (with "data" and
+            "factions").
+    '''
+    data = operator_value.get('data') or {}
+    names = [CLASS_NAMES.get(data.get('profession') or ''), data.get('position'), RARITY_NAMES.get(data.get('rarity') or '')]
+    for faction in operator_value.get('factions') or []:
+        for power in (faction or {}).values():
+            if isinstance(power, dict):
+                names += [power.get('powerName'), power.get('powerCode'), power.get('powerId')]
+    return frozenset(group_name(name) for name in names if name)
+
+
+def shared_group(words_before: str, member_of: frozenset[str]) -> str | None:
+    '''
+    Returns the words naming the group an ally buff is for ("All Vanguard
+    Operators'"), when the operator belongs to that group, or None.
+
+    The group is the words before the last GROUP_NOUN in the value's part
+    of the clause (after the last comma). The operator belongs when they
+    say "this unit and", or "all" with no other name ("All allies"), or
+    name one of its groups (its class, position, rarity or a faction).
+    Buffs limited by position or a condition (GROUP_LIMIT) don't count,
+    unless they say "this unit and".
+
+    Args:
+        words_before: The words before the value in its clause.
+        member_of: The operator's groups (member_groups).
+    '''
+    segment = words_before.split(',')[-1]
+    nouns = list(GROUP_NOUN.finditer(segment))
+    if not nouns or not member_of:
+        return None
+    noun = nouns[-1]
+    qualifier = segment[:noun.start()]
+    phrase = segment[:noun.end()]
+    if INCLUDES_THIS_UNIT.search(qualifier):
+        return phrase
+    if GROUP_LIMIT.search(segment[noun.end():]):
+        return None
+    if EVERYONE.search(qualifier):
+        return phrase
+    names = [name for pair in re.findall(r"\[([^\]]+)\]|'([^']+)'", qualifier) for name in pair if name]
+    words = [word for word in re.findall(r"[\w-]+", re.sub(r"\[[^\]]+\]|'[^']+'", ' ', qualifier))
+             if word.lower() not in GROUP_FILLER]
+    candidates = [*names, *words, ' '.join(words)]
+    return phrase if any(candidate and group_name(candidate) in member_of for candidate in candidates) else None
+
+
 def clause_group(clause: str) -> tuple[str | None, str | None]:
     '''
     Returns (group, enemy condition) for one clause, or (None, None) when it
@@ -367,7 +474,7 @@ def _seconds_per_stack(clause: str, attack_interval: float | None) -> float | No
 
 def build_talent(
     number: int, candidate: dict, operator_id: str | None = None, attack_interval: float | None = None,
-    window: float | None = None, overrides: dict | None = None,
+    window: float | None = None, overrides: dict | None = None, member_of: frozenset[str] = frozenset(),
 ) -> Talent:
     '''
     Builds a Talent from its unlocked candidate.
@@ -381,6 +488,8 @@ def build_talent(
         window: The time to average stacks over (one skill rotation).
         overrides: {(operator_id, talent number): TalentOverride}; None
             loads the override file.
+        member_of: The operator's groups (member_groups), so buffs to a
+            group it belongs to ("All Vanguard Operators") apply to it too.
 
     Returns:
         The Talent.
@@ -393,6 +502,8 @@ def build_talent(
     values: dict[str, BlackboardValue] = {}
     clauses: dict[str, str] = {}
     pieces: dict[str, str] = {}
+    # Buffs to a group the operator belongs to: {value name: the words naming the group}.
+    shared: dict[str, str] = {}
     for entry in candidate.get('blackboard') or []:
         if entry.get('value') is None:
             continue
@@ -409,8 +520,13 @@ def build_talent(
         else:
             clause, words_before = _clause_at(text, position)
             words_after = clause[len(words_before):]
-            values[key] = BlackboardValue(key, entry['key'], entry['value'], is_percent,
-                                          _target_of(words_before, words_after))
+            target = _target_of(words_before, words_after)
+            # Only stat and damage changes are applied to the operator; other ally effects stay as they were.
+            effect = key in STAT_KEYS or key in ATTACK_KEYS or key in DAMAGE_KEYS
+            group = shared_group(words_before, member_of) if target == Target.ALLY and effect else None
+            if group is not None:
+                target, shared[key] = Target.SELF, group
+            values[key] = BlackboardValue(key, entry['key'], entry['value'], is_percent, target)
             clauses[key] = clause
             pieces[key] = words_before.split(',')[-1] + words_after.split(',')[0]
 
@@ -422,13 +538,19 @@ def build_talent(
     group_keys = effect_keys or [key for key, value in values.items()
                                  if (is_stat_value(value) or key in DAMAGE_KEYS or key in PENETRATION_KEYS)
                                  and value.target == Target.ENEMY]
-    groups = [clause_group(clauses[key]) for key in group_keys] or [clause_group(text)]
+    groups = [clause_group(_group_clause(clauses[key], shared.get(key))) for key in group_keys] or [clause_group(text)]
     if any(group is None for group, _ in groups):
         talent.group = TalentGroup.UNLIKELY
         talent.assumed.append('condition not recognised, so not applied (review)')
     else:
         known = [(TalentGroup(group), condition) for group, condition in groups if group is not None]
         talent.group, talent.condition = max(known, key=lambda pair: GROUP_ORDER.index(pair[0]))
+
+    for group in dict.fromkeys(shared.values()):
+        named = GROUP_START.search(group)
+        talent.notes.append(f"also buffs {(named.group(0) if named else group).strip().rstrip(chr(39)).strip()}")
+    if shared and 'duration' in values:
+        talent.assumed.append(f"the shared buff lasts {values['duration'].value:g} s; counted as always on")
 
     chance_key = 'prob' if 'prob' in values else next((key for key in values if CHANCE_KEY.fullmatch(key)), None)
     chance, chance_keys, stacks = _factor(talent, values, clauses, pieces, effect_keys, chance_key, attack_interval,
@@ -459,6 +581,19 @@ def build_talent(
         else:
             talent.unmodelled.append(value.raw_key)
     return talent
+
+
+def _group_clause(clause: str, group: str | None) -> str:
+    '''
+    Returns the clause to judge a value's condition from: for a buff to a
+    group the operator belongs to, without the group's words (which would
+    otherwise make it depend on other operators), "when this unit is in
+    the squad", and, for "This unit and..." buffs, range wording.
+    '''
+    if group is None:
+        return clause
+    clause = SELF_PRESENT.sub(' ', clause.replace(group.strip(), ' '))
+    return RANGE_TEXT.sub(' ', clause) if INCLUDES_THIS_UNIT.search(group) else clause
 
 
 def _factor(talent: Talent, values: dict[str, BlackboardValue], clauses: dict[str, str], pieces: dict[str, str],
@@ -511,7 +646,9 @@ def _apply_damage_value(talent: Talent, value: BlackboardValue, clause: str, sca
 
     A multiplier m with scale f (its chance and stacks) becomes
     1 + (m - 1) * f: a 20% chance to deal 160% damage averages
-    1 + 0.6 * 0.2 = 1.12.
+    1 + 0.6 * 0.2 = 1.12. When the boosted attack also strikes again
+    (EXTRA_STRIKE), it deals m twice: 1 + (2m - 1) * f, so a 25% chance of
+    two 130% strikes averages 1 + 1.6 * 0.25 = 1.4.
     '''
     if value.target == Target.ENEMY:
         talent.enemy_effects.append(value)
@@ -524,7 +661,11 @@ def _apply_damage_value(talent: Talent, value: BlackboardValue, clause: str, sca
     if SPLASH_WORDS.search(clause):
         talent.unmodelled.append(f'{value.raw_key} (splash damage only)')
         return
-    talent.damage_multiplier *= 1 + (value.value - 1) * scale
+    strikes = 1
+    if EXTRA_STRIKE.search(clause):
+        strikes = 2
+        talent.notes.append('the boosted attack strikes twice')
+    talent.damage_multiplier *= 1 + (value.value * strikes - 1) * scale
 
 
 def parse_talent_overrides(text: str) -> dict[tuple[str, int], TalentOverride]:
@@ -568,6 +709,7 @@ def load_talent_overrides() -> dict[tuple[str, int], TalentOverride]:
 def build_talents(
     operator_data: dict, phase: int, level: int, potential: int, operator_id: str | None = None,
     attack_interval: float | None = None, window: float | None = None, overrides: dict | None = None,
+    member_of: frozenset[str] = frozenset(),
 ) -> list[Talent]:
     '''
     Returns an operator's unlocked talents. Hidden talents and ones with no
@@ -583,6 +725,7 @@ def build_talents(
         attack_interval: Seconds between attacks, for stacks gained per attack.
         window: The time to average stacks over (one skill rotation).
         overrides: Overrides to use instead of the override file.
+        member_of: The operator's groups (member_groups).
 
     Returns:
         One Talent per unlocked talent, numbered from 1 in data order.
@@ -592,5 +735,5 @@ def build_talents(
         candidate = unlocked_candidate(talent, phase, level, potential)
         if candidate is None or candidate.get('isHideTalent') or not strip_tags(candidate.get('description')).strip():
             continue
-        talents.append(build_talent(number, candidate, operator_id, attack_interval, window, overrides))
+        talents.append(build_talent(number, candidate, operator_id, attack_interval, window, overrides, member_of))
     return talents

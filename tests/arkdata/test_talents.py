@@ -11,8 +11,11 @@ from arkdata.calculations.talents import (
     build_talents,
     clause_group,
     find_value,
+    group_name,
     load_talent_overrides,
+    member_groups,
     parse_talent_overrides,
+    shared_group,
     talent_key,
     unlocked_candidate,
 )
@@ -287,6 +290,16 @@ def test_dodge_chance_is_a_note():
     assert talent.factor == 1.0 and talent.modifiers.atk_percent == 0.06
 
 
+@pytest.mark.parametrize('wording', ['and strike an additional target', 'and strikes an extra time',
+                                     'and hits another target'])
+def test_boosted_attack_that_strikes_again_deals_the_multiplier_twice(wording):
+    # Bagpipe's talent 1: 75% of attacks deal 100%, 25% deal two strikes of 130%: 0.75 + 0.25 × 2.6 = 1.4.
+    talent = _talent(f'When attacking, has a 25% chance to increase ATK to 130% {wording}',
+                     {'prob': 0.25, 'atk_scale': 1.3})
+    assert talent.damage_multiplier == pytest.approx(1.4)
+    assert talent.notes == ['the boosted attack strikes twice']
+
+
 def test_chance_of_a_damage_multiplier_is_its_expected_value():
     talent = _talent('When attacking, has a 20% chance to deal 160% damage', {'prob': 0.2, 'atk_scale': 1.6})
     assert talent.factor == 0.2
@@ -536,3 +549,132 @@ def test_real_reed_alter_t1_enemy_debuffs():
     assert talent.notes == ['30% chance of an effect', 'effect lasts 6 s']
     # Potential 3 (rank 2) unlocks the stronger version.
     assert _real('reed_alter_t1', potential=1).enemy_effects[0].value == -0.2
+
+
+# Buffs to a group the operator belongs to
+
+VANGUARD = frozenset({'vanguard', 'melee', 'six-star', 'victoria', 'glasgow'})
+HUNTER = frozenset({'guard', 'melee', 'six-star', 'egir', 'abyssal hunter', 'abyssal'})
+
+
+@pytest.mark.parametrize('name, expected', [
+    ('Vanguard', 'vanguard'), ('[Abyssal Hunters]', 'abyssal hunter'), ('Abyssal Hunter', 'abyssal hunter'),
+    ("'Minoan'", 'mino'), ('Minos', 'mino'), ("Laios's Party", 'laioss party'), ('  Ave   Mujica ', 'ave mujica'),
+    ('Ursus Student Self-government Group', 'ursus student self-government group'),
+])
+def test_group_name(name, expected):
+    assert group_name(name) == expected
+
+
+def test_member_groups():
+    value = {'data': {'profession': 'PIONEER', 'position': 'MELEE', 'rarity': 'TIER_6'}, 'factions': [
+        {'nationPower': {'powerId': 'egir', 'powerName': 'Ægir', 'powerCode': 'Ægir'},
+         'groupPower': {'powerId': 'abyssal', 'powerName': 'Abyssal Hunters', 'powerCode': 'Abyssal Hunters'},
+         'teamPower': None},
+    ]}
+    assert member_groups(value) == {'vanguard', 'melee', 'six-star', 'egir', 'ægir', 'abyssal', 'abyssal hunter'}
+    assert member_groups({}) == frozenset()
+
+
+@pytest.mark.parametrize('words_before, member_of, expected', [
+    ("All Vanguard Operators' ATK and DEF +", VANGUARD, "All Vanguard Operators'"),
+    ('When deployed, allied Vanguard Operators gain +', VANGUARD, ' allied Vanguard Operators'),
+    ('When deployed, all [Vanguard] Operators gain +', VANGUARD, ' all [Vanguard] Operators'),
+    ('When this unit is in the squad, all [Abyssal Hunter] Operators gain +', HUNTER,
+     ' all [Abyssal Hunter] Operators'),
+    ("All allies' ASPD +", VANGUARD, "All allies'"),
+    ('All allied units on the battlefield gain +', VANGUARD, 'All allied units'),
+    ('This unit and allied Operators in the surrounding 8 tiles gain +', VANGUARD, 'This unit and allied Operators'),
+    ('Increases the ATK and DEF of all [Melee] allies by ', VANGUARD, 'Increases the ATK and DEF of all [Melee] allies'),
+    # Not the operator's group, or limited by position or a condition.
+    ("All Guard Operators' ATK +", VANGUARD, None),
+    ('When deployed, all three-star Operators gain +', VANGUARD, None),
+    ('DEF of allies within range +', VANGUARD, None),
+    ('ATK of Melee allies in the 8 surrounding tiles +', VANGUARD, None),
+    ('When deployed, Operators with ammo-type skills gain ATK +', VANGUARD, None),
+    ('Within the surrounding 8 tiles of the banner, allied units have ASPD +', VANGUARD, None),
+    ('When deployed, adjacent allies gain +', VANGUARD, None),
+    ("All Vanguard Operators' ATK +", frozenset(), None),
+    ('ATK +', VANGUARD, None),
+])
+def test_shared_group(words_before, member_of, expected):
+    assert shared_group(words_before, member_of) == expected
+
+
+def test_buff_to_the_operators_own_class_applies_to_it():
+    # Siege's talent 1.
+    talent = _talent("All Vanguard Operators' ATK and DEF +10%", {'atk': 0.1, 'def': 0.1}, member_of=VANGUARD)
+    assert (talent.group, talent.applied) == (TalentGroup.ALWAYS, True)
+    assert (talent.modifiers.atk_percent, talent.modifiers.def_percent) == (0.1, 0.1)
+    assert talent.notes == ['also buffs All Vanguard Operators']
+    assert talent.status == 'full'
+
+
+def test_buff_to_another_class_stays_an_ally_buff():
+    talent = _talent("All Guard Operators' ATK +10%", {'atk': 0.1}, member_of=VANGUARD)
+    assert talent.group == TalentGroup.UNLIKELY and talent.modifiers.is_empty()
+    assert talent.notes == ['buffs allies: atk +0.1']
+
+
+@pytest.mark.parametrize('description, expected', [
+    ('When deployed, all [Vanguard] Operators gain +10% ATK', TalentGroup.LIKELY),
+    ('When this unit is in the squad, all Vanguard Operators gain +10% ATK', TalentGroup.ALWAYS),
+    ('When skill is activated, Vanguard Operators gain +10% ATK for the duration', TalentGroup.LIKELY),
+    ('This unit and allied Operators in the surrounding 8 tiles gain +10% ATK', TalentGroup.ALWAYS),
+    ('When this unit and at least one more Vanguard Operator are on the battlefield, all Vanguard Operators gain '
+     '+10% ATK', TalentGroup.UNLIKELY),
+    ('When there are 4 [Glasgow] Operators in the squad, all [Glasgow] Operators gain +10% ATK', TalentGroup.UNLIKELY),
+])
+def test_shared_buff_conditions(description, expected):
+    talent = _talent(description, {'atk': 0.1}, member_of=VANGUARD)
+    assert talent.group == expected
+    assert talent.modifiers.atk_percent == 0.1
+
+
+def test_shared_buff_named_twice_in_the_clause():
+    # Amiya (Medic): "all allied units" twice, so both are left out when judging the condition.
+    talent = _talent('When deployed, all allied units have max HP +8%, and while skill is active, all allied units '
+                     'recover 2.5% of max HP per second', {'max_hp': 0.08, 'hp_recovery_per_sec_by_max_hp_ratio': 0.025},
+                     member_of=VANGUARD)
+    assert talent.group == TalentGroup.LIKELY and talent.modifiers.hp_percent == 0.08
+
+
+def test_faction_buffs_and_aliases():
+    minos = frozenset({'guard', 'mino'})
+    talent = _talent("When deployed, all 'Minoan' Operators gain Vigor effect of +25% ATK when HP is above 80%",
+                     {'atk': 0.25}, member_of=minos)
+    assert talent.modifiers.atk_percent == 0.25 and talent.notes == ["also buffs all 'Minoan' Operators"]
+    hunter = _talent('When this unit is in the squad, all [Abyssal Hunters] Operators gain +14 ASPD', {'attack_speed': 14},
+                     member_of=HUNTER)
+    assert (hunter.group, hunter.modifiers.attack_speed) == (TalentGroup.ALWAYS, 14)
+
+
+def test_shared_damage_multiplier():
+    talent = _talent('When deployed, Ave Mujica members deal 15% more damage', {'damage_scale': 1.15},
+                     member_of=frozenset({'ave mujica'}))
+    assert talent.damage_multiplier == pytest.approx(1.15)
+    assert talent.notes == ['also buffs Ave Mujica members']
+
+
+def test_shared_timed_buff_is_flagged():
+    # Castle-3: counted as always on, though it only lasts 20 s.
+    talent = _talent('Increases the ATK and DEF of all [Melee] allies by 20% for 20 seconds after deployment',
+                     {'atk': 0.2, 'def': 0.2, 'duration': 20}, member_of=VANGUARD)
+    assert talent.notes == ['also buffs all [Melee] allies', 'effect lasts 20 s']
+    assert talent.assumed == ['the shared buff lasts 20 s; counted as always on']
+
+
+def test_only_stat_and_damage_changes_are_shared():
+    talent = _talent('Restores the HP of all allies by 25 per second', {'hp_recovery_per_sec': 25}, member_of=VANGUARD)
+    assert talent.notes == ['regenerates 25 HP per second']
+
+
+def test_build_talents_passes_the_groups_on():
+    operator = {'talents': [{'candidates': [make_talent_candidate("All Vanguard Operators' ATK +10%", {'atk': 0.1})]}]}
+    [talent] = build_talents(operator, 0, 1, 0, overrides={}, member_of=VANGUARD)
+    assert talent.applied and talent.modifiers.atk_percent == 0.1
+
+
+def test_enemy_status_condition():
+    talent = _talent('When deployed, deals 15% more damage to Slowed or Feared enemies', {'damage_scale': 1.15})
+    assert (talent.group, talent.condition) == (TalentGroup.PER_ENEMY, 'enemy status')

@@ -43,6 +43,8 @@ def test_join():
 
 @pytest.mark.parametrize('value, expected', [
     (None, '-'), (640, '640'), (0.5, '0.5'), (12848.333, '12,848.33'), (2.0, '2'), (-0.001, '0'), (-1.5, '-1.5'),
+    # Rounded like the io/ tables (numpy), not Python's formatting (1.07, 2.67).
+    (1.075, '1.08'), (2.675, '2.68'),
 ])
 def test_number(value, expected):
     assert number(value) == expected

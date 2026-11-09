@@ -307,6 +307,31 @@ def test_instant_extra_strike_on_nearby_enemies():
     assert skill.average_dps_total == pytest.approx(640 + 576)
 
 
+def test_swordmaster_strike_skills_hit_once():
+    # Ch'en's Sheathed Strike: the trait's double hit is for normal attacks only.
+    profile = _profile(_skill('On the next attack, strike the enemy using the sheath, dealing {atk_scale:0%} ATK as '
+                              'Physical damage', {'atk_scale': 2.6}, sp_type='INCREASE_WHEN_ATTACK', sp_cost=5, duration=0),
+                       _skill('Deals {atk_scale:0%} ATK as Physical damage to up to {max_target} enemies',
+                              {'atk_scale': 4.4, 'max_target': 6}, sp_type='INCREASE_WHEN_ATTACK', sp_cost=10,
+                              duration=0),
+                       sub_profession='sword')
+    s1, s2 = profile.skills
+    # Normal attacks hit twice: 1280 DPS. S1's strike is one 260% hit (1664), replacing a 1280 attack: +384.
+    assert profile.base_damage[0].per_target == 1280
+    assert s1.burst[0].per_target == pytest.approx(640 * 2.6 - 1280)
+    # S2's extra strike: one 440% hit on each of up to 6 enemies.
+    assert (s2.burst[0].per_target, s2.burst[0].total) == (pytest.approx(640 * 4.4), pytest.approx(640 * 4.4 * 6))
+
+
+def test_swordmaster_boosted_next_attack_and_timed_skills_keep_the_double_hit():
+    profile = _profile(_skill('The next attack has ATK +{atk:0%}', {'atk': 1.0}, sp_cost=10, duration=0),
+                       _skill('ATK +{atk:0%}', {'atk': 0.5}, sp_cost=20, duration=20), sub_profession='sword')
+    boosted, timed = profile.skills
+    # A boosted next attack is still a normal attack (2 hits of 1280 instead of 640): +1280.
+    assert boosted.burst[0].per_target == 1280
+    assert timed.dps == 960 * 2
+
+
 def test_instant_skill_without_damage_adds_nothing():
     profile = _profile(_skill('Blocks the next source of damage; DEF +{def:0%}', {'def': 1.0},
                               sp_type='INCREASE_WHEN_TAKEN_DAMAGE', sp_cost=10, duration=0))
@@ -560,3 +585,62 @@ def test_real_kaltsit_and_mon3tr():
     assert (mon3tr.name, mon3tr.owner_id, mon3tr.potential, mon3tr.trust) == ('Mon3tr', 'char_003_kalts', 0, 0)
     assert mon3tr.summary().min_dps == pytest.approx(701)
     assert mon3tr.skills == []
+
+
+def test_real_bagpipe():
+    profile = _real('bagpipe')
+    # ATK 586 + 25 (potential) + 85 (trust) = 696, attack interval 1.0 s.
+    # Talent 1 (potential 6): 28% chance of two 130% strikes: 0.72 + 0.28 × 2.6 = 1.448 per hit.
+    [talent] = [talent for talent in profile.talents if talent.number == 1]
+    assert talent.damage_multiplier == pytest.approx(1.448)
+    assert profile.summary().min_dps == pytest.approx(696 * 1.448)
+    s1, s2, s3 = profile.skills
+    # S1 M3: ATK +45%, ASPD +45: 1009.2 × 1.448 / (1 / 1.45) = 2118.92, 35 s of a 70 s cycle.
+    assert s1.dps == pytest.approx(1009.2 * 1.448 * 1.45)
+    assert s1.average_dps == pytest.approx((1009.2 * 1.448 * 1.45 + 696 * 1.448) / 2)
+    # S2 M3: next attack 200% and strikes again: 2 × 2 × 696 × 1.448 = 4031.23, minus the 1007.81 attack it replaces,
+    # every 4 s (4 SP over time): 1007.81 + 3023.42 / 4 = 1763.66.
+    assert s2.burst[0].per_target == pytest.approx(696 * 1.448 * 3)
+    assert s2.average_dps == pytest.approx(696 * 1.448 + 696 * 1.448 * 3 / 4)
+    # S3 M3: ATK +120% = 1531.2, 3 hits per attack (each can trigger the talent), interval 1 + 0.7 = 1.7 s:
+    # 1531.2 × 3 × 1.448 / 1.7 = 3912.67 DPS, 20 s of a 60 s cycle.
+    assert s3.dps == pytest.approx(1531.2 * 3 * 1.448 / 1.7)
+    assert s3.average_dps == pytest.approx((1531.2 * 3 * 1.448 / 1.7 * 20 + 696 * 1.448 * 40) / 60)
+    summary = profile.summary()
+    assert (summary.max_dps_skill, summary.avg_dps_skill) == ('Locked Breech Burst', 'Locked Breech Burst')
+
+
+def test_real_siege_gets_her_own_vanguard_buff():
+    profile = _real('siege')
+    assert {'vanguard', 'melee', 'glasgow', 'victoria'} <= profile.member_of
+    # Talent 1 ("All Vanguard Operators' ATK and DEF +10%") includes Siege herself.
+    # ATK (515 + 25 potential + 60 trust) × 1.1 = 660, DEF (384 + 25) × 1.1 = 449.9; 660 / 1.05 s = 628.57 DPS.
+    assert (profile.base_stats.atk, profile.base_stats.defense) == (pytest.approx(660), pytest.approx(449.9))
+    assert profile.summary().min_dps == pytest.approx(660 / 1.05)
+    _, s2, s3 = profile.skills
+    # S2 M3: next attack deals 340% to nearby enemies: 2244 - 660 = 1584 more, every 10 s: 628.57 + 158.4 = 786.97.
+    assert s2.burst[0].per_target == pytest.approx(1584)
+    assert s2.average_dps == pytest.approx(660 / 1.05 + 158.4)
+    # S3 M3: ATK to 380%, attack interval 1.05 + 1 = 2.05 s: 1223.41 DPS for 25 s of a 55 s cycle.
+    assert s3.dps == pytest.approx(660 * 3.8 / 2.05)
+    assert s3.average_dps == pytest.approx((660 * 3.8 / 2.05 * 25 + 660 / 1.05 * 30) / 55)
+
+
+def test_real_eyjafjalla_s1_versions_and_s2_ignition():
+    profile = _real('eyjafjalla')
+    # Talent 1 ("All [Caster] Operators' ATK +16%") includes Eyjafjalla.
+    # ATK (645 + 27 potential + 90 trust) × 1.16 = 883.92; arts, interval 1.6 s: 552.45 DPS.
+    assert profile.base_stats.atk == pytest.approx(883.92)
+    assert profile.summary().min_dps == pytest.approx(552.45)
+    s1, s2, _ = profile.skills
+    # S1 M3: ATK +60% (counted from the first use) and ASPD +60: 762 × (1 + 0.16 + 0.6) = 1341.12 ATK,
+    # interval 1.6 / 1.6 = 1 s: 1341.12 DPS for 25 s of a 60 s cycle: (1341.12 × 25 + 552.45 × 35) / 60 = 881.06.
+    assert s1.stats.attack_interval == pytest.approx(1.0)
+    assert s1.dps == pytest.approx(1341.12)
+    assert s1.average_dps == pytest.approx((1341.12 * 25 + 552.45 * 35) / 60)
+    # S2 M3: the next attack deals 370% (fk) instead of 100%: 883.92 × 2.7 = 2386.58 more on the target.
+    # Half damage splashes on 2 others: 883.92 × 3.7 × 2.0 - 883.92 = 5657.09 more in total.
+    # SP 5 over time: 552.45 + 2386.58 / 5 = 1029.77.
+    assert s2.burst[0].per_target == pytest.approx(883.92 * 2.7)
+    assert s2.burst[0].total == pytest.approx(883.92 * 3.7 * 2 - 883.92)
+    assert s2.average_dps == pytest.approx(552.45 + 883.92 * 2.7 / 5)

@@ -6,8 +6,9 @@ from arkdata.calculations.blackboard import (
     read_blackboard,
     render_description,
     strip_tags,
+    value_name,
 )
-from factories import load_skill_fixture, make_skill_level
+from factories import load_operator_fixture, load_skill_fixture, make_skill_level
 
 
 def _level(description, **blackboard):
@@ -65,6 +66,79 @@ def test_names_in_the_template_are_matched_ignoring_case():
 
 def test_level_without_description_or_blackboard():
     assert read_blackboard({}) == {}
+
+
+# value_name and variant names
+
+@pytest.mark.parametrize('raw_key, expected', [
+    ('atk', 'atk'),
+    ('attack@prob', 'prob'),
+    ('talent@prob', 'prob'),
+    ('amgoat_s_1[b].atk', 'atk'),
+    ('attack@amgoat_s_1[b].attack@atk_scale', 'atk_scale'),
+    ('skadi2_t_2[atk][1].atk', 'atk'),
+    ('burn.atk_scale', 'atk_scale'),
+])
+def test_value_name_drops_prefixes_and_variants(raw_key, expected):
+    assert value_name(raw_key) == expected
+
+
+def _raw_level(description, *blackboard):
+    level = make_skill_level(description, None)
+    level['blackboard'] = [{'key': key, 'value': value} for key, value in blackboard]
+    return level
+
+
+def test_versions_of_a_value_are_read_under_its_plain_name():
+    # Eyjafjalla's S1: [a] is the first use, [b] from the second use on.
+    level = _raw_level('ASPD +{amgoat_s_1[a].attack_speed}, ATK +{amgoat_s_1[b].atk:0%}',
+                       ('amgoat_s_1[a].attack_speed', 30), ('amgoat_s_1[b].attack_speed', 30), ('amgoat_s_1[b].atk', 0.3))
+    ignored = []
+    values = read_blackboard(level, ignored)
+    assert set(values) == {'attack_speed', 'atk'}
+    assert values['attack_speed'] == BlackboardValue('attack_speed', 'amgoat_s_1[a].attack_speed', 30, False, Target.SELF)
+    assert values['atk'] == BlackboardValue('atk', 'amgoat_s_1[b].atk', 0.3, True, Target.SELF)
+    # The second attack_speed has the same number, so nothing is reported.
+    assert ignored == []
+
+
+def test_a_later_version_with_a_different_number_is_ignored_and_reported():
+    level = _raw_level('', ('attack@x[a].atk', 0.3), ('attack@x[b].atk', 0.5))
+    ignored = []
+    values = read_blackboard(level, ignored)
+    assert values['atk'].value == 0.3 and values['atk'].raw_key == 'attack@x[a].atk'
+    assert ignored == ['attack@x[b].atk ignored (another version of atk is used)']
+
+
+def test_ignored_versions_are_only_reported_when_asked():
+    level = _raw_level('', ('x[a].atk', 0.3), ('x[b].atk', 0.5))
+    assert read_blackboard(level)['atk'].value == 0.3
+
+
+def test_plain_value_wins_over_versions_of_the_same_name():
+    # Ch'en the Dawnstreak's S2: her own "atk" is the skill's; the variants are other effects.
+    level = _raw_level('', ('atk', 0.5), ('x[a].atk', 0.9), ('x[b].atk', 0.8))
+    values = read_blackboard(level)
+    assert values['atk'].value == 0.5
+    assert {'x[a].atk', 'x[b].atk'} <= set(values)
+
+
+@pytest.mark.parametrize('raw_key, expected_key', [
+    ('burn.atk_scale', 'burn.atk_scale'),
+    ('attack@extrabomb.atk_scale', 'extrabomb.atk_scale'),
+    ('chen3_s2[respawn_buff].atk', 'chen3_s2[respawn_buff].atk'),
+])
+def test_a_variant_without_other_versions_is_a_separate_effect(raw_key, expected_key):
+    values = read_blackboard(_raw_level('', ('atk_scale', 2.5), (raw_key, 1.2)))
+    assert values[expected_key] == BlackboardValue(expected_key, raw_key, 1.2, None, Target.UNKNOWN)
+    assert values['atk_scale'].value == 2.5
+
+
+def test_real_eyjafjalla_s1_mastery_3_versions():
+    level = load_operator_fixture('eyjafjalla')['skills'][0]['excel']['levels'][9]
+    values = read_blackboard(level)
+    assert (values['attack_speed'].value, values['atk'].value) == (60, 0.6)
+    assert render_description(level) == 'ASPD +60\nStarting from the second use of the skill, ATK +60%'
 
 
 # read_blackboard: who a value affects

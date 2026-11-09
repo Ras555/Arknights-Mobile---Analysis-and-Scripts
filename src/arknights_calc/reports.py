@@ -18,6 +18,8 @@ from collections.abc import Iterable
 from dataclasses import fields
 from typing import Any
 
+import numpy as np
+
 from arkdata.calculations.blackboard import BlackboardValue, strip_tags
 from arkdata.calculations.damage import DamageType
 from arkdata.calculations.operator_profile import OperatorProfile, SkillProfile, damage_sum, summon_ids
@@ -25,6 +27,7 @@ from arkdata.calculations.operator_stats import parse_phase
 from arkdata.calculations.skill_rotation import SkillTrigger
 from arkdata.calculations.skills import DamagePart, StatModifiers
 from arkdata.calculations.talents import Talent, unlocked_candidate
+from arknights_calc.storage import VIEW_DECIMALS
 
 # Constants
 
@@ -74,12 +77,15 @@ def join(items: Iterable) -> str:
 
 def number(value: float | None) -> str:
     '''
-    Returns a number for reading: at most 2 decimals, thousands separated
-    ("12,848.33", "0.5", "640"), or "-" for None.
+    Returns a number for reading: at most VIEW_DECIMALS (2) decimals,
+    thousands separated ("12,848.33", "0.5", "640"), or "-" for None.
+    Rounded the same way as the io/ tables (numpy's round, as pandas uses),
+    so a value shows the same on a page as in a table (1.075 is 1.08 in
+    both, where Python's own formatting gives 1.07).
     '''
     if value is None:
         return '-'
-    text = f'{value:,.2f}'.rstrip('0').rstrip('.')
+    text = f'{float(np.round(value, VIEW_DECIMALS)):,.{VIEW_DECIMALS}f}'.rstrip('0').rstrip('.')
     return '0' if text == '-0' else text
 
 

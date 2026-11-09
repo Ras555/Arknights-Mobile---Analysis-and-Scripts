@@ -273,7 +273,8 @@ id). fetch_operator_value returns the whole value; fetch_operator_data returns o
 The description template shows how each named value is used: `{atk:0%}` is a percentage, `{def}` a plain number,
 `{-def}` the value negated, and the words around it say who it affects ("Targets' DEF -{-def}" lowers enemies' DEF,
 "DEF -{-def:0%}" lowers the operator's own). About a quarter of values don't appear in the text at all. Names may have
-an `attack@` prefix (ignored), and a few templates write names in capitals.
+an `attack@` prefix (ignored), some have a variant prefix ("amgoat_s_1[b].atk", "burn.atk_scale"; see Skills), and a
+few templates write names in capitals.
 
 #### Deployable Info
 
@@ -517,9 +518,22 @@ percentages comes from the template, or, for values not in the text, from their 
 to 1, are percentages), which is recorded as an assumption. attack_speed is flat ASPD, base_attack_time is seconds
 added to the attack interval, block_cnt extra block. Values that affect enemies are kept as enemy_effects (for
 matchups), values that buff allies become notes.
+- Variant names ("prefix.name"): when the prefix comes in versions with different bracket tags and there's no plain
+value of that name, they're versions of one value, read under the plain name with the first one listed used
+(Eyjafjalla's S1 has amgoat_s_1[a] for its first use and amgoat_s_1[b] from the second use, so its ASPD and ATK both
+count); a later version with a different number is ignored and recorded as an assumption. Other variants are separate
+effects and keep their whole name, so they're listed as unmodelled (Ifrit's burn.atk_scale, Ch'en the Dawnstreak's
+chen3_s2[respawn_buff].atk). Checked 2026-11-09: this and the shown damage rule below change 6 skills in the game
+(Eyjafjalla S1 and S2, Nian S3, Waai Fu S1, Pinecone S2, Humus S2).
 - Damage: each atk_scale placeholder is one DamagePart, typed by the damage named after it ("410% of ATK Physical
-damage and 410% of ATK Arts damage" is two parts), otherwise the operator's type. times is hits per attack,
-max_target the target limit. "damage type changes to True" (and similar) changes the whole attack. A multiplier only
+damage and 410% of ATK Arts damage" is two parts), otherwise the operator's type. times is hits per attack; without
+it, hits written in the text count ("attacks hit 3 times in a row" = 3; "strikes an additional time", "attacks hit
+twice", "deals 170% ATK as Arts damage twice" and "double strikes" = 2), unless the clause makes them occasional or
+someone else's ("20% chance of striking twice", "after this skill has been used 5 times", "During Fever", "Overload:",
+"if", "when", "its attacks"; checked 2026-11-05: 34 skills in the game gain hits this way). max_target the target
+limit. When the skill has an atk_scale its text never shows, but the text shows another value as "{x:0%} of ATK Arts
+damage" (or Physical or True), that value is the damage (Eyjafjalla's Ignition: its 370% "fk"; its atk_scale is half
+of it, the splash), recorded as an assumption. "damage type changes to True" (and similar) changes the whole attack. A multiplier only
 dealt to enemies that attack the unit (counter damage) isn't treated as an attack multiplier. Damage "every second" is
 marked per_second.
 - What starts a skill (Skill.trigger, a SkillTrigger): SP for normal skills. Passive skills (skillType PASSIVE, spType
@@ -537,7 +551,10 @@ or none (nothing could be modelled).
 
 How many enemies an attack hits (src/arkdata/calculations/attack_targets.py), in order: the skill's max_target; AoE
 wording in the clause with the skill's multiplier ("all enemies", "nearby enemies", "AOE"...), assumed to be 3 enemies;
-otherwise the archetype's basic attack. AoE archetypes (Artilleryman, Splash/Blast Caster, Flinger, Reaper,
+otherwise the archetype's basic attack. With no target limit and no AoE, "half damage to enemies around the target"
+anywhere in the text splashes half damage on the other 2 assumed enemies (damage_share 2.0, splash_targets; only
+Eyjafjalla's Ignition says this, checked 2026-11-09; it's checked after the AoE wording, so the same words in the
+multiplier's own clause would count as an even AoE). AoE archetypes (Artilleryman, Splash/Blast Caster, Flinger, Reaper,
 Spreadshooter, Ambusher, Fortress, Earthshaker) assume 3 enemies; Centurion, Crusher and Pusher hit as many as their
 block count; Chain Casters jump between 4 enemies losing 15% per jump; Earthshakers splash 50% to the others.
 Targets.damage_share is the sum of the damage each enemy takes (3.0 for an even AoE on 3, 2.0 for an Earthshaker).
@@ -577,17 +594,34 @@ value with a different number is ignored and recorded as an assumption. Stat and
 description aren't plain bonuses (e.g. an "atk" of 1), so they're listed as unmodelled instead of applied.
 - Groups (TalentGroup), checked in this order on each clause holding one of the talent's own effects (or its effects on
 enemies when it has none; the least likely group wins): PER_ENEMY (aerial/enemy drones, unblocked, blocked, elite/leader/boss,
-enemy HP ("enemies with 80% or more HP"), weight, or an enemy type such as "[Infected Creatures]", "Sarkaz enemies" or
-"to Machine enemies", kept as the talent's condition), UNLIKELY (depends on allies, operator counts, tiles or the team),
+enemy HP ("enemies with 80% or more HP"), weight, an enemy status ("to Slowed or Feared enemies"), or an enemy type such
+as "[Infected Creatures]", "Sarkaz enemies" or "to Machine enemies", kept as the talent's condition), UNLIKELY (depends
+on allies, operator counts ("at least one more Medic Operator"), tiles or the team),
 LIKELY (after deployment, while the skill is active, HP thresholds, when
 attacking/dealing damage, per attack, per kill, per Slow inflicted, every N seconds deployed...), and ALWAYS (no
 condition words). Wording that no rule recognises, and effects picked at random, are UNLIKELY and flagged for review. ALWAYS and LIKELY talents are
 applied to the operator's figures; PER_ENEMY ones only in matchups against enemies that fit; UNLIKELY ones not at all.
 Every talent's effects are still worked out, whatever its group.
+- Buffs to a group the operator belongs to also apply to the operator (`shared_group`, with the operator's groups from
+`member_groups`: its class, melee/ranged position, rarity ("three-star"), and the name, code and id of each nation,
+group and team in the HellaAPI's "factions", compared by `group_name`, which ignores case, brackets, quotes and a final
+"s", with FACTION_ALIASES for "Minoan" = Minos). The group is the words before the last "Operators"/"allies"/
+"units"/"members" in the value's part of the clause. It includes the operator when it says "this unit and", "all"
+with no other name ("All allies", "all allied units", "all Operators"), or names one of its groups ("All Vanguard
+Operators'" for Siege, "all [Abyssal Hunter] Operators" for Skadi). Buffs limited by position ("allies within range",
+"in the 8 surrounding tiles") or a condition ("Operators with ammo-type skills") stay ally buffs, unless they say
+"this unit and". Only stat and damage changes are shared. The condition is judged without the group's words (and
+without "when this unit is in the squad", and, for "this unit and" buffs, range wording), so Siege's T1 is ALWAYS,
+"When deployed, all [Guard] Operators..." is LIKELY, and "when there are 4 [Laios's Party] Operators in the squad" stays
+UNLIKELY. The talent gets an "also buffs <group>" note, and a shared buff with a duration ("for 20 seconds after
+deployment") is noted as assumed to be always on. Checked 2026-11-05: 29 talents in the game are shared this way.
 - Factor (what each value is multiplied by): a chance (prob, or the first of prob1, prob2...) of the talent's own
 effect is its expected value (a 20% chance to deal 160% is a 1.12 multiplier). It only scales the effects in the part of
 the clause (between commas) that mentions the chance ("ASPD +6, 15% chance to increase ATK to 150%" keeps the full ASPD),
-or every effect when only the clause as a whole does. A dodge chance, or a chance of something not modelled, is a note. Stacking
+or every effect when only the clause as a whole does. A dodge chance, or a chance of something not modelled, is a note.
+A boosted attack that also strikes again ("increase ATK to 130% and strike an additional target") deals the multiplier
+twice, to the same enemy unless the first strike defeats it: 1 + (2m - 1) × chance (Bagpipe's talent 1: 0.75 + 0.25 ×
+2.6 = 1.4). Talent multipliers apply to every hit, so each hit of a multi-hit skill can trigger the talent. Stacking
 effects use the average number of stacks over a window (one skill rotation) when they stack per attack, every N
 attacks, or every N seconds; when the rate isn't known (per kill, per Slow) they assume half the maximum stacks
 (UNKNOWN_STACK_FRACTION), flagged as assumed.
@@ -619,8 +653,11 @@ OperatorProfile, and `OperatorProfile.summary()` a ProfileSummary (one row of fi
 
 - Base stats come from OperatorStats (level, potential, trust). The applied talents (ALWAYS and LIKELY) are added, then
 a skill's changes while it's active. Healing isn't multiplied by talent damage multipliers.
-- Hits: a damage part with 1 hit uses the archetype's hits (a Swordmaster's 2), since only skills that change the number
-of hits say so. Damage dealt every second isn't divided by the attack interval, and is added to the normal attack.
+- Hits: the archetype's hits (a Swordmaster's 2, a Flinger's 1.5) are part of normal attacks only. A damage part with
+1 hit uses them for the normal attack and for timed skills that change it, and for a boosted next attack with no damage
+of its own ("The next attack has ATK +100%"); a one-off strike with its own damage (Ch'en's Sheathed Strike and Chi
+Xiao - Unsheath) hits as often as the skill says (confirmed by the owner 2026-11-05). Damage dealt every second isn't
+divided by the attack interval, and is added to the normal attack.
 - Phalanx Casters and Liberators don't attack outside their skills (0 DPS with no skill), but do during them.
 - Each skill gets a SkillProfile: stats and damage (one Damage per damage type, per target and in total) while active,
 and its SkillRotation (charging at the attack interval with no skill; SP when hit at 1 attacker every
@@ -641,8 +678,10 @@ operators. status combines every skill's and talent's status (full, partial, non
 - Skill levels: a skill that doesn't have the wanted level or mastery (a summon's 1-level skill, or one without masteries)
 uses its nearest level, noted as assumed.
 - Not modelled: modules, operator talents and skills that buff their own summons (Kal'tsit's skills that buff Mon3tr
-are read as her own changes), SP gained from talents, and the chance in a skill's own wording ("15% chance to increase
-ATK to 200%").
+are read as her own changes), SP gained from talents, the chance in a skill's own wording ("15% chance to increase
+ATK to 200%"), and extra effects of shared buffs ("doubled when this unit's skill is active", "[Ursus Student
+Self-Government Group] Operators receive double the effect"). Talents that only apply while a skill is active ("When
+skill is activated, ... for the duration") are LIKELY, so they count with no skill too.
 
 #### Summons
 
@@ -724,7 +763,8 @@ The io folder is gitignored, since its files are regenerated on every run.
 The tests folder stores the pytest suite, split into tests/arkdata and tests/arknights_calc to mirror the packages. The
 tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
 tests/fixtures/skills and tests/fixtures/talents hold trimmed real HellaAPI skill and talent data, and
-tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit and Mon3tr)
+tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit, Mon3tr,
+Bagpipe, Siege and Eyjafjalla; Siege's and Eyjafjalla's files also keep their factions and position)
 for operator profiles, with their expected figures worked out by hand in the tests (each file names its source). They're
 loaded with load_skill_fixture, load_talent_fixture and load_operator_fixture; make_operator_value builds a fake operator.
 
@@ -864,7 +904,7 @@ otherwise.
 3. Build each operator's profile (see Operator Profiles) at its skill level and masteries (a blank mastery counts as 0),
 and its summons' profiles. Summons that can't be fetched are logged and skipped.
 4. Save the results (src/arknights_calc/reports.py turns profiles into rows and pages; numbers in io/ files are rounded
-to 2 decimals, ref/ keeps full precision):
+to 2 decimals, ref/ keeps full precision; the pages round numbers the same way as the tables, with numpy):
    - ref/operator_stats_output.csv and io/operator_stats_output.csv: one row per operator, with OperatorStats' columns
    (the existing dps column is the basic attack with no talents, still used by the matchups step), then min_dps,
    avg_dps, max_dps, the same three ending in _total, avg_dps_skill, avg_dps_total_skill, max_dps_skill,
