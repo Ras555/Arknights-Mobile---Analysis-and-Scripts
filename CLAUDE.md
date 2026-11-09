@@ -581,13 +581,27 @@ value with a different number is ignored and recorded as an assumption. Stat and
 description aren't plain bonuses (e.g. an "atk" of 1), so they're listed as unmodelled instead of applied.
 - Groups (TalentGroup), checked in this order on each clause holding one of the talent's own effects (or its effects on
 enemies when it has none; the least likely group wins): PER_ENEMY (aerial/enemy drones, unblocked, blocked, elite/leader/boss,
-enemy HP ("enemies with 80% or more HP"), weight, or an enemy type such as "[Infected Creatures]", "Sarkaz enemies" or
-"to Machine enemies", kept as the talent's condition), UNLIKELY (depends on allies, operator counts, tiles or the team),
+enemy HP ("enemies with 80% or more HP"), weight, an enemy status ("to Slowed or Feared enemies"), or an enemy type such
+as "[Infected Creatures]", "Sarkaz enemies" or "to Machine enemies", kept as the talent's condition), UNLIKELY (depends
+on allies, operator counts ("at least one more Medic Operator"), tiles or the team),
 LIKELY (after deployment, while the skill is active, HP thresholds, when
 attacking/dealing damage, per attack, per kill, per Slow inflicted, every N seconds deployed...), and ALWAYS (no
 condition words). Wording that no rule recognises, and effects picked at random, are UNLIKELY and flagged for review. ALWAYS and LIKELY talents are
 applied to the operator's figures; PER_ENEMY ones only in matchups against enemies that fit; UNLIKELY ones not at all.
 Every talent's effects are still worked out, whatever its group.
+- Buffs to a group the operator belongs to also apply to the operator (`shared_group`, with the operator's groups from
+`member_groups`: its class, melee/ranged position, rarity ("three-star"), and the name, code and id of each nation,
+group and team in the HellaAPI's "factions", compared by `group_name`, which ignores case, brackets, quotes and a final
+"s", with FACTION_ALIASES for "Minoan" = Minos). The group is the words before the last "Operators"/"allies"/
+"units"/"members" in the value's part of the clause. It includes the operator when it says "this unit and", "all"
+with no other name ("All allies", "all allied units", "all Operators"), or names one of its groups ("All Vanguard
+Operators'" for Siege, "all [Abyssal Hunter] Operators" for Skadi). Buffs limited by position ("allies within range",
+"in the 8 surrounding tiles") or a condition ("Operators with ammo-type skills") stay ally buffs, unless they say
+"this unit and". Only stat and damage changes are shared. The condition is judged without the group's words (and
+without "when this unit is in the squad", and, for "this unit and" buffs, range wording), so Siege's T1 is ALWAYS,
+"When deployed, all [Guard] Operators..." is LIKELY, and "when there are 4 [Laios's Party] Operators in the squad" stays
+UNLIKELY. The talent gets an "also buffs <group>" note, and a shared buff with a duration ("for 20 seconds after
+deployment") is noted as assumed to be always on. Checked 2026-11-05: 29 talents in the game are shared this way.
 - Factor (what each value is multiplied by): a chance (prob, or the first of prob1, prob2...) of the talent's own
 effect is its expected value (a 20% chance to deal 160% is a 1.12 multiplier). It only scales the effects in the part of
 the clause (between commas) that mentions the chance ("ASPD +6, 15% chance to increase ATK to 150%" keeps the full ASPD),
@@ -626,8 +640,11 @@ OperatorProfile, and `OperatorProfile.summary()` a ProfileSummary (one row of fi
 
 - Base stats come from OperatorStats (level, potential, trust). The applied talents (ALWAYS and LIKELY) are added, then
 a skill's changes while it's active. Healing isn't multiplied by talent damage multipliers.
-- Hits: a damage part with 1 hit uses the archetype's hits (a Swordmaster's 2), since only skills that change the number
-of hits say so. Damage dealt every second isn't divided by the attack interval, and is added to the normal attack.
+- Hits: the archetype's hits (a Swordmaster's 2, a Flinger's 1.5) are part of normal attacks only. A damage part with
+1 hit uses them for the normal attack and for timed skills that change it, and for a boosted next attack with no damage
+of its own ("The next attack has ATK +100%"); a one-off strike with its own damage (Ch'en's Sheathed Strike and Chi
+Xiao - Unsheath) hits as often as the skill says (confirmed by the owner 2026-11-05). Damage dealt every second isn't
+divided by the attack interval, and is added to the normal attack.
 - Phalanx Casters and Liberators don't attack outside their skills (0 DPS with no skill), but do during them.
 - Each skill gets a SkillProfile: stats and damage (one Damage per damage type, per target and in total) while active,
 and its SkillRotation (charging at the attack interval with no skill; SP when hit at 1 attacker every
@@ -648,8 +665,10 @@ operators. status combines every skill's and talent's status (full, partial, non
 - Skill levels: a skill that doesn't have the wanted level or mastery (a summon's 1-level skill, or one without masteries)
 uses its nearest level, noted as assumed.
 - Not modelled: modules, operator talents and skills that buff their own summons (Kal'tsit's skills that buff Mon3tr
-are read as her own changes), SP gained from talents, and the chance in a skill's own wording ("15% chance to increase
-ATK to 200%").
+are read as her own changes), SP gained from talents, the chance in a skill's own wording ("15% chance to increase
+ATK to 200%"), and extra effects of shared buffs ("doubled when this unit's skill is active", "[Ursus Student
+Self-Government Group] Operators receive double the effect"). Talents that only apply while a skill is active ("When
+skill is activated, ... for the duration") are LIKELY, so they count with no skill too.
 
 #### Summons
 
@@ -731,8 +750,8 @@ The io folder is gitignored, since its files are regenerated on every run.
 The tests folder stores the pytest suite, split into tests/arkdata and tests/arknights_calc to mirror the packages. The
 tests use fake game data built by tests/factories.py and never call the HellaAPI or the Arknights servers.
 tests/fixtures/skills and tests/fixtures/talents hold trimmed real HellaAPI skill and talent data, and
-tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit, Mon3tr
-and Bagpipe)
+tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Projekt Red, Liskarm, Kal'tsit, Mon3tr,
+Bagpipe and Siege; Siege's file also keeps her factions and position)
 for operator profiles, with their expected figures worked out by hand in the tests (each file names its source). They're
 loaded with load_skill_fixture, load_talent_fixture and load_operator_fixture; make_operator_value builds a fake operator.
 

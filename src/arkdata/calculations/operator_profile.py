@@ -10,7 +10,7 @@ Created: 2026-11-04
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-04
+Last Modified: 2026-11-05
 Last Modified by: Claude
 '''
 
@@ -37,7 +37,7 @@ from arkdata.calculations.skills import (
     parse_skill,
     unlocked_skills,
 )
-from arkdata.calculations.talents import STACK_WORDS, Talent, build_talents, unlocked_candidate
+from arkdata.calculations.talents import STACK_WORDS, Talent, build_talents, member_groups, unlocked_candidate
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +195,9 @@ class OperatorProfile:
     the talents that are applied (ALWAYS and LIKELY groups) averaged over
     DEFAULT_STACK_WINDOW. skills holds one SkillProfile per unlocked skill.
     summons lists the ids of the operator's summons; owner_id is set on a
-    summon's own profile.
+    summon's own profile. member_of holds the groups it belongs to (class,
+    position, rarity, factions; see talents.member_groups), for talents
+    that buff a group.
     '''
     operator_id: str
     name: str
@@ -212,6 +214,7 @@ class OperatorProfile:
     skills: list[SkillProfile] = field(default_factory=list)
     summons: list[str] = field(default_factory=list)
     owner_id: str | None = None
+    member_of: frozenset[str] = frozenset()
     notes: list[str] = field(default_factory=list)
     assumed: list[str] = field(default_factory=list)
 
@@ -329,8 +332,10 @@ def damage_per_second(stats: UnitStats, parts: Iterable[DamagePart], damage_mult
     > total = per target × Targets.damage_share
 
     Parts dealt every second (per_second) aren't divided by the attack
-    interval. Parts with 1 hit use the archetype's hits (a Swordmaster's
-    2), since only skills that change the number of hits say so.
+    interval. Parts with 1 hit use basic_hits (the archetype's hits, a
+    Swordmaster's 2, for normal attacks and skills that change them), since
+    only skills that change the number of hits say so; a skill's own
+    one-off strike passes 1.
     Healing isn't multiplied by damage_multiplier.
 
     Args:
@@ -493,10 +498,12 @@ def build_operator_profile(
 
     # No skill: talents averaged over the default window. They're built twice: first to find the attack interval
     # (which their ASPD changes), then with it, for stacks gained per attack.
-    talents = build_talents(data, phase, level, potential, operator_id, None, DEFAULT_STACK_WINDOW)
+    # Buffs to a group the operator belongs to (its class, a faction...) apply to it too.
+    member_of = member_groups(operator_value)
+    talents = build_talents(data, phase, level, potential, operator_id, None, DEFAULT_STACK_WINDOW, member_of=member_of)
     talents = build_talents(data, phase, level, potential, operator_id,
                             apply_modifiers(operator.stats, _talent_modifiers(talents)).attack_interval,
-                            DEFAULT_STACK_WINDOW)
+                            DEFAULT_STACK_WINDOW, member_of=member_of)
     base_stats = apply_modifiers(operator.stats, _talent_modifiers(talents))
     basic_targets = basic_attack_targets(sub_profession, int(base_stats.block), traits)
     # The normal attack, used during skills; outside them, Phalanx Casters and Liberators don't attack.
@@ -507,7 +514,7 @@ def build_operator_profile(
         sub_profession_id=sub_profession or '', damage_type=operator.damage_type, phase=phase, level=level,
         potential=potential, trust=trust, base_stats=base_stats,
         base_damage=damage_per_second(base_stats, base_parts, _talent_multiplier(talents), basic_hits),
-        talents=talents, summons=list(summon_ids(operator_value)),
+        talents=talents, summons=list(summon_ids(operator_value)), member_of=member_of,
     )
     if any(STACK_WORDS.search(talent.description) for talent in talents):
         profile.assumed.append(f'stacking talents averaged over {DEFAULT_STACK_WINDOW:g} s with no skill')
@@ -563,7 +570,7 @@ def _skill_profile(skill: Skill, data: dict, operator: OperatorStats, profile: O
     if window <= 0:
         window = DEFAULT_STACK_WINDOW
     talents = build_talents(data, operator.phase, operator.level, operator.potential, profile.operator_id,
-                            first.stats.attack_interval, window)
+                            first.stats.attack_interval, window, member_of=profile.member_of)
     state = _skill_state(skill, operator, talents, parts, basic_hits)
     state.window = window
 
@@ -607,12 +614,15 @@ def _skill_state(skill: Skill, operator: OperatorStats, talents: list[Talent],
         # The normal attack keeps going, and each activation adds a strike: the skill's own damage (an extra strike,
         # or an attack it replaces, counting only what it adds), or a boosted next attack. An instant skill with no
         # damage that doesn't change the next attack (e.g. "Blocks the next source of damage") adds nothing.
+        # Archetype hits (a Swordmaster's 2) are part of normal attacks only: a skill's own strike hits as often as
+        # the skill says (Ch'en's Sheathed Strike hits once), while a boosted next attack is still a normal attack.
         damage = damage_per_second(base_stats, base_parts, multiplier, basic_hits)
         normal = strike_damage(base_stats, base_parts, multiplier, basic_hits)
+        strike_hits = 1.0 if skill.damage_parts else basic_hits
         if skill.replaces_attack:
-            burst = subtract(strike_damage(stats, skill_parts, multiplier, basic_hits), normal)
+            burst = subtract(strike_damage(stats, skill_parts, multiplier, strike_hits), normal)
         elif skill.damage_parts:
-            burst = strike_damage(stats, skill.damage_parts, multiplier, basic_hits)
+            burst = strike_damage(stats, skill.damage_parts, multiplier, strike_hits)
     elif skill.stops_attacking:
         damage = damage_per_second(stats, [part for part in skill.damage_parts if part.per_second], multiplier,
                                    basic_hits)
