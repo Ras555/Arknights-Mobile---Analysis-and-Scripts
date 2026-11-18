@@ -1,0 +1,87 @@
+{
+ "source": "HellaAPI enemy enemy_10036_cnvpvd (Carnevale Snack Seller), trimmed, retrieved 2026-11-09",
+ "value": {
+  "excel": {
+   "enemyId": "enemy_10036_cnvpvd",
+   "name": "Carnevale Snack Seller",
+   "enemyLevel": "NORMAL",
+   "damageType": [
+    "MAGIC"
+   ],
+   "abilityList": [
+    {
+     "text": "Can only be blocked by Operators with 3 or more Block"
+    },
+    {
+     "text": "Takes greatly reduced Physical and Arts damage; loses damage reduction during Carnevale"
+    },
+    {
+     "text": "Periodically summons a <Carnevale Snack Cart>"
+    }
+   ]
+  },
+  "levels": {
+   "Value": [
+    {
+     "level": 0,
+     "enemyData": {
+      "attributes": {
+       "maxHp": {
+        "m_defined": true,
+        "m_value": 10000
+       },
+       "atk": {
+        "m_defined": true,
+        "m_value": 300
+       },
+       "def": {
+        "m_defined": true,
+        "m_value": 500
+       },
+       "magicResistance": {
+        "m_defined": true,
+        "m_value": 20
+       },
+       "attackSpeed": {
+        "m_defined": true,
+        "m_value": 100
+       },
+       "baseAttackTime": {
+        "m_defined": true,
+        "m_value": 4
+       },
+       "massLevel": {
+        "m_defined": true,
+        "m_value": 3
+       },
+       "moveSpeed": {
+        "m_defined": true,
+        "m_value": 0.7
+       },
+       "blockCnt": {
+        "m_defined": false,
+        "m_value": 0
+       }
+      },
+      "applyWay": {
+       "m_defined": true,
+       "m_value": "MELEE"
+      },
+      "motion": {
+       "m_defined": true,
+       "m_value": "WALK"
+      },
+      "levelType": {
+       "m_defined": true,
+       "m_value": "NORMAL"
+      },
+      "enemyTags": {
+       "m_defined": true,
+       "m_value": null
+      }
+     }
+    }
+   ]
+  }
+ }
+}

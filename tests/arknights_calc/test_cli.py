@@ -89,8 +89,9 @@ def fake_processors(monkeypatch):
             calls.append('stats')
 
     class FakeMatchups:
-        def __init__(self, storage, fetch_stage, fetch_enemy):
-            calls.append(('matchups init', storage.io_dir, fetch_stage('s1'), fetch_enemy('e1')))
+        def __init__(self, storage, fetch_stage, fetch_enemy, fetch_operator, fetch_deployable):
+            calls.append(('matchups init', storage.io_dir, fetch_stage('s1'), fetch_enemy('e1'), fetch_operator('char_a'),
+                          fetch_deployable('token_a')))
 
         def run(self, stage_id):
             calls.append(('matchups', stage_id))
@@ -122,7 +123,8 @@ def test_run_steps_passes_settings_email_storage_and_cache(tmp_path, fake_proces
     cli.run_steps('all', _settings(tmp_path), None)
     assert ('roster init', 'me@example.com', tmp_path / 'ref') in fake_processors
     assert ('stats init', tmp_path / 'ref', {'operator': 'char_a'}, {'deployable': 'token_a'}) in fake_processors
-    assert ('matchups init', tmp_path / 'io', [{'stage': 's1'}], {'enemy': 'e1'}) in fake_processors
+    assert ('matchups init', tmp_path / 'io', [{'stage': 's1'}], {'enemy': 'e1'}, {'operator': 'char_a'},
+            {'deployable': 'token_a'}) in fake_processors
     assert ('build cache', tmp_path / 'ref' / 'cache') in fake_processors
 
 

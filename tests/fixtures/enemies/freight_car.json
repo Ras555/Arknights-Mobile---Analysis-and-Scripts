@@ -1,0 +1,84 @@
+{
+ "source": "HellaAPI enemy enemy_10021_vtcar (Freight Car), trimmed, retrieved 2026-11-09",
+ "value": {
+  "excel": {
+   "enemyId": "enemy_10021_vtcar",
+   "name": "Freight Car",
+   "enemyLevel": "NORMAL",
+   "damageType": [
+    "NO_DAMAGE"
+   ],
+   "abilityList": [
+    {
+     "text": "Unblockable; can be attacked by enemies"
+    },
+    {
+     "text": "Drops gear in the surrounding area when defeated and <$ba.stun>stuns</> all nearby units; resumes movement after a period of time"
+    }
+   ]
+  },
+  "levels": {
+   "Value": [
+    {
+     "level": 0,
+     "enemyData": {
+      "attributes": {
+       "maxHp": {
+        "m_defined": true,
+        "m_value": 3500
+       },
+       "atk": {
+        "m_defined": true,
+        "m_value": 0
+       },
+       "def": {
+        "m_defined": true,
+        "m_value": 150
+       },
+       "magicResistance": {
+        "m_defined": true,
+        "m_value": 0
+       },
+       "attackSpeed": {
+        "m_defined": true,
+        "m_value": 100
+       },
+       "baseAttackTime": {
+        "m_defined": true,
+        "m_value": 10
+       },
+       "massLevel": {
+        "m_defined": true,
+        "m_value": 0
+       },
+       "moveSpeed": {
+        "m_defined": true,
+        "m_value": 0.45
+       },
+       "blockCnt": {
+        "m_defined": false,
+        "m_value": 0
+       }
+      },
+      "applyWay": {
+       "m_defined": true,
+       "m_value": "NONE"
+      },
+      "motion": {
+       "m_defined": true,
+       "m_value": "WALK"
+      },
+      "levelType": {
+       "m_defined": true,
+       "m_value": "NORMAL"
+      },
+      "enemyTags": {
+       "m_defined": true,
+       "m_value": []
+      }
+     }
+    }
+   ]
+  }
+ }
+}

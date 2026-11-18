@@ -735,10 +735,10 @@ def test_def_ignore_and_enemy_effects():
                                         {'def_penetrate_fixed': 200})]])
     # The weight talent only applies to some enemies (PER_ENEMY), so it's left out here.
     assert profile.penetration == [Penetration(res_flat=20)]
-    assert [value.key for value in profile.enemy_effects] == ['damage_scale']
+    assert [effect.value.key for effect in profile.enemy_effects] == ['damage_scale']
     [skill] = profile.skills
     assert skill.penetration == [Penetration(def_flat=400), Penetration(res_flat=20)]
-    assert [value.key for value in skill.enemy_effects] == ['def', 'damage_scale']
+    assert [effect.value.key for effect in skill.enemy_effects] == ['def', 'damage_scale']
 
 
 def _sums(damage):
@@ -764,4 +764,62 @@ def test_real_eyjafjalla_ignition_hits():
     # 370% of 883.92 on the target, half on the two enemies around it.
     assert (strike.damage, strike.targets.target_scales) == (pytest.approx(883.92 * 3.7), (1.0, 0.5, 0.5))
     assert [hit.damage for hit in s2.replaced_hits] == [pytest.approx(883.92)]
+
+
+# Matchup extras: per-enemy talent effects, position and aerial attacks
+
+AERIAL_TALENTS = [[make_talent_candidate('When attacking aerial units, ATK +20%', {'atk': 0.2})],
+                  [make_talent_candidate('Increases ATK to 140% when attacking aerial targets', {'atk_scale': 1.4})],
+                  [make_talent_candidate('ATK +10%', {'atk': 0.1})]]
+
+
+def test_extra_effects_add_per_enemy_talents():
+    skill = _skill('ASPD +{attack_speed}', {'attack_speed': 50}, duration=20)
+    plain = _profile(skill, talents=AERIAL_TALENTS)
+    assert plain.base_stats.atk == pytest.approx(704)
+    extra = frozenset({(1, 'atk'), (2, 'atk_scale')})
+    value = make_operator_value(skills=[skill], talents=AERIAL_TALENTS)
+    profile = build_operator_profile(value, 2, 90, 0, 0, 1, extra_effects=extra)
+    # ATK 640 × (1 + 0.1 + 0.2) = 832, and each hit × 1.4 before DEF.
+    assert profile.base_stats.atk == pytest.approx(832)
+    assert profile.base_hits[0].damage == pytest.approx(832 * 1.4)
+    assert profile.skills[0].hits[0].damage == pytest.approx(832 * 1.4)
+    assert profile.extra_effects == extra
+
+
+def test_extra_effects_of_applied_talents_arent_counted_twice():
+    value = make_operator_value(talents=AERIAL_TALENTS)
+    profile = build_operator_profile(value, 2, 90, 0, 0, 1, extra_effects={(3, 'atk'), (9, 'atk')})
+    assert profile.base_stats.atk == pytest.approx(704)
+
+
+def test_extra_effects_def_ignore_and_enemy_effects():
+    value = make_operator_value(talents=[
+        [make_talent_candidate('Ignores 200 DEF when attacking enemies with weight greater than or equal to 3',
+                               {'def_penetrate_fixed': 200})],
+        [make_talent_candidate('Inflicts 22% [Arts Fragility] on all Aerial units within range', {'damage_scale': 1.22})]])
+    assert build_operator_profile(value, 2, 90, 0, 0, 1).penetration == []
+    profile = build_operator_profile(value, 2, 90, 0, 0, 1, extra_effects={(1, 'def_penetrate_fixed'), (2, 'damage_scale')})
+    assert profile.penetration == [Penetration(def_flat=200)]
+    [fragile] = profile.enemy_effects
+    assert (fragile.value.key, fragile.scale, fragile.affects) == ('damage_scale', 1.0, 'ARTS')
+
+
+def test_summon_extra_effects():
+    value = make_operator_value(talents=AERIAL_TALENTS[:1])
+    summon = build_summon_profile(value, 2, 90, 0, 0, 1, extra_effects={(1, 'atk')})
+    assert summon.base_stats.atk == pytest.approx(768)
+
+
+def test_position_and_aerial_attacks():
+    value = make_operator_value()
+    assert (_profile().position, _profile().aerial_scale, _profile().attacks_ground) == ('', 1.0, True)
+    value['data']['position'] = 'MELEE'
+    assert build_operator_profile(value, 2, 90, 0, 0, 1).aerial_scale is None
+    lord = make_operator_value(sub_profession='lord', trait_candidates=[
+        {'unlockCondition': {'phase': 'PHASE_0', 'level': 1}, 'requiredPotentialRank': 0,
+         'blackboard': [{'key': 'atk_scale', 'value': 0.8}]}])
+    lord['data']['position'] = 'MELEE'
+    assert build_operator_profile(lord, 2, 90, 0, 0, 1).aerial_scale == 0.8
+    assert not _profile(sub_profession='skybreaker').attacks_ground
 

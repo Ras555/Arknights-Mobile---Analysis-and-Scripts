@@ -7,11 +7,13 @@ Created: 2026-09-30
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-02
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
 # Imports
+
+import re
 
 from arkdata.calculations.damage import DamageType
 from arkdata.sources.hella_api import fetch_enemy_data
@@ -27,6 +29,19 @@ ENEMY_DAMAGE_TYPES = {
 
 # applyWay value for enemies that don't attack.
 APPLY_WAY_NONE = "NONE"
+# motion value for aerial (flying) enemies.
+MOTION_FLY = "FLY"
+# Enemy tiers (excel.enemyLevel / levelType) that count as elite or leader for talents.
+ELITE_LEVEL_TYPES = ("ELITE", "BOSS")
+
+# Whether an enemy can be blocked is only in its ability text (blockCnt is 0 for every enemy but one, checked
+# 2026-11-09): "Unblockable" / "Cannot be blocked" means never, "Can only be blocked by Operators with 3 or more
+# Block" (or "by units with at least 3 Block") needs that much block. Unblockable only for a while ("cannot be blocked
+# for a period of time" when fleeing, "cannot be blocked when Invisible") still counts as blockable.
+NEVER_BLOCKED = re.compile(r"\bunblockable\b|\bcannot be blocked\b", re.IGNORECASE)
+SOMETIMES_UNBLOCKABLE = re.compile(r"cannot be blocked (?:for|when|while)|period of time", re.IGNORECASE)
+MINIMUM_BLOCK = re.compile(r"only be blocked by [^.;]*?(\d+) or more block|only be blocked by [^.;]*?at least (\d+) block",
+                           re.IGNORECASE)
 
 
 def _fix_mojibake(text: str) -> str:
@@ -71,6 +86,24 @@ def _defined_values(fields: dict | None) -> dict:
     }
 
 
+def _min_block(abilities: list[str]) -> float | None:
+    '''
+    Returns the block an operator needs to block the enemy, from its
+    ability texts: None when it can never be blocked, the number asked for
+    ("Can only be blocked by Operators with 3 or more Block"), or 1.
+
+    Args:
+        abilities: The texts of the enemy's abilityList.
+    '''
+    for text in abilities:
+        minimum = MINIMUM_BLOCK.search(text)
+        if minimum:
+            return float(minimum.group(1) or minimum.group(2))
+        if NEVER_BLOCKED.search(text) and not SOMETIMES_UNBLOCKABLE.search(text):
+            return None
+    return 1.0
+
+
 class EnemyStats:
     '''
     Resolves and stores an enemy's stats and DPS at a given level.
@@ -79,6 +112,10 @@ class EnemyStats:
     only define the fields that change, so undefined fields fall back to
     level 0. Stage-specific overwrittenData (from enemyDbRefs) is applied
     last, in the same {m_defined, m_value} format.
+
+    For matchups it also keeps tags (enemyTags, e.g. "sarkaz"), level_type
+    (NORMAL, ELITE or BOSS) and min_block, the block an operator needs to
+    block it, from its ability text (None when it can't be blocked).
     '''
 
     def __init__(self, enemy_id: str, level: int = 0, overwritten_data: dict | None = None, enemy_data: dict | None = None):
@@ -102,6 +139,7 @@ class EnemyStats:
 
         self.name = _fix_mojibake(excel["name"])
         self.enemy_tier = excel.get("enemyLevel")
+        self.min_block = _min_block([ability.get("text") or "" for ability in excel.get("abilityList") or []])
         # Unrecognised damage types are kept as-is rather than dropped.
         self.damage_types = [ENEMY_DAMAGE_TYPES.get(t, t) for t in (excel.get("damageType") or [])]
 
@@ -120,16 +158,52 @@ class EnemyStats:
         self.stats = {}
         self.apply_way = None
         self.motion = None
+        self.level_type = self.enemy_tier
+        self.tags: list[str] = []
         for layer in layers:
             self.stats.update(_defined_values(layer.get("attributes")))
-            # applyWay and motion are single wrapped fields, not dictionaries
+            # applyWay, motion, levelType and enemyTags are single wrapped fields, not dictionaries
             # of them, so each is wrapped in a one-key dictionary to reuse
             # _defined_values. An undefined field keeps the previous layer's value.
             self.apply_way = _defined_values({"v": layer.get("applyWay")}).get("v", self.apply_way)
             self.motion = _defined_values({"v": layer.get("motion")}).get("v", self.motion)
+            self.level_type = _defined_values({"v": layer.get("levelType")}).get("v", self.level_type)
+            self.tags = list(_defined_values({"v": layer.get("enemyTags")}).get("v", self.tags) or [])
 
         self.attack_interval = self._calculate_attack_interval()
         self.dps = self._calculate_dps()
+
+    @property
+    def weight(self) -> float:
+        '''
+        The enemy's weight (massLevel; 0 when not given).
+        '''
+        return self.stats.get("massLevel", 0)
+
+    @property
+    def flying(self) -> bool:
+        '''
+        Whether the enemy is aerial (motion FLY).
+        '''
+        return self.motion == MOTION_FLY
+
+    @property
+    def elite(self) -> bool:
+        '''
+        Whether the enemy is an elite or leader (ELITE or BOSS tier).
+        '''
+        return self.level_type in ELITE_LEVEL_TYPES
+
+    def blockable_by(self, block: float) -> bool:
+        '''
+        Whether an operator with this much block can block the enemy: it
+        walks, can be blocked at all, and the operator has the block its
+        ability text asks for (min_block).
+
+        Args:
+            block: The operator's block count.
+        '''
+        return not self.flying and self.min_block is not None and block >= self.min_block
 
     @property
     def damage_type(self) -> str:
@@ -179,6 +253,10 @@ class EnemyStats:
             "damage_type": self.damage_type,
             "apply_way": self.apply_way,
             "motion": self.motion,
+            "level_type": self.level_type,
+            "tags": ", ".join(self.tags),
+            "weight": self.weight,
+            "min_block": self.min_block,
             **self.stats,
             "attack_interval": self.attack_interval,
             "dps": self.dps,

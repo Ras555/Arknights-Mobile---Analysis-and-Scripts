@@ -1,8 +1,8 @@
 import pytest
 
 import arkdata.calculations.enemy_stats as enemy_stats_module
-from arkdata.calculations.enemy_stats import ENEMY_DAMAGE_TYPES, EnemyStats, _defined_values, _fix_mojibake
-from factories import defined, make_enemy_data, undefined
+from arkdata.calculations.enemy_stats import ENEMY_DAMAGE_TYPES, EnemyStats, _defined_values, _fix_mojibake, _min_block
+from factories import defined, load_enemy_fixture, make_enemy_data, undefined
 
 # helpers
 
@@ -129,6 +129,7 @@ def test_to_dict(enemy_data):
     assert result['damage_type'] == 'PHYSICAL'
     assert result['apply_way'] == 'MELEE'
     assert result['motion'] == 'WALK'
+    assert (result['level_type'], result['tags'], result['weight'], result['min_block']) == ('NORMAL', '', 0, 1)
     assert result['atk'] == 200
     assert result['attack_interval'] == pytest.approx(2.0)
     assert result['dps'] == pytest.approx(100)
@@ -152,3 +153,52 @@ def test_enemy_damage_types_are_damage_type_members():
 def test_apply_way_none_constant():
     from arkdata.calculations.enemy_stats import APPLY_WAY_NONE
     assert APPLY_WAY_NONE == 'NONE'
+
+
+# Tags, level type, weight and blocking (real enemies in tests/fixtures/enemies)
+
+@pytest.mark.parametrize('abilities, expected', [
+    ([], 1),
+    (['Flying unit.'], 1),
+    (['Unblockable; can be attacked by enemies', 'Drops gear'], None),
+    (['Cannot be blocked.'], None),
+    (['Can only be blocked by Operators with 3 or more Block'], 3),
+    (["Can only be blocked by units with at least 2 Block, and deals Physical damage"], 2),
+    # Only unblockable for a while: still blockable.
+    (['Flees when HP is under 50%! Gains bonus Movement Speed and cannot be blocked for a period of time.'], 1),
+    (['Cannot be blocked while on Nethersea Brand'], 1),
+    (['Stops attacking and cannot be blocked when Invisible'], 1),
+    (['Flees for a period of time', 'Unblockable'], None),
+])
+def test_min_block(abilities, expected):
+    assert _min_block(abilities) == expected
+
+
+def test_real_drone():
+    enemy = load_enemy_fixture('monster_mk_ii')
+    assert (enemy.flying, enemy.elite, enemy.tags, enemy.weight, enemy.level_type) == (True, False, ['drone'], 0, 'NORMAL')
+    # Aerial enemies can't be blocked (by operators that haven't Taken Off).
+    assert not enemy.blockable_by(3)
+    # Level 1 keeps level 0's tags.
+    assert load_enemy_fixture('monster_mk_ii', level=1).tags == ['drone']
+
+
+def test_real_heavy_elite_sarkaz():
+    enemy = load_enemy_fixture('sarkaz_lancer')
+    assert (enemy.elite, enemy.tags, enemy.weight, enemy.min_block) == (True, ['sarkaz'], 3, 1)
+    assert enemy.blockable_by(1)
+
+
+def test_real_blocking_rules():
+    assert load_enemy_fixture('freight_car').min_block is None
+    assert not load_enemy_fixture('freight_car').blockable_by(5)
+    seller = load_enemy_fixture('carnevale_snack_seller')
+    assert (seller.min_block, seller.blockable_by(2), seller.blockable_by(3), seller.tags) == (3, False, True, [])
+    assert load_enemy_fixture('nethersea_predator').blockable_by(1)
+
+
+def test_level_type_from_the_level_data():
+    data = make_enemy_data()
+    data['levels']['Value'][0]['enemyData']['levelType'] = defined('BOSS')
+    assert EnemyStats('enemy_test', enemy_data=data).elite
+

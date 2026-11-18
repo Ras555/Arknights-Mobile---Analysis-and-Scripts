@@ -1,0 +1,83 @@
+{
+ "source": "HellaAPI enemy enemy_1072_dlancer (Sarkaz Lancer), trimmed, retrieved 2026-11-09",
+ "value": {
+  "excel": {
+   "enemyId": "enemy_1072_dlancer",
+   "name": "Sarkaz Lancer",
+   "enemyLevel": "ELITE",
+   "damageType": [
+    "PHYSIC"
+   ],
+   "abilityList": [
+    {
+     "text": "Gradually accelerates when moving, and deals additional damage on the first attack after being blocked based upon Movement Speed."
+    }
+   ]
+  },
+  "levels": {
+   "Value": [
+    {
+     "level": 0,
+     "enemyData": {
+      "attributes": {
+       "maxHp": {
+        "m_defined": true,
+        "m_value": 6000
+       },
+       "atk": {
+        "m_defined": true,
+        "m_value": 450
+       },
+       "def": {
+        "m_defined": true,
+        "m_value": 150
+       },
+       "magicResistance": {
+        "m_defined": true,
+        "m_value": 40
+       },
+       "attackSpeed": {
+        "m_defined": true,
+        "m_value": 100
+       },
+       "baseAttackTime": {
+        "m_defined": true,
+        "m_value": 4
+       },
+       "massLevel": {
+        "m_defined": true,
+        "m_value": 3
+       },
+       "moveSpeed": {
+        "m_defined": true,
+        "m_value": 0.25
+       },
+       "blockCnt": {
+        "m_defined": false,
+        "m_value": 0
+       }
+      },
+      "applyWay": {
+       "m_defined": true,
+       "m_value": "MELEE"
+      },
+      "motion": {
+       "m_defined": true,
+       "m_value": "WALK"
+      },
+      "levelType": {
+       "m_defined": true,
+       "m_value": "ELITE"
+      },
+      "enemyTags": {
+       "m_defined": true,
+       "m_value": [
+        "sarkaz"
+       ]
+      }
+     }
+    }
+   ]
+  }
+ }
+}

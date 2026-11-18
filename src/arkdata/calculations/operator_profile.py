@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from arkdata.calculations.attack_targets import (
     NO_BASIC_ATTACK_SUB_PROFESSIONS,
     Targets,
+    aerial_attack_scale,
+    attacks_ground,
     basic_attack_strikes,
     basic_attack_targets,
 )
@@ -33,7 +35,6 @@ from arkdata.calculations.operator_stats import OperatorStats
 from arkdata.calculations.skill_rotation import SkillRotation, SkillTrigger, SpType, hit_interval
 from arkdata.calculations.skills import (
     MAX_SKILL_LEVEL,
-    PENETRATION_KEYS,
     DamagePart,
     Penetration,
     Skill,
@@ -41,7 +42,15 @@ from arkdata.calculations.skills import (
     parse_skill,
     unlocked_skills,
 )
-from arkdata.calculations.talents import STACK_WORDS, Talent, build_talents, member_groups, unlocked_candidate
+from arkdata.calculations.talents import (
+    FRAGILE_ALL,
+    STACK_WORDS,
+    Talent,
+    TalentEffect,
+    build_talents,
+    member_groups,
+    unlocked_candidate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +99,19 @@ class Damage:
     damage_type: str
     per_target: float
     total: float
+
+
+@dataclass(frozen=True)
+class EnemyEffect:
+    '''
+    An effect on enemies (lowering their DEF, RES, ATK or ASPD, or a
+    Fragile), kept for matchups. value is as written; scale is a talent's
+    chance and average stacks (1 for skills); affects is the damage a
+    Fragile raises (talents.TalentEffect.affects).
+    '''
+    value: BlackboardValue
+    scale: float = 1.0
+    affects: str = FRAGILE_ALL
 
 
 @dataclass(frozen=True)
@@ -148,7 +170,9 @@ class SkillProfile:
     strike) and replaced_hits (the normal attack it replaces, if any).
     penetration is the DEF/RES ignored while the skill is active (the
     skill's and the applied talents'), and enemy_effects the skill's and
-    applied talents' effects on enemies (DEF/RES ignore left out).
+    applied talents' effects on enemies (DEF/RES ignore left out);
+    base_penetration and base_enemy_effects are the talents' alone, for
+    base_hits.
     '''
     skill: Skill
     stats: UnitStats
@@ -167,7 +191,9 @@ class SkillProfile:
     strike_hits: list[Hit] = field(default_factory=list)
     replaced_hits: list[Hit] = field(default_factory=list)
     penetration: list[Penetration] = field(default_factory=list)
-    enemy_effects: list[BlackboardValue] = field(default_factory=list)
+    enemy_effects: list[EnemyEffect] = field(default_factory=list)
+    base_penetration: list[Penetration] = field(default_factory=list)
+    base_enemy_effects: list[EnemyEffect] = field(default_factory=list)
 
     @property
     def dps(self) -> float:
@@ -254,6 +280,14 @@ class OperatorProfile:
     position, rarity, factions; see talents.member_groups), for talents
     that buff a group. base_hits, penetration and enemy_effects are as in
     SkillProfile, with no skill.
+
+    For matchups: position is MELEE, RANGED, ALL or NONE (summons);
+    aerial_scale the share of its normal damage its attacks deal to aerial
+    enemies (None when it can't attack them, see
+    attack_targets.aerial_attack_scale); attacks_ground False for units
+    whose normal attacks only hit aerial enemies; and extra_effects the
+    PER_ENEMY talent effects ((talent number, value name)) applied on top of
+    the usual talents (build_operator_profile).
     '''
     operator_id: str
     name: str
@@ -275,7 +309,11 @@ class OperatorProfile:
     assumed: list[str] = field(default_factory=list)
     base_hits: list[Hit] = field(default_factory=list)
     penetration: list[Penetration] = field(default_factory=list)
-    enemy_effects: list[BlackboardValue] = field(default_factory=list)
+    enemy_effects: list[EnemyEffect] = field(default_factory=list)
+    position: str = ''
+    aerial_scale: float | None = 1.0
+    attacks_ground: bool = True
+    extra_effects: frozenset[tuple[int, str]] = frozenset()
 
     def summary(self) -> ProfileSummary:
         '''
@@ -558,10 +596,15 @@ def has_trust_buffs(data: dict) -> bool:
 
 def build_operator_profile(
     operator_value: dict, phase: int, level: int, potential: int, trust: int, skill_level: int,
-    masteries: Iterable[int] = (), operator_id: str | None = None,
+    masteries: Iterable[int] = (), operator_id: str | None = None, extra_effects: Iterable[tuple[int, str]] = (),
 ) -> OperatorProfile:
     '''
     Builds an operator's profile.
+
+    extra_effects are talent effects to apply as well as the usual ones
+    (ALWAYS and LIKELY talents), as (talent number, value name): the
+    PER_ENEMY effects that fit one enemy, for matchups. Effects of talents
+    that are already applied are left alone.
 
     Args:
         operator_value: The operator's whole HellaAPI value (with "data"
@@ -574,6 +617,7 @@ def build_operator_profile(
         masteries: The mastery of each skill (0-3), in skill order; missing
             ones are 0.
         operator_id: The operator's id (defaults to the value's "id").
+        extra_effects: (talent number, value name) of the extra effects.
 
     Returns:
         The OperatorProfile.
@@ -583,6 +627,7 @@ def build_operator_profile(
             out of range.
     '''
     data = operator_value['data']
+    extra = frozenset(extra_effects)
     operator_id = operator_id or operator_value.get('id') or data.get('name', '')
     operator = OperatorStats(operator_id, level, phase, potential, trust, operator_data=data)
     masteries = list(masteries)
@@ -596,20 +641,23 @@ def build_operator_profile(
     member_of = member_groups(operator_value)
     talents = build_talents(data, phase, level, potential, operator_id, None, DEFAULT_STACK_WINDOW, member_of=member_of)
     talents = build_talents(data, phase, level, potential, operator_id,
-                            apply_modifiers(operator.stats, _talent_modifiers(talents)).attack_interval,
+                            apply_modifiers(operator.stats, _talent_modifiers(talents, extra)).attack_interval,
                             DEFAULT_STACK_WINDOW, member_of=member_of)
-    base_stats = apply_modifiers(operator.stats, _talent_modifiers(talents))
+    base_stats = apply_modifiers(operator.stats, _talent_modifiers(talents, extra))
     basic_targets = basic_attack_targets(sub_profession, int(base_stats.block), traits)
     # The normal attack, used during skills; outside them, Phalanx Casters and Liberators don't attack.
     attack_parts = [DamagePart(operator.damage_type, 1.0, 1.0, basic_targets)]
     base_parts = [] if sub_profession in NO_BASIC_ATTACK_SUB_PROFESSIONS else attack_parts
-    base_hits = attack_hits(base_stats, base_parts, *_talent_multipliers(talents), strikes)
+    base_hits = attack_hits(base_stats, base_parts, *_talent_multipliers(talents, extra), strikes)
+    position = data.get('position') or ''
     profile = OperatorProfile(
         operator_id=operator_id, name=operator.name, profession=operator.profession,
         sub_profession_id=sub_profession or '', damage_type=operator.damage_type, phase=phase, level=level,
         potential=potential, trust=trust, base_stats=base_stats, base_damage=hit_damage(base_hits),
         talents=talents, summons=list(summon_ids(operator_value)), member_of=member_of, base_hits=base_hits,
-        penetration=_talent_penetration(talents), enemy_effects=_talent_enemy_effects(talents),
+        penetration=_talent_penetration(talents, extra), enemy_effects=_talent_enemy_effects(talents, extra),
+        position=position, aerial_scale=aerial_attack_scale(position, sub_profession, traits),
+        attacks_ground=attacks_ground(sub_profession), extra_effects=extra,
     )
     if any(STACK_WORDS.search(talent.description) for talent in talents):
         profile.assumed.append(f'stacking talents averaged over {DEFAULT_STACK_WINDOW:g} s with no skill')
@@ -625,44 +673,66 @@ def build_operator_profile(
     return profile
 
 
-def _talent_modifiers(talents: Iterable[Talent]) -> StatModifiers:
+def _extra(talents: Iterable[Talent], extra: frozenset[tuple[int, str]]) -> list[TalentEffect]:
     '''
-    Returns the stat changes of the talents that are applied.
+    Returns the extra effects (see build_operator_profile) of talents that
+    aren't already applied.
     '''
+    return [effect for talent in talents if not talent.applied for effect in talent.effects
+            if (talent.number, effect.key) in extra]
+
+
+def _talent_modifiers(talents: Iterable[Talent], extra: frozenset[tuple[int, str]] = frozenset()) -> StatModifiers:
+    '''
+    Returns the stat changes of the talents that are applied, and of the
+    extra effects.
+    '''
+    talents = list(talents)
     total = StatModifiers()
     for talent in talents:
         if talent.applied:
             total = total + talent.modifiers
+    for effect in _extra(talents, extra):
+        total = total + effect.modifiers
     return total
 
 
-def _talent_multipliers(talents: Iterable[Talent]) -> tuple[float, float]:
+def _talent_multipliers(talents: Iterable[Talent], extra: frozenset[tuple[int, str]] = frozenset()) -> tuple[float, float]:
     '''
     Returns (ATK multipliers, damage multipliers) of the talents that are
-    applied, each multiplied together.
+    applied and of the extra effects, each multiplied together.
     '''
+    talents = list(talents)
     atk_multiplier = damage_multiplier = 1.0
     for talent in talents:
         if talent.applied:
             atk_multiplier *= talent.atk_multiplier
             damage_multiplier *= talent.damage_multiplier
+    for effect in _extra(talents, extra):
+        atk_multiplier *= effect.atk_multiplier
+        damage_multiplier *= effect.damage_multiplier
     return atk_multiplier, damage_multiplier
 
 
-def _talent_penetration(talents: Iterable[Talent]) -> list[Penetration]:
+def _talent_penetration(talents: Iterable[Talent], extra: frozenset[tuple[int, str]] = frozenset()) -> list[Penetration]:
     '''
-    Returns the DEF/RES ignored by the talents that are applied.
+    Returns the DEF/RES ignored by the talents that are applied and by the
+    extra effects.
     '''
-    return [penetration for talent in talents if talent.applied for penetration in talent.penetration]
+    talents = list(talents)
+    applied = [penetration for talent in talents if talent.applied for penetration in talent.penetration]
+    return applied + [effect.penetration for effect in _extra(talents, extra) if effect.penetration is not None]
 
 
-def _talent_enemy_effects(talents: Iterable[Talent]) -> list[BlackboardValue]:
+def _talent_enemy_effects(talents: Iterable[Talent], extra: frozenset[tuple[int, str]] = frozenset()) -> list[EnemyEffect]:
     '''
-    Returns the effects on enemies of the talents that are applied, without
-    DEF/RES ignore (see _talent_penetration).
+    Returns the effects on enemies of the talents that are applied and of
+    the extra effects (DEF/RES ignore is in _talent_penetration).
     '''
-    return [value for talent in talents if talent.applied for value in talent.enemy_effects
-            if value.key not in PENETRATION_KEYS]
+    talents = list(talents)
+    effects = [effect for talent in talents if talent.applied for effect in talent.effects] + _extra(talents, extra)
+    return [EnemyEffect(effect.enemy_effect, effect.scale, effect.affects) for effect in effects
+            if effect.enemy_effect is not None]
 
 
 def _skill_profile(skill: Skill, data: dict, operator: OperatorStats, profile: OperatorProfile,
@@ -678,17 +748,20 @@ def _skill_profile(skill: Skill, data: dict, operator: OperatorStats, profile: O
     (basic_attack_strikes).
     '''
     base_parts = parts[0]
-    first = _skill_state(skill, operator, profile.talents, parts, strikes)
+    extra = profile.extra_effects
+    first = _skill_state(skill, operator, profile.talents, parts, strikes, extra)
     window = first.rotation.cycle_time or 0.0
     if window <= 0:
         window = DEFAULT_STACK_WINDOW
     talents = build_talents(data, operator.phase, operator.level, operator.potential, profile.operator_id,
                             first.stats.attack_interval, window, member_of=profile.member_of)
-    state = _skill_state(skill, operator, talents, parts, strikes)
+    state = _skill_state(skill, operator, talents, parts, strikes, extra)
     state.window = window
 
-    base_stats = apply_modifiers(operator.stats, _talent_modifiers(talents))
-    state.base_hits = attack_hits(base_stats, base_parts, *_talent_multipliers(talents), strikes)
+    base_stats = apply_modifiers(operator.stats, _talent_modifiers(talents, extra))
+    state.base_hits = attack_hits(base_stats, base_parts, *_talent_multipliers(talents, extra), strikes)
+    state.base_penetration = _talent_penetration(talents, extra)
+    state.base_enemy_effects = _talent_enemy_effects(talents, extra)
     base_damage = hit_damage(state.base_hits)
     base_dps, base_total = damage_sum(base_damage)
     active_dps, active_total = damage_sum(state.damage)
@@ -710,14 +783,16 @@ def _skill_profile(skill: Skill, data: dict, operator: OperatorStats, profile: O
 
 
 def _skill_state(skill: Skill, operator: OperatorStats, talents: list[Talent],
-                 parts: tuple[list[DamagePart], list[DamagePart]], strikes: tuple[float, ...]) -> SkillProfile:
+                 parts: tuple[list[DamagePart], list[DamagePart]], strikes: tuple[float, ...],
+                 extra: frozenset[tuple[int, str]] = frozenset()) -> SkillProfile:
     '''
     Returns a SkillProfile (without averages) for the skill with the given
-    talents: its stats and damage (and hits) while active, its burst, and
-    its rotation. parts and strikes are as in _skill_profile.
+    talents (and extra effects): its stats and damage (and hits) while
+    active, its burst, and its rotation. parts and strikes are as in
+    _skill_profile.
     '''
-    talent_modifiers = _talent_modifiers(talents)
-    multipliers = _talent_multipliers(talents)
+    talent_modifiers = _talent_modifiers(talents, extra)
+    multipliers = _talent_multipliers(talents, extra)
     base_stats = apply_modifiers(operator.stats, talent_modifiers)
     stats = apply_modifiers(operator.stats, talent_modifiers + skill.modifiers)
     base_parts, attack_parts = parts
@@ -758,8 +833,9 @@ def _skill_state(skill: Skill, operator: OperatorStats, talents: list[Talent],
                              skill.replaces_attack, hit_interval())
     return SkillProfile(skill=skill, stats=stats, damage=damage, burst=burst, rotation=rotation,
                         window=DEFAULT_STACK_WINDOW, talents=talents, hits=hits, strike_hits=strike_hits,
-                        replaced_hits=replaced_hits, penetration=skill.penetration + _talent_penetration(talents),
-                        enemy_effects=skill.enemy_effects + _talent_enemy_effects(talents))
+                        replaced_hits=replaced_hits, penetration=skill.penetration + _talent_penetration(talents, extra),
+                        enemy_effects=[EnemyEffect(value) for value in skill.enemy_effects]
+                        + _talent_enemy_effects(talents, extra))
 
 
 def _skill_parts(skill: Skill, damage_type: str, attack_parts: list[DamagePart]) -> list[DamagePart]:
@@ -778,6 +854,7 @@ def _skill_parts(skill: Skill, damage_type: str, attack_parts: list[DamagePart])
 def build_summon_profile(
     deployable_value: dict, owner_phase: int, owner_level: int, owner_potential: int, owner_trust: int,
     skill_level: int, masteries: Iterable[int] = (), deployable_id: str | None = None, owner_id: str | None = None,
+    extra_effects: Iterable[tuple[int, str]] = (),
 ) -> OperatorProfile:
     '''
     Builds a summon's profile at its owner's phase and level.
@@ -799,6 +876,7 @@ def build_summon_profile(
         masteries: The owner's mastery of each skill, in skill order.
         deployable_id: The summon's id (defaults to the value's "id").
         owner_id: The owner's id.
+        extra_effects: Extra talent effects, as in build_operator_profile.
 
     Returns:
         The summon's OperatorProfile, with owner_id set.
@@ -817,7 +895,7 @@ def build_summon_profile(
         assumed.append("no trust bonuses listed, so the owner's trust isn't used")
 
     profile = build_operator_profile(deployable_value, phase, level, potential, trust, skill_level, masteries,
-                                     deployable_id)
+                                     deployable_id, extra_effects)
     profile.owner_id = owner_id
     if profile.skills:
         assumed.append("its skills are counted whenever they'd be active on their own; in game, skill N is only used "

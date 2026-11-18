@@ -123,22 +123,20 @@ def make_enemy_data(name='Test Enemy', damage_type=('PHYSIC',), level_overrides=
     }
 
 
-def operator_stats_row(**overrides):
-    '''
-    Returns one row of saved operator stats (as written by the stats step),
-    with only the columns the matchups need plus any overrides.
-    '''
-    row = {'operator_id': 'char_a', 'name': 'Guard', 'damage_type': 'PHYSICAL', 'atk': 600, 'attack_interval': 1.0,
-           'def': 150, 'magicResistance': 10, 'maxHp': 3000}
-    row.update(overrides)
-    return row
-
-
 def make_enemy_stats(**kwargs):
     '''
     Returns an EnemyStats built from make_enemy_data(**kwargs).
     '''
     return EnemyStats('enemy_test', enemy_data=make_enemy_data(**kwargs))
+
+
+def load_enemy_fixture(name, level=0, overwritten_data=None):
+    '''
+    Returns an EnemyStats built from a trimmed real HellaAPI enemy in
+    tests/fixtures/enemies/<name>.json, e.g. "monster_mk_ii".
+    '''
+    document = json.loads((FIXTURES_DIR / 'enemies' / f'{name}.json').read_text(encoding='utf-8'))
+    return EnemyStats(document['value']['excel']['enemyId'], level, overwritten_data, enemy_data=document['value'])
 
 
 def load_skill_fixture(name):

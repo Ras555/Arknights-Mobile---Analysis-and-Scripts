@@ -8,7 +8,7 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: -
 
-Last Modified: 2026-11-05
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -139,7 +139,9 @@ def run_steps(step, settings, stage_id=None, refresh=False):
                                fetch_deployable=hella.fetch_deployable_data).run()
     if step in (Step.MATCHUPS, Step.ALL):
         logger.info('Running matchups step')
-        StageMatchupProcessor(storage, fetch_stage=hella.fetch_stage_data, fetch_enemy=hella.fetch_enemy_data).run(stage_id)
+        StageMatchupProcessor(storage, fetch_stage=hella.fetch_stage_data, fetch_enemy=hella.fetch_enemy_data,
+                              fetch_operator=hella.fetch_operator_value,
+                              fetch_deployable=hella.fetch_deployable_data).run(stage_id)
 
 
 def main(argv=None) -> int:

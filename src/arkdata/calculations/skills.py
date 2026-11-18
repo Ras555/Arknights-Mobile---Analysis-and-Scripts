@@ -68,6 +68,9 @@ PENETRATION_KEYS = {
 # attack ("add an additional attack that ignores 200 enemy DEF when target HP is below 50%"); other uses of the
 # names (Tool Supply Station's "damage received by allied units -30%") stay unmodelled.
 IGNORE_WORDS = re.compile(r'\bignor', re.IGNORECASE)
+# Skills that let a melee operator attack aerial enemies while active ("Takes Off", Contrail; "can hit aerial units",
+# Kirin R Yato's S3). Aerial enemies can otherwise only be hit by ranged attacks.
+HITS_AERIAL = re.compile(r'\btakes? off\b|\bcan (?:hit|attack|target) (?:aerial|flying)\b', re.IGNORECASE)
 IGNORE_EXCEPTIONS = re.compile(r'\bwhen\b|\bif\b|\badditional attack\b', re.IGNORECASE)
 # Values that are understood but don't change DPS or defensive stats, recorded in the notes.
 NOTE_KEYS = {
@@ -261,7 +264,8 @@ class Skill:
     for passives, always on, deployment, or something else. enemy_effects
     are values that change enemies (e.g. lowering their DEF), and
     penetration the DEF/RES its attacks ignore while it's active, kept for
-    the matchup calculations.
+    the matchup calculations. hits_aerial is True when the skill lets a
+    melee operator attack aerial enemies (HITS_AERIAL).
     unmodelled lists value names the model doesn't understand; status is
     FULL only when there are none and nothing had to be assumed.
     '''
@@ -286,6 +290,7 @@ class Skill:
     damage_type: str | None = None
     heal_scale: float | None = None
     stops_attacking: bool = False
+    hits_aerial: bool = False
     enemy_effects: list[BlackboardValue] = field(default_factory=list)
     penetration: list[Penetration] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -393,6 +398,18 @@ def _percent(value: BlackboardValue) -> tuple[bool, bool]:
     if value.is_percent is not None:
         return value.is_percent, False
     return abs(value.value) <= PERCENT_LIMIT[value.key], True
+
+
+def is_percent_value(value: BlackboardValue) -> bool:
+    '''
+    Whether a stat value is a percentage: from the description, or for
+    STAT_KEYS values not shown there, from its size (as apply_stat_value
+    decides). Other values (e.g. ASPD) are flat unless the description
+    shows them as a percentage.
+    '''
+    if value.key in PERCENT_LIMIT:
+        return _percent(value)[0]
+    return bool(value.is_percent)
 
 
 def text_hits(text: str) -> float | None:
@@ -548,6 +565,7 @@ def parse_skill(
     if changed_type:
         skill.damage_type = DAMAGE_TYPE_NAMES[(changed_type.group(1) or changed_type.group(2)).lower()]
     skill.stops_attacking = bool(STOPS_ATTACKING.search(text))
+    skill.hits_aerial = bool(HITS_AERIAL.search(text))
 
     max_target = values['max_target'].value if 'max_target' in values else None
     attack_type = skill.damage_type or damage_type

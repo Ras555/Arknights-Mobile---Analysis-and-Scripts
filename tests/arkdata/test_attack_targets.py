@@ -8,6 +8,8 @@ from arkdata.calculations.attack_targets import (
     HALF_SPLASH_SCALE,
     NO_BASIC_ATTACK_SUB_PROFESSIONS,
     Targets,
+    aerial_attack_scale,
+    attacks_ground,
     basic_attack_hits,
     basic_attack_strikes,
     basic_attack_targets,
@@ -125,6 +127,31 @@ def test_target_scales():
 
 def test_scales_are_left_out_of_comparisons():
     assert Targets(3, 2.0, True, 'note', scales=(1.0, 0.5, 0.5)) == Targets(3, 2.0, True, 'note')
+
+
+# aerial_attack_scale and attacks_ground
+
+@pytest.mark.parametrize('position, sub_profession, trait, expected', [
+    ('RANGED', 'fastshot', None, 1.0),
+    ('RANGED', 'bombarder', None, None),
+    ('MELEE', 'fearless', None, None),
+    ('MELEE', 'agent', None, None),
+    ('MELEE', 'fortress', None, None),
+    ('MELEE', 'lord', {'atk_scale': 0.8}, 0.8),
+    ('MELEE', 'lord', None, 0.8),
+    ('MELEE', 'shotprotector', None, 1.0),
+    ('MELEE', 'hookmaster', None, 1.0),
+    # Summons that aren't melee (devices, or deployable on either tile).
+    ('NONE', 'notchar2', None, 1.0),
+    ('ALL', 'notchar1', None, 1.0),
+])
+def test_aerial_attack_scale(position, sub_profession, trait, expected):
+    assert aerial_attack_scale(position, sub_profession, trait) == expected
+
+
+def test_attacks_ground():
+    assert attacks_ground('fastshot') and attacks_ground(None)
+    assert not attacks_ground('skybreaker')
 
 # skill_targets
 

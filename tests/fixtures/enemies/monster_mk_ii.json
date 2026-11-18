@@ -1,0 +1,142 @@
+{
+ "source": "HellaAPI enemy enemy_1005_yokai_2 (Monster Mk II), trimmed, retrieved 2026-11-09",
+ "value": {
+  "excel": {
+   "enemyId": "enemy_1005_yokai_2",
+   "name": "Monster Mk II",
+   "enemyLevel": "NORMAL",
+   "damageType": [
+    "PHYSIC"
+   ],
+   "abilityList": [
+    {
+     "text": "Flying unit."
+    }
+   ]
+  },
+  "levels": {
+   "Value": [
+    {
+     "level": 0,
+     "enemyData": {
+      "attributes": {
+       "maxHp": {
+        "m_defined": true,
+        "m_value": 1550
+       },
+       "atk": {
+        "m_defined": true,
+        "m_value": 220
+       },
+       "def": {
+        "m_defined": true,
+        "m_value": 50
+       },
+       "magicResistance": {
+        "m_defined": true,
+        "m_value": 0
+       },
+       "attackSpeed": {
+        "m_defined": true,
+        "m_value": 100
+       },
+       "baseAttackTime": {
+        "m_defined": true,
+        "m_value": 3
+       },
+       "massLevel": {
+        "m_defined": true,
+        "m_value": 0
+       },
+       "moveSpeed": {
+        "m_defined": true,
+        "m_value": 0.9
+       },
+       "blockCnt": {
+        "m_defined": false,
+        "m_value": 0
+       }
+      },
+      "applyWay": {
+       "m_defined": true,
+       "m_value": "RANGED"
+      },
+      "motion": {
+       "m_defined": true,
+       "m_value": "FLY"
+      },
+      "levelType": {
+       "m_defined": false,
+       "m_value": "NORMAL"
+      },
+      "enemyTags": {
+       "m_defined": true,
+       "m_value": [
+        "drone"
+       ]
+      }
+     }
+    },
+    {
+     "level": 1,
+     "enemyData": {
+      "attributes": {
+       "maxHp": {
+        "m_defined": true,
+        "m_value": 2500
+       },
+       "atk": {
+        "m_defined": true,
+        "m_value": 330
+       },
+       "def": {
+        "m_defined": true,
+        "m_value": 125
+       },
+       "magicResistance": {
+        "m_defined": false,
+        "m_value": 35
+       },
+       "attackSpeed": {
+        "m_defined": false,
+        "m_value": 0
+       },
+       "baseAttackTime": {
+        "m_defined": false,
+        "m_value": 0
+       },
+       "massLevel": {
+        "m_defined": false,
+        "m_value": 0
+       },
+       "moveSpeed": {
+        "m_defined": false,
+        "m_value": 0
+       },
+       "blockCnt": {
+        "m_defined": false,
+        "m_value": 0
+       }
+      },
+      "applyWay": {
+       "m_defined": false,
+       "m_value": "NONE"
+      },
+      "motion": {
+       "m_defined": false,
+       "m_value": "WALK"
+      },
+      "levelType": {
+       "m_defined": false,
+       "m_value": "NORMAL"
+      },
+      "enemyTags": {
+       "m_defined": false,
+       "m_value": null
+      }
+     }
+    }
+   ]
+  }
+ }
+}

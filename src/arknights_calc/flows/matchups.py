@@ -2,14 +2,16 @@
 '''
 File: matchups.py
 Description: Implements the matchups step: retrieve the stats of each
-    enemy in a stage from the HellaAPI and compare them against the saved
-    stats of the Elite 2 operators to calculate the damage per second each operator deals
-    to each enemy, and vice versa.
+    enemy in a stage from the HellaAPI, build the profiles of the Elite 2
+    operators in the saved roster (and their summons), and calculate the
+    damage per second each operator deals to each enemy (with no skill,
+    averaged over its best skill and with its best skill active), the time
+    it takes to defeat it, and the damage the enemy deals back.
 Created: 2026-09-30
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-03
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -20,11 +22,11 @@ import logging
 import pandas as pd
 
 from arkdata.calculations.enemy_stats import EnemyStats
-from arkdata.calculations.matchups import REQUIRED_OPERATOR_COLUMNS, calculate_matchups
+from arkdata.calculations.matchups import calculate_matchups
 from arkdata.calculations.stage import load_stage_enemies
 from arkdata.sources.account import filter_operators
-from arkdata.sources.hella_api import fetch_enemy_data, fetch_stage_data
-from arknights_calc.storage import MissingColumnsError
+from arkdata.sources.hella_api import fetch_deployable_data, fetch_enemy_data, fetch_operator_value, fetch_stage_data
+from arknights_calc.flows.profiles import roster_operators
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +34,9 @@ logger = logging.getLogger(__name__)
 
 # Only Elite 2 operators are compared, so the matchup tables stay a readable size.
 ELITE_2_PHASE = 2
-# The operator stats columns this step needs: the ones calculate_matchups
-# reads, plus the phase used to keep only Elite 2 operators.
-MATCHUP_OPERATOR_COLUMNS = [*REQUIRED_OPERATOR_COLUMNS, 'phase']
+# The enemy stats shown in the printed table.
+ENEMY_TABLE_COLUMNS = ["name", "level", "spawn_count", "maxHp", "atk", "def", "magicResistance", "damage_type",
+                       "apply_way", "motion", "level_type", "weight", "attack_interval", "dps"]
 
 
 def choose_stage_variant(stage_id: str, variants: list, input_func=input) -> dict:
@@ -75,48 +77,56 @@ def print_matchup_tables(enemy_df: pd.DataFrame, matchups: pd.DataFrame):
     '''
     # Show every row and column (pandas normally cuts large tables short),
     # only for these prints; the global display settings aren't changed.
+    # Summons are named with their owner, e.g. "Mon3tr (Kal'tsit)".
+    labelled = matchups.assign(unit=[name if not owner else f"{name} ({owner})"
+                                     for name, owner in zip(matchups["operator_name"], matchups["owner"], strict=True)])
     with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 250):
         print("\nEnemy stats:")
-        print(enemy_df[["name", "level", "spawn_count", "maxHp", "atk", "def", "magicResistance",
-                        "damage_type", "apply_way", "attack_interval", "dps"]].round(2).to_string(index=False))
+        print(enemy_df[ENEMY_TABLE_COLUMNS].round(2).to_string(index=False))
         # One row per operator and one column per enemy. Columns include the
         # level, since a stage can use the same enemy at different levels.
         # sort=False keeps the stage's and roster's order instead of sorting by name.
-        print("\nOperator DPS to each enemy:")
-        print(matchups.pivot_table(index="operator_name", columns=["enemy_name", "enemy_level"],
-                                   values="operator_dps_to_enemy", sort=False).round(1))
-        print("\nEnemy DPS to each operator:")
-        print(matchups.pivot_table(index="operator_name", columns=["enemy_name", "enemy_level"],
-                                   values="enemy_dps_to_operator", sort=False).round(1))
+        print("\nAverage DPS to each enemy (best skill rotation against it):")
+        print(labelled.pivot_table(index="unit", columns=["enemy_name", "enemy_level"], values="avg_dps",
+                                   sort=False).round(1))
+        print("\nEnemy DPS to each operator (with no skill):")
+        print(labelled.pivot_table(index="unit", columns=["enemy_name", "enemy_level"], values="enemy_dps_vs_min_def",
+                                   sort=False).round(1))
 
 
 class StageMatchupProcessor:
     '''
     Calculates operator vs. enemy matchups for one stage (CLAUDE.md Program
     Flow, matchups step) and saves the enemy stats and matchups through
-    storage. Only Elite 2 operators are compared.
+    storage. Only Elite 2 operators (and their summons) are compared.
 
     fetch_stage and fetch_enemy take a stage or enemy id and return its
-    HellaAPI data. make_enemy takes (enemy_id, level, overwritten_data) and
-    returns an EnemyStats; by default it builds one from fetch_enemy's data.
-    All of them, and input_func, are injectable so tests can avoid network
-    calls and user input.
+    HellaAPI data; fetch_operator and fetch_deployable return an operator's
+    or summon's whole HellaAPI value. make_enemy takes (enemy_id, level,
+    overwritten_data) and returns an EnemyStats; by default it builds one
+    from fetch_enemy's data. All of them, and input_func, are injectable so
+    tests can avoid network calls and user input.
     '''
 
-    def __init__(self, storage, fetch_stage=fetch_stage_data, fetch_enemy=fetch_enemy_data, make_enemy=None, input_func=input):
+    def __init__(self, storage, fetch_stage=fetch_stage_data, fetch_enemy=fetch_enemy_data, make_enemy=None,
+                 input_func=input, fetch_operator=fetch_operator_value, fetch_deployable=fetch_deployable_data):
         '''
         Args:
-            storage: The Storage the operator stats are read from and the
-                results saved through.
+            storage: The Storage the roster is read from and the results
+                saved through.
             fetch_stage: The function used to get a stage's data.
             fetch_enemy: The function used to get an enemy's data.
             make_enemy: The function used to build each EnemyStats; None
                 uses _make_enemy.
             input_func: The function used to ask the user for input.
+            fetch_operator: The function used to get each operator's value.
+            fetch_deployable: The function used to get each summon's value.
         '''
         self.storage = storage
         self.fetch_stage = fetch_stage
         self.fetch_enemy = fetch_enemy
+        self.fetch_operator = fetch_operator
+        self.fetch_deployable = fetch_deployable
         # The default needs self.fetch_enemy, so it can't be set in the signature.
         self.make_enemy = make_enemy or self._make_enemy
         self.input_func = input_func
@@ -139,23 +149,17 @@ class StageMatchupProcessor:
         Returns:
             The enemy stats and matchups DataFrames, or None.
         '''
-        # The stats step's output is needed first. Stop with a hint if it's
-        # missing or was saved by an older version without every column.
-        try:
-            operators = self.storage.load_operator_stats(MATCHUP_OPERATOR_COLUMNS)
-        except FileNotFoundError:
-            logger.error('No operator stats found at %s. Run `arknights-calc stats` first.', self.storage.operator_stats_file)
-            return None
-        except MissingColumnsError as exc:
-            logger.error('%s is missing columns %s. Rerun the stats step first.', exc.file_path, exc.missing_columns)
+        # The roster is needed first. Stop with a hint if it's missing.
+        if not self.storage.roster_file.exists():
+            logger.error('No roster found at %s. Run `arknights-calc roster` first.', self.storage.roster_file)
             return None
 
         # Checked before asking for a stage, so there's nothing to answer if
         # there are no operators to compare.
-        operators = filter_operators(operators, min_phase=ELITE_2_PHASE, max_phase=ELITE_2_PHASE)
+        operators = filter_operators(self.storage.load_roster(), min_phase=ELITE_2_PHASE, max_phase=ELITE_2_PHASE)
         if operators.empty:
             logger.warning('No Elite 2 operators in %s. Matchups only compare Elite 2 operators.',
-                           self.storage.operator_stats_file)
+                           self.storage.roster_file)
             return None
         logger.info('Comparing %d Elite 2 operators', len(operators))
 
@@ -172,7 +176,12 @@ class StageMatchupProcessor:
 
         # Add each enemy's spawn count to its stats, for the enemy table.
         enemy_df = pd.DataFrame([{**enemy.to_dict(), "spawn_count": count} for enemy, count in enemies])
-        matchups = calculate_matchups(operators, enemies)
+        # Each operator and its summons, built from the HellaAPI data (operators that fail are logged and skipped).
+        units = []
+        for entry in roster_operators(operators, self.fetch_operator, self.fetch_deployable,
+                                      'Error building the profile of operator %s for matchups: %s'):
+            units += [entry.builder(), *entry.summon_builders()]
+        matchups = calculate_matchups(units, enemies)
 
         # Name the files by the chosen variant's stageId (e.g. a challenge mode
         # has its own id), falling back to the id that was asked for.

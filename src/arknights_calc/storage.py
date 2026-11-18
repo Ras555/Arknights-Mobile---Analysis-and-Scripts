@@ -8,7 +8,7 @@ Created: 2026-10-28
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-05
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -42,24 +42,6 @@ OPERATOR_PAGES_DIR_NAME = 'operators'
 VIEW_DECIMALS = 2
 # Characters Windows doesn't allow in file names, replaced in operator page names.
 UNSAFE_FILE_NAME_CHARACTERS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
-
-
-class MissingColumnsError(Exception):
-    '''
-    Raised when a saved file is missing columns the program needs, usually
-    because it was saved by an older version of an earlier step.
-    '''
-
-    def __init__(self, file_path: Path, missing_columns: list):
-        '''
-        Args:
-            file_path: The file that was read.
-            missing_columns: The required columns it doesn't have.
-        '''
-        # Kept as attributes so callers can build their own message.
-        self.file_path = file_path
-        self.missing_columns = missing_columns
-        super().__init__(f'{file_path} is missing columns {missing_columns}')
 
 
 def _save_csv(df: pd.DataFrame, file_path: Path) -> Path:
@@ -227,9 +209,9 @@ class Storage:
 
     def save_operator_stats(self, df: pd.DataFrame, view_columns=None) -> list:
         '''
-        Saves the operator stats to ref/ (read by the matchups step, at full
-        precision, with every column) and io/ (for viewing, rounded to
-        VIEW_DECIMALS). Returns both paths.
+        Saves the operator stats to ref/ (at full precision, with every
+        column) and io/ (for viewing, rounded to VIEW_DECIMALS). Returns both
+        paths.
 
         Args:
             df: The operator stats, one row per operator.
@@ -270,29 +252,6 @@ class Storage:
             path.write_text(text, encoding='utf-8')
             paths.append(path)
         return paths
-
-    def load_operator_stats(self, required_columns=()) -> pd.DataFrame:
-        '''
-        Loads the operator stats from ref/. Raises MissingColumnsError if any
-        of required_columns are missing.
-
-        Args:
-            required_columns: The columns the caller needs.
-
-        Returns:
-            The operator stats.
-
-        Raises:
-            FileNotFoundError: If the stats haven't been saved yet.
-            MissingColumnsError: If any required column is missing.
-        '''
-        # Checking the columns here gives one clear error up front, instead
-        # of a KeyError part way through the caller's calculations.
-        df = pd.read_csv(self.operator_stats_file)
-        missing_columns = [column for column in required_columns if column not in df.columns]
-        if missing_columns:
-            raise MissingColumnsError(self.operator_stats_file, missing_columns)
-        return df
 
     def save_stage_results(self, stage_id: str, enemy_df: pd.DataFrame, matchups: pd.DataFrame) -> list:
         '''

@@ -32,7 +32,16 @@ the API reference.
    operators you have at each Elite level. Logging in also logs you out
    of the game on your phone, since Yostar allows one login at a time.
    `stats` and `matchups` remind you to rerun `roster` once your saved
-   roster is more than a week old.
+   roster is more than a week old. `matchups` works from your saved roster
+   (it doesn't need `stats` first): for each of your Elite 2 operators and
+   their summons against each enemy in the stage, it gives the DPS with no
+   skill, averaged over the best skill against that enemy and with the best
+   skill active (after the enemy's DEF/RES, your operator's own debuffs and
+   DEF/RES ignore, and talents that fit the enemy, such as bonuses against
+   aerial or Sarkaz enemies), the time to defeat it, and the damage it deals
+   back. Melee operators can't hit aerial enemies (except Lords, Sentinel
+   Protectors and Hookmasters), and melee enemies only hit operators that
+   block them.
 
    Logs go to stdout and to `logs/arknights.log` (rotating).
 4. Enable the commit checks once (see [Checks](#checks)):
@@ -89,7 +98,8 @@ Optional settings can be added to `.env` (see [.env.example](.env.example)):
   `summon_skills.csv`, a readable page per operator in `operators/`, and
   the `stage_<id>_enemy_stats.csv` / `stage_<id>_matchups.csv` files.
 - `tests/` - the pytest suite, split into `arkdata/` and `arknights_calc/`,
-  with trimmed real game data (skills, talents, operators) in `fixtures/`.
+  with trimmed real game data (skills, talents, operators, enemies) in
+  `fixtures/`.
 
 `arkdata` must never import from `arknights_calc`; a test checks this.
 
