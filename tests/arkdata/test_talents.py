@@ -940,3 +940,16 @@ def test_real_firewhistle_t1_each_effect_its_own_condition():
     assert [(effect.key, effect.condition.describe()) for effect in talent.effects] == [('atk', 'not blocked'),
                                                                                         ('def', 'blocked')]
 
+
+@pytest.mark.parametrize('description, value, expected', [
+    ('Enemies within attack range gain 12% Fragile', 1.12, 'ALL'),
+    ('Attacks inflict 14% [Arts Fragility] to the target for 5 seconds', 1.14, 'ARTS'),
+    ('Increases the Arts damage taken by all blocked enemies by 18%', 1.18, 'ARTS'),
+    ('When deployed, all blocked enemies take +16% Physical damage', 1.16, 'PHYSICAL'),
+    ('Inflicts 10% [Elemental Fragility] on all enemies in attack range', 1.1, 'NONE'),
+    # Both: counted as Arts.
+    ('Inflicts 10% [Arts Fragility] and [Elemental Fragility] on all enemies in attack range', 1.1, 'ARTS'),
+])
+def test_fragile_affects(description, value, expected):
+    [effect] = _talent(description, {'damage_scale': value}).effects
+    assert effect.affects == expected

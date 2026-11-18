@@ -195,6 +195,14 @@ DAMAGE_AFTER = re.compile(r"^\s*(?:\([^)]*\)\s*)?(?:(?:more|increased|additional
                           r"(?:(?:Physical|Arts|True)\s+)?damage\b", re.IGNORECASE)
 MULTIPLIER_BEFORE = re.compile(r"\b(ATK|damage)\b(?:\s+(?!(?:ATK|damage)\b)[\w'’]+){0,5}?\s*(?:to|by|\+)\s*$",
                                re.IGNORECASE)
+# The damage a Fragile on enemies raises, from the words around it: "Fragile" raises all damage, "[Arts Fragility]" or
+# "Arts damage taken" Arts damage, "+16% Physical damage" Physical damage, and "[Elemental Fragility]" none that's
+# modelled.
+FRAGILE_ALL, FRAGILE_NONE = 'ALL', 'NONE'
+# PhonoR-0's "[Arts Fragility] and [Elemental Fragility]" counts as Arts.
+FRAGILE_KINDS = [(re.compile(r'\barts\b', re.IGNORECASE), 'ARTS'),
+                 (re.compile(r'\bphysical\b', re.IGNORECASE), 'PHYSICAL'),
+                 (re.compile(r'\belemental\b', re.IGNORECASE), FRAGILE_NONE)]
 # The number itself, at the start of the words after it.
 LEADING_NUMBER = re.compile(r'^[\d.]+%?')
 ATK_MULTIPLIER, DAMAGE_MULTIPLIER = 'atk', 'damage'
@@ -292,7 +300,9 @@ class TalentEffect:
     by (its chance and average stacks). modifiers, atk_multiplier and
     damage_multiplier are already scaled; enemy_effect is the value as
     written (e.g. a Fragile on enemies), and penetration the DEF/RES its
-    attacks ignore (with its chance).
+    attacks ignore (with its chance). For a Fragile (damage_scale on
+    enemies), affects is the damage it raises: FRAGILE_ALL, a DamageType
+    ("Arts Fragility", "Arts damage taken"), or FRAGILE_NONE (Elemental).
     '''
     key: str
     group: str
@@ -303,6 +313,7 @@ class TalentEffect:
     damage_multiplier: float = 1.0
     enemy_effect: BlackboardValue | None = None
     penetration: Penetration | None = None
+    affects: str = FRAGILE_ALL
 
 
 @dataclass
@@ -916,6 +927,8 @@ def _apply_damage_value(talent: Talent, effect: TalentEffect, value: BlackboardV
     if value.target == Target.ENEMY:
         talent.enemy_effects.append(value)
         effect.enemy_effect = value
+        piece = around[0].split(',')[-1] + around[1].split(',')[0]
+        effect.affects = next((kind for pattern, kind in FRAGILE_KINDS if pattern.search(piece)), FRAGILE_ALL)
         return True
     not_on_attacks = value.key == 'atk_scale' and (not ATTACK_WORDS.search(clause) or DEPLOY_WORDS.search(clause))
     # Below 1 isn't a bonus but something else, e.g. a minimum ("Deals at least 33% of ATK damage every attack").

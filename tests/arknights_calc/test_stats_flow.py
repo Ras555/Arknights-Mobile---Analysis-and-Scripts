@@ -4,7 +4,8 @@ import pandas as pd
 import pytest
 
 from arkdata.sources.hella_api import HellaAPIError
-from arknights_calc.flows.stats import OperatorStatsProcessor, _whole
+from arknights_calc.flows.profiles import whole
+from arknights_calc.flows.stats import OperatorStatsProcessor
 from arknights_calc.reports import OPERATOR_STATS_VIEW_COLUMNS
 from arknights_calc.storage import Storage
 from factories import make_operator_value, make_skill_entry, make_skill_level, make_talent_candidate
@@ -242,4 +243,4 @@ def test_run_skips_summons_that_cant_be_fetched(tmp_path, caplog):
 @pytest.mark.parametrize('value, default, expected', [(3, 0, 3), (2.0, 0, 2), (None, 0, 0), (float('nan'), 1, 1),
                                                       (pd.NA, 1, 1)])
 def test_whole(value, default, expected):
-    assert _whole(value, default) == expected
+    assert whole(value, default) == expected

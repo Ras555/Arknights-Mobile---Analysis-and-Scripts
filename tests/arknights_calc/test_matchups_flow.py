@@ -3,16 +3,16 @@ import logging
 import pandas as pd
 import pytest
 
-from arkdata.calculations.matchups import REQUIRED_OPERATOR_COLUMNS
+from arkdata.sources.hella_api import HellaAPIError
 from arknights_calc.flows.matchups import (
     ELITE_2_PHASE,
-    MATCHUP_OPERATOR_COLUMNS,
+    ENEMY_TABLE_COLUMNS,
     StageMatchupProcessor,
     choose_stage_variant,
     print_matchup_tables,
 )
 from arknights_calc.storage import Storage
-from factories import make_enemy_data, make_enemy_stats, operator_stats_row
+from factories import make_enemy_data, make_enemy_stats, make_operator_value, make_talent_candidate
 
 
 def _variant(stage_id, difficulty='NORMAL'):
@@ -60,18 +60,22 @@ def test_first_variant_selectable():
 
 # StageMatchupProcessor
 
-def _stats_file(tmp_path):
-    return tmp_path / 'ref' / 'operator_stats_output.csv'
+ROSTER_COLUMNS = ['id', 'potential', 'level', 'phase', 'trust', 'skill_level', 'skill_1_mastery', 'skill_2_mastery',
+                  'skill_3_mastery', 'selected_skill']
 
 
-def _write_operator_stats(tmp_path, include_damage_type=True, rows=None):
-    if rows is None:
-        rows = [operator_stats_row(phase=2, profession='GUARD')]
-    for row in rows:
-        if not include_damage_type:
-            row.pop('damage_type')
-    _stats_file(tmp_path).parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(_stats_file(tmp_path), index=False)
+def _storage(tmp_path):
+    return Storage(tmp_path / 'ref', tmp_path / 'io')
+
+
+def _write_roster(tmp_path, rows=None):
+    # Each row: (id, phase); every operator is at level 90 (or its phase's maximum), potential 0, trust 0.
+    rows = rows if rows is not None else [('char_a', 2)]
+    levels = {0: 50, 1: 70, 2: 90}
+    roster_file = _storage(tmp_path).roster_file
+    roster_file.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame([[operator_id, 0, levels[phase], phase, 0, 1, 0, None, None, 1] for operator_id, phase in rows],
+                 columns=ROSTER_COLUMNS).to_csv(roster_file, index=False)
 
 
 def _stage(enemy_refs, stage_id='main_06-09'):
@@ -80,7 +84,12 @@ def _stage(enemy_refs, stage_id='main_06-09'):
                 {'fragments': [{'actions': [{'actionType': 'SPAWN', 'key': 'e1', 'count': 2}]}]}]}}
 
 
-def _processor(tmp_path, stages, inputs=()):
+def _operator(operator_id):
+    # ATK 640, attack interval 1.0 s at Elite 2 level 90 (make_operator_value).
+    return make_operator_value(name=f'Op {operator_id}', operator_id=operator_id)
+
+
+def _processor(tmp_path, stages, inputs=(), fetch_operator=_operator, fetch_deployable=None):
     fetched = []
 
     def fake_fetch(stage_id):
@@ -88,34 +97,34 @@ def _processor(tmp_path, stages, inputs=()):
         return stages
 
     processor = StageMatchupProcessor(
-        Storage(tmp_path / 'ref', tmp_path / 'io'),
-        fetch_stage=fake_fetch, make_enemy=lambda enemy_id, level, overwritten: make_enemy_stats(),
-        input_func=_inputs(*inputs),
+        _storage(tmp_path), fetch_stage=fake_fetch, make_enemy=lambda enemy_id, level, overwritten: make_enemy_stats(),
+        input_func=_inputs(*inputs), fetch_operator=fetch_operator, fetch_deployable=fetch_deployable or _operator,
     )
     return processor, fetched
 
 
 def test_processor_run_saves_outputs_and_prints_tables(tmp_path, capsys):
-    _write_operator_stats(tmp_path)
+    _write_roster(tmp_path)
     processor, fetched = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
 
     enemy_df, matchups = processor.run('main_06-09')
 
     assert fetched == ['main_06-09']
     assert enemy_df['spawn_count'].tolist() == [2]
-    assert matchups['operator_dps_to_enemy'].tolist() == [pytest.approx(500)]
+    # 640 ATK against the enemy's 100 DEF.
+    assert matchups['avg_dps'].tolist() == [pytest.approx(540)]
     saved_enemies = pd.read_csv(tmp_path / 'io' / 'stage_main_06-09_enemy_stats.csv')
     saved_matchups = pd.read_csv(tmp_path / 'io' / 'stage_main_06-09_matchups.csv')
     assert saved_enemies['name'].tolist() == ['Test Enemy']
-    assert len(saved_matchups) == 1
+    assert saved_matchups['operator_id'].tolist() == ['char_a']
     out = capsys.readouterr().out
     assert 'Enemy stats:' in out
-    assert 'Operator DPS to each enemy:' in out
-    assert 'Enemy DPS to each operator:' in out
+    assert 'Average DPS to each enemy (best skill rotation against it):' in out
+    assert 'Enemy DPS to each operator (with no skill):' in out
 
 
 def test_processor_asks_for_stage_id_when_not_given(tmp_path):
-    _write_operator_stats(tmp_path)
+    _write_roster(tmp_path)
     stages = [_stage([{'useDb': True, 'id': 'e1'}], stage_id='tough_06-09')]
     processor, fetched = _processor(tmp_path, stages, inputs=[' main_06-09 '])
     processor.run()
@@ -125,30 +134,21 @@ def test_processor_asks_for_stage_id_when_not_given(tmp_path):
     assert (tmp_path / 'io' / 'stage_tough_06-09_matchups.csv').exists()
 
 
-def test_processor_requires_damage_type_column(tmp_path, caplog):
-    _write_operator_stats(tmp_path, include_damage_type=False)
-    processor, fetched = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
-    with caplog.at_level(logging.ERROR):
-        assert processor.run('main_06-09') is None
-    assert fetched == []
-    assert "missing columns ['damage_type']" in caplog.text
-
-
 def test_processor_compares_only_elite_2_operators(tmp_path, caplog):
-    _write_operator_stats(tmp_path, rows=[
-        operator_stats_row(operator_id='char_e0', name='Zero', phase=0),
-        operator_stats_row(operator_id='char_e2', name='Two', phase=2),
-        operator_stats_row(operator_id='char_e1', name='One', phase=1),
-    ])
-    processor, _ = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
+    _write_roster(tmp_path, [('char_e0', 0), ('char_e2', 2), ('char_e1', 1)])
+    fetched = []
+    processor, _ = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])],
+                              fetch_operator=lambda operator_id: fetched.append(operator_id) or _operator(operator_id))
     with caplog.at_level(logging.INFO, logger='arknights_calc.flows.matchups'):
         _, matchups = processor.run('main_06-09')
     assert matchups['operator_id'].tolist() == ['char_e2']
+    assert fetched == ['char_e2']
+    assert ELITE_2_PHASE == 2
     assert 'Comparing 1 Elite 2 operators' in caplog.text
 
 
 def test_processor_without_elite_2_operators_warns_before_asking_for_a_stage(tmp_path, caplog):
-    _write_operator_stats(tmp_path, rows=[operator_stats_row(phase=0), operator_stats_row(operator_id='char_b', phase=1)])
+    _write_roster(tmp_path, [('char_a', 0), ('char_b', 1)])
     processor, fetched = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
     with caplog.at_level(logging.WARNING):
         assert processor.run() is None
@@ -156,45 +156,89 @@ def test_processor_without_elite_2_operators_warns_before_asking_for_a_stage(tmp
     assert fetched == []
     assert [(r.levelno, r.getMessage()) for r in caplog.records] == [(
         logging.WARNING,
-        f'No Elite 2 operators in {_stats_file(tmp_path)}. Matchups only compare Elite 2 operators.',
+        f'No Elite 2 operators in {_storage(tmp_path).roster_file}. Matchups only compare Elite 2 operators.',
     )]
     assert not (tmp_path / 'io').exists()
 
 
-def test_processor_requires_phase_column(tmp_path, caplog):
-    row = operator_stats_row()
-    _write_operator_stats(tmp_path, rows=[row])
-    processor, fetched = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
+def test_processor_without_roster_logs_error(tmp_path, caplog):
+    processor, fetched = _processor(tmp_path, [])
     with caplog.at_level(logging.ERROR):
         assert processor.run('main_06-09') is None
     assert fetched == []
-    assert "missing columns ['phase']" in caplog.text
-
-
-def test_matchup_operator_columns_add_phase_to_calculation_columns():
-    assert ELITE_2_PHASE == 2
-    assert [*REQUIRED_OPERATOR_COLUMNS, 'phase'] == MATCHUP_OPERATOR_COLUMNS
+    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
+        (logging.ERROR, f'No roster found at {_storage(tmp_path).roster_file}. Run `arknights-calc roster` first.')]
 
 
 def test_processor_no_enemies_returns_none(tmp_path, caplog):
-    _write_operator_stats(tmp_path)
+    _write_roster(tmp_path)
     processor, _ = _processor(tmp_path, [_stage([{'useDb': False, 'id': 'custom'}])])
     with caplog.at_level(logging.WARNING):
         assert processor.run('main_06-09') is None
-    assert 'No enemies found for stage main_06-09' in caplog.text
+    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
+        (logging.WARNING, 'Skipping custom: stage-defined enemies (useDb = false) are not supported.'),
+        (logging.WARNING, 'No enemies found for stage main_06-09'),
+    ]
     assert not (tmp_path / 'io').exists()
 
 
+def test_processor_includes_summons_with_their_owner(tmp_path):
+    _write_roster(tmp_path)
+    owner = make_operator_value(name='Owner', operator_id='char_a', tokens=['token_drone'])
+    processor, _ = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])], fetch_operator=lambda _: owner,
+                              fetch_deployable=lambda summon_id: make_operator_value(name='Drone', operator_id=summon_id))
+    _, matchups = processor.run('main_06-09')
+    assert matchups[['operator_id', 'operator_name', 'owner']].values.tolist() == [
+        ['char_a', 'Owner', ''], ['token_drone', 'Drone', 'Owner']]
+
+
+def test_processor_rebuilds_operators_and_summons_for_talents_that_fit(tmp_path):
+    _write_roster(tmp_path)
+    talents = [[make_talent_candidate('When attacking aerial units, ATK +20%', {'atk': 0.2})]]
+    owner = make_operator_value(name='Owner', operator_id='char_a', tokens=['token_drone'], talents=talents)
+    summon = make_operator_value(name='Drone', operator_id='token_drone', talents=talents)
+    flying = make_enemy_data(base_attributes={'def': 0})
+    flying['levels']['Value'][0]['enemyData']['motion'] = {'m_defined': True, 'm_value': 'FLY'}
+    processor = StageMatchupProcessor(
+        _storage(tmp_path), fetch_stage=lambda stage_id: [_stage([{'useDb': True, 'id': 'e1'}])],
+        fetch_enemy=lambda enemy_id: flying, input_func=_inputs(), fetch_operator=lambda _: owner,
+        fetch_deployable=lambda _: summon,
+    )
+    _, matchups = processor.run('main_06-09')
+    # Both get ATK +20% against the flying enemy: 640 × 1.2.
+    assert matchups['min_dps'].tolist() == [pytest.approx(768), pytest.approx(768)]
+
+
+def test_processor_logs_and_skips_operators_that_fail(tmp_path, caplog):
+    _write_roster(tmp_path, [('char_bad', 2), ('char_a', 2)])
+
+    def fetch(operator_id):
+        if operator_id == 'char_bad':
+            raise HellaAPIError('down')
+        return _operator(operator_id)
+
+    processor, _ = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])], fetch_operator=fetch)
+    with caplog.at_level(logging.ERROR):
+        _, matchups = processor.run('main_06-09')
+    assert matchups['operator_id'].tolist() == ['char_a']
+    assert [r.getMessage() for r in caplog.records] == [
+        'Error building the profile of operator char_bad for matchups: down']
+
+
+def _matchup(unit, enemy, owner='', avg=1.0, enemy_dps=2.0):
+    return {'operator_name': unit, 'owner': owner, 'enemy_name': enemy, 'enemy_level': 0, 'avg_dps': avg,
+            'enemy_dps_vs_min_def': enemy_dps}
+
+
+def _enemy_row(name, **values):
+    row = dict.fromkeys(ENEMY_TABLE_COLUMNS, 0)
+    row.update(name=name, damage_type='PHYSICAL', apply_way='MELEE', motion='WALK', level_type='NORMAL', **values)
+    return row
+
+
 def test_print_matchup_tables_formatting(capsys):
-    enemy_df = pd.DataFrame([{'name': 'Wolf', 'level': 0, 'spawn_count': 2, 'maxHp': 100, 'atk': 10, 'def': 0,
-                              'magicResistance': 0, 'damage_type': 'PHYSICAL', 'apply_way': 'MELEE',
-                              'attack_interval': 1.23456, 'dps': 8.1}])
-    matchups = pd.DataFrame([
-        {'operator_name': 'Zeta', 'enemy_name': 'Wolf', 'enemy_level': 0,
-         'operator_dps_to_enemy': 12.345, 'enemy_dps_to_operator': 6.789},
-        {'operator_name': 'Alpha', 'enemy_name': 'Wolf', 'enemy_level': 0,
-         'operator_dps_to_enemy': 1.0, 'enemy_dps_to_operator': 2.0},
-    ])
+    enemy_df = pd.DataFrame([_enemy_row('Wolf', spawn_count=2, attack_interval=1.23456)])
+    matchups = pd.DataFrame([_matchup('Zeta', 'Wolf', avg=12.345, enemy_dps=6.789), _matchup('Alpha', 'Wolf')])
     print_matchup_tables(enemy_df, matchups)
     out = capsys.readouterr().out
     enemy_lines = out.split('Enemy stats:\n')[1].split('\n\n')[0].splitlines()
@@ -207,8 +251,21 @@ def test_print_matchup_tables_formatting(capsys):
     assert out.index('Zeta') < out.index('Alpha')
 
 
+def test_print_matchup_tables_pivots_by_enemy_and_names_summons_with_their_owner(capsys):
+    enemy_df = pd.DataFrame([_enemy_row(name) for name in ('Wolf', 'Yeti')])
+    matchups = pd.DataFrame([_matchup(unit, enemy, owner) for unit, owner in (('Zeta', ''), ('Drone', 'Alpha'))
+                             for enemy in ('Wolf', 'Yeti')])
+    print_matchup_tables(enemy_df, matchups)
+    out = capsys.readouterr().out
+    operator_section = out.split('Average DPS to each enemy')[1].split('Enemy DPS to each operator')[0]
+    enemy_section = out.split('Enemy DPS to each operator')[1]
+    for section in (operator_section, enemy_section):
+        assert 'Wolf' in section and 'Yeti' in section
+        assert section.index('Zeta') < section.index('Drone (Alpha)')
+
+
 def test_processor_choose_variant_uses_stage_id_and_input(tmp_path, capsys):
-    _write_operator_stats(tmp_path)
+    _write_roster(tmp_path)
     stages = [_stage([{'useDb': True, 'id': 'e1'}]), _stage([{'useDb': True, 'id': 'e1'}], stage_id='tough_06-09')]
     processor, _ = _processor(tmp_path, stages, inputs=['1'])
     processor.run('main_06-09')
@@ -217,7 +274,7 @@ def test_processor_choose_variant_uses_stage_id_and_input(tmp_path, capsys):
 
 
 def test_processor_names_files_after_stage_id_when_variant_has_none(tmp_path):
-    _write_operator_stats(tmp_path)
+    _write_roster(tmp_path)
     stage = _stage([{'useDb': True, 'id': 'e1'}])
     del stage['excel']['stageId']
     processor, _ = _processor(tmp_path, [stage])
@@ -226,7 +283,7 @@ def test_processor_names_files_after_stage_id_when_variant_has_none(tmp_path):
 
 
 def test_processor_saves_csvs_without_index_and_overwrites(tmp_path):
-    _write_operator_stats(tmp_path)
+    _write_roster(tmp_path)
     processor, _ = _processor(tmp_path, [_stage([{'useDb': True, 'id': 'e1'}])])
     processor.run('main_06-09')
     processor.run('main_06-09')
@@ -234,65 +291,8 @@ def test_processor_saves_csvs_without_index_and_overwrites(tmp_path):
     assert (tmp_path / 'io' / 'stage_main_06-09_matchups.csv').read_text().startswith('operator_id,')
 
 
-def test_processor_missing_damage_type_error_names_file(tmp_path, caplog):
-    _write_operator_stats(tmp_path, include_damage_type=False)
-    processor, _ = _processor(tmp_path, [])
-    with caplog.at_level(logging.ERROR):
-        processor.run('main_06-09')
-    assert [r.levelno for r in caplog.records] == [logging.ERROR]
-    expected = f"{_stats_file(tmp_path)} is missing columns ['damage_type']. Rerun the stats step first."
-    assert caplog.records[0].getMessage() == expected
-
-
-def test_skipped_enemy_and_no_enemies_logged_as_warnings(tmp_path, caplog):
-    _write_operator_stats(tmp_path)
-    processor, _ = _processor(tmp_path, [_stage([{'useDb': False, 'id': 'custom'}])])
-    with caplog.at_level(logging.WARNING):
-        processor.run('main_06-09')
-    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
-        (logging.WARNING, 'Skipping custom: stage-defined enemies (useDb = false) are not supported.'),
-        (logging.WARNING, 'No enemies found for stage main_06-09'),
-    ]
-
-
-def test_print_matchup_tables_pivots_by_enemy_and_keeps_operator_order(capsys):
-    enemy_df = pd.DataFrame([{'name': name, 'level': 0, 'spawn_count': 1, 'maxHp': 1, 'atk': 1, 'def': 0, 'magicResistance': 0,
-                              'damage_type': 'PHYSICAL', 'apply_way': 'MELEE', 'attack_interval': 1, 'dps': 1}
-                             for name in ('Wolf', 'Yeti')])
-    matchups = pd.DataFrame([
-        {'operator_name': op, 'enemy_name': enemy, 'enemy_level': 0, 'operator_dps_to_enemy': 1.0, 'enemy_dps_to_operator': 2.0}
-        for op in ('Zeta', 'Alpha') for enemy in ('Wolf', 'Yeti')
-    ])
-    print_matchup_tables(enemy_df, matchups)
-    out = capsys.readouterr().out
-    operator_section = out.split('Operator DPS to each enemy:')[1].split('Enemy DPS to each operator:')[0]
-    enemy_section = out.split('Enemy DPS to each operator:')[1]
-    for section in (operator_section, enemy_section):
-        assert 'Wolf' in section and 'Yeti' in section
-        assert section.index('Zeta') < section.index('Alpha')
-
-
-def test_processor_lists_every_missing_column(tmp_path, caplog):
-    _stats_file(tmp_path).parent.mkdir(parents=True)
-    pd.DataFrame([{'operator_id': 'a', 'name': 'A', 'atk': 1}]).to_csv(_stats_file(tmp_path), index=False)
-    processor, fetched = _processor(tmp_path, [])
-    with caplog.at_level(logging.ERROR):
-        assert processor.run('main_06-09') is None
-    assert fetched == []
-    assert "missing columns ['damage_type', 'attack_interval', 'def', 'magicResistance', 'maxHp', 'phase']" in caplog.text
-
-
-def test_processor_without_operator_stats_logs_error(tmp_path, caplog):
-    processor, fetched = _processor(tmp_path, [])
-    with caplog.at_level(logging.ERROR):
-        assert processor.run('main_06-09') is None
-    assert fetched == []
-    assert [(r.levelno, r.getMessage()) for r in caplog.records] == [
-        (logging.ERROR, f'No operator stats found at {_stats_file(tmp_path)}. Run `arknights-calc stats` first.')]
-
-
 def test_default_make_enemy_builds_enemy_stats_from_fetch_enemy(tmp_path):
-    _write_operator_stats(tmp_path)
+    _write_roster(tmp_path)
     fetched = []
 
     def fake_fetch_enemy(enemy_id):
@@ -301,8 +301,8 @@ def test_default_make_enemy_builds_enemy_stats_from_fetch_enemy(tmp_path):
 
     stage = _stage([{'useDb': True, 'id': 'e1', 'level': 0}])
     processor = StageMatchupProcessor(
-        Storage(tmp_path / 'ref', tmp_path / 'io'), fetch_stage=lambda stage_id: [stage],
-        fetch_enemy=fake_fetch_enemy, input_func=_inputs(),
+        _storage(tmp_path), fetch_stage=lambda stage_id: [stage], fetch_enemy=fake_fetch_enemy, input_func=_inputs(),
+        fetch_operator=_operator, fetch_deployable=_operator,
     )
     enemy_df, _ = processor.run('main_06-09')
     assert fetched == ['e1']
@@ -312,19 +312,21 @@ def test_default_make_enemy_builds_enemy_stats_from_fetch_enemy(tmp_path):
 
 def test_processor_defaults_to_single_attempt_fetch_functions(tmp_path):
     from arkdata.sources import hella_api
-    processor = StageMatchupProcessor(Storage(tmp_path / 'ref', tmp_path / 'io'))
+    processor = StageMatchupProcessor(_storage(tmp_path))
     assert processor.fetch_stage is hella_api.fetch_stage_data
     assert processor.fetch_enemy is hella_api.fetch_enemy_data
+    assert processor.fetch_operator is hella_api.fetch_operator_value
+    assert processor.fetch_deployable is hella_api.fetch_deployable_data
     assert processor.make_enemy == processor._make_enemy
 
 
 def test_default_make_enemy_applies_stage_overwritten_data(tmp_path):
-    _write_operator_stats(tmp_path)
+    _write_roster(tmp_path)
     stage = _stage([{'useDb': True, 'id': 'e1', 'level': 0,
                      'overwrittenData': {'attributes': {'atk': {'m_defined': True, 'm_value': 999}}}}])
     processor = StageMatchupProcessor(
-        Storage(tmp_path / 'ref', tmp_path / 'io'), fetch_stage=lambda stage_id: [stage],
-        fetch_enemy=lambda enemy_id: make_enemy_data(), input_func=_inputs(),
+        _storage(tmp_path), fetch_stage=lambda stage_id: [stage], fetch_enemy=lambda enemy_id: make_enemy_data(),
+        input_func=_inputs(), fetch_operator=_operator, fetch_deployable=_operator,
     )
     enemy_df, _ = processor.run('main_06-09')
     assert enemy_df['atk'].tolist() == [999]

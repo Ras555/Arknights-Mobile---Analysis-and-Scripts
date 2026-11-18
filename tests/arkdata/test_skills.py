@@ -15,6 +15,7 @@ from arkdata.calculations.skills import (
     StatModifiers,
     apply_stat_value,
     apply_stat_values,
+    is_percent_value,
     is_stat_value,
     level_index,
     parse_skill,
@@ -719,4 +720,30 @@ def test_def_ignore_values_that_arent_read(description):
 def test_def_ignore_alone_counts_as_modelled():
     skill = _parse(make_skill_level('Attacks ignore {def_penetrate_fixed} DEF', {'def_penetrate_fixed': 250}))
     assert skill.status == SkillStatus.FULL
+
+
+# Skills that hit aerial enemies, and is_percent_value
+
+@pytest.mark.parametrize('description, expected', [
+    ('Takes Off, Attack Range expands, ATK +{atk:0%}', True),
+    ('After deployment, immediately Takes Off; ATK +{atk:0%}', True),
+    ('Rushes forward 2 tiles (max. 5 tiles, can hit aerial units)', True),
+    ('ATK +{atk:0%} when attacking aerial enemies', False),
+    ('ATK +{atk:0%}', False),
+])
+def test_skills_that_hit_aerial_enemies(description, expected):
+    assert _parse(make_skill_level(description, {'atk': 0.5})).hits_aerial == expected
+
+
+@pytest.mark.parametrize('value, expected', [
+    (_value('def', -0.2, True), True),
+    (_value('def', -300, False), False),
+    # Not in the text: by size, as for stat values.
+    (_value('atk', -0.3), True),
+    (_value('magic_resistance', -20), False),
+    (_value('attack_speed', -20), False),
+    (_value('attack_speed', -0.2, True), True),
+])
+def test_is_percent_value(value, expected):
+    assert is_percent_value(value) == expected
 

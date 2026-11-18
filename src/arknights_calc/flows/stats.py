@@ -11,7 +11,7 @@ Created: 2026-09-18
 Author(s): Ryan Sommerville (ryan.sommerville@bosspac.com)
 Modified by: Claude
 
-Last Modified: 2026-11-05
+Last Modified: 2026-11-09
 Last Modified by: Claude
 '''
 
@@ -21,10 +21,9 @@ import logging
 
 import pandas as pd
 
-from arkdata.calculations.operator_profile import build_operator_profile, build_summon_profiles, summon_ids
-from arkdata.calculations.operator_stats import OperatorStats
-from arkdata.sources.account import MASTERY_COLUMNS, SKILL_COLUMNS
-from arkdata.sources.hella_api import HellaAPIError, fetch_deployable_data, fetch_operator_value
+from arkdata.sources.account import SKILL_COLUMNS
+from arkdata.sources.hella_api import fetch_deployable_data, fetch_operator_value
+from arknights_calc.flows.profiles import roster_operators
 from arknights_calc.reports import (
     OPERATOR_STATS_VIEW_COLUMNS,
     operator_page,
@@ -84,29 +83,17 @@ class OperatorStatsProcessor:
 
         operator_stats, skills, talents, summon_stats, summon_skills = [], [], [], [], []
         pages = {}
-        for _, row in target_operators.iterrows():
-            skill_level = _whole(row.get('skill_level'), 1)
-            masteries = [_whole(row.get(column), 0) for column in MASTERY_COLUMNS]
-            try:
-                value = self.fetch_operator(row['id'])
-                operator = OperatorStats(row['id'], row['level'], row['phase'], row['potential'], row['trust'],
-                                         operator_data=value['data'])
-                profile = build_operator_profile(value, row['phase'], row['level'], row['potential'], row['trust'],
-                                                 skill_level, masteries, row['id'])
-                summons = build_summon_profiles(value, self._deployables(value), row['phase'], row['level'],
-                                                row['potential'], row['trust'], skill_level, masteries, row['id'])
-            # One operator with missing or unexpected data shouldn't stop the
-            # rest, so it's logged (with its traceback) and skipped.
-            except (HellaAPIError, ValueError, KeyError) as exc:
-                logger.exception('Error calculating stats for operator %s: %s', row['id'], exc)
-                continue
-            operator_stats.append({**operator.to_dict(), **summary_row(profile, [summon.name for summon in summons])})
+        # Operators whose data is missing or unexpected are logged (with their traceback) and skipped.
+        for entry in roster_operators(target_operators, self.fetch_operator, self.fetch_deployable,
+                                      'Error calculating stats for operator %s: %s'):
+            profile, value = entry.profile, entry.value
+            operator_stats.append({**entry.operator.to_dict(), **summary_row(profile, [summon.name for summon in entry.summons])})
             skills += skill_rows(profile)
             talents += talent_rows(profile, value['data'])
-            for summon in summons:
+            for summon in entry.summons:
                 summon_stats.append(summon_stats_row(summon, profile, value))
                 summon_skills += skill_rows(summon, owner=profile)
-            pages[profile.name] = operator_page(profile, value['data'], summons, skill_level)
+            pages[profile.name] = operator_page(profile, value['data'], entry.summons, entry.skill_level)
 
         stats_df = pd.DataFrame(operator_stats)
         for output_file in self.storage.save_operator_stats(stats_df, OPERATOR_STATS_VIEW_COLUMNS):
@@ -117,25 +104,3 @@ class OperatorStatsProcessor:
         self.storage.save_operator_pages(pages)
         logger.info('Saved %d operator pages to %s', len(pages), self.storage.operator_pages_dir)
         return stats_df
-
-    def _deployables(self, operator_value: dict) -> dict:
-        '''
-        Returns {summon id: its HellaAPI value} for the operator's summons
-        that can be fetched. Missing ones are left out (and logged by
-        build_summon_profiles).
-        '''
-        deployables = {}
-        for summon_id in summon_ids(operator_value):
-            try:
-                deployables[summon_id] = self.fetch_deployable(summon_id)
-            except HellaAPIError:
-                continue
-        return deployables
-
-
-def _whole(value, default: int) -> int:
-    '''
-    Returns a roster cell as a whole number, or default when it's blank
-    (e.g. the mastery of a skill the operator doesn't have).
-    '''
-    return default if pd.isna(value) else int(value)

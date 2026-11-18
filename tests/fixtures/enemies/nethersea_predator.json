@@ -1,0 +1,86 @@
+{
+ "source": "HellaAPI enemy enemy_1231_dsrunr (Nethersea Predator), trimmed, retrieved 2026-11-09",
+ "value": {
+  "excel": {
+   "enemyId": "enemy_1231_dsrunr",
+   "name": "Nethersea Predator",
+   "enemyLevel": "NORMAL",
+   "damageType": [
+    "PHYSIC"
+   ],
+   "abilityList": [
+    {
+     "text": "Cannot be blocked while on Nethersea Brand"
+    },
+    {
+     "text": "Gains Physical and Arts dodge (disabled by certain <$ba.debuff>negative statuses</>)"
+    }
+   ]
+  },
+  "levels": {
+   "Value": [
+    {
+     "level": 0,
+     "enemyData": {
+      "attributes": {
+       "maxHp": {
+        "m_defined": true,
+        "m_value": 4000
+       },
+       "atk": {
+        "m_defined": true,
+        "m_value": 450
+       },
+       "def": {
+        "m_defined": true,
+        "m_value": 50
+       },
+       "magicResistance": {
+        "m_defined": true,
+        "m_value": 0
+       },
+       "attackSpeed": {
+        "m_defined": true,
+        "m_value": 100
+       },
+       "baseAttackTime": {
+        "m_defined": true,
+        "m_value": 3
+       },
+       "massLevel": {
+        "m_defined": true,
+        "m_value": 1
+       },
+       "moveSpeed": {
+        "m_defined": true,
+        "m_value": 1
+       },
+       "blockCnt": {
+        "m_defined": false,
+        "m_value": 0
+       }
+      },
+      "applyWay": {
+       "m_defined": true,
+       "m_value": "MELEE"
+      },
+      "motion": {
+       "m_defined": true,
+       "m_value": "WALK"
+      },
+      "levelType": {
+       "m_defined": false,
+       "m_value": "NORMAL"
+      },
+      "enemyTags": {
+       "m_defined": true,
+       "m_value": [
+        "seamonster"
+       ]
+      }
+     }
+    }
+   ]
+  }
+ }
+}

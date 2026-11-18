@@ -55,6 +55,18 @@ DEFAULT_SHOCKWAVE_SCALE = 0.5
 # Swordmasters' "Normal attacks deal damage twice": two full strikes per attack.
 SUB_PROFESSION_STRIKES = {"sword": (1.0, 1.0)}
 
+# Who can attack aerial enemies. Aerial enemies "can only be targeted by ranged attacks" (Arknights Terra Wiki, Aerial
+# unit), so melee operators can't, except these (confirmed by the owner 2026-11-09): Lords' ranged attacks ("deal 80%
+# of normal ATK", trait atk_scale), Sentinel Protectors ("can attack flying enemies") and Hookmasters. Agents and
+# Fortresses only hit ground enemies, as do Flingers ("to ground enemies"), though they're ranged. Skybreakers'
+# normal attacks only hit aerial enemies (while in mid-air), and their skills both.
+MELEE_POSITION = "MELEE"
+MELEE_AERIAL_SUB_PROFESSIONS = frozenset({"lord", "shotprotector", "hookmaster"})
+GROUND_ONLY_SUB_PROFESSIONS = frozenset({"bombarder"})
+AERIAL_ONLY_SUB_PROFESSIONS = frozenset({"skybreaker"})
+LORD_SUB_PROFESSION = "lord"
+DEFAULT_LORD_RANGED_SCALE = 0.8
+
 # Skill text that means the skill hits every enemy in an area rather than a set number.
 AOE_WORDS = re.compile(
     r'\bAO[Ee]\b|all (nearby |surrounding |blocked )?enemies|surrounding enemies|nearby enemies|enemies (around|nearby)'
@@ -202,6 +214,36 @@ def basic_attack_hits(sub_profession: str | None, trait_blackboard: dict | None 
         The ATK multiple per enemy hit.
     '''
     return sum(basic_attack_strikes(sub_profession, trait_blackboard))
+
+
+def aerial_attack_scale(position: str | None, sub_profession: str | None,
+                        trait_blackboard: dict | None = None) -> float | None:
+    '''
+    Returns the share of its normal damage a unit's attacks deal to aerial
+    enemies: 1 for ranged units (and summons that aren't melee), a Lord's
+    ranged attack (0.8), 1 for Sentinel Protectors and Hookmasters, and None
+    for units that can't attack them (other melee units, and Flingers).
+
+    Args:
+        position: The unit's position (MELEE, RANGED, ALL or NONE).
+        sub_profession: The unit's subProfessionId.
+        trait_blackboard: {name: value} from its trait (a Lord's atk_scale).
+    '''
+    if sub_profession in GROUND_ONLY_SUB_PROFESSIONS:
+        return None
+    if sub_profession == LORD_SUB_PROFESSION:
+        return _blackboard_value(trait_blackboard, 'atk_scale', DEFAULT_LORD_RANGED_SCALE)
+    if position == MELEE_POSITION and sub_profession not in MELEE_AERIAL_SUB_PROFESSIONS:
+        return None
+    return 1.0
+
+
+def attacks_ground(sub_profession: str | None) -> bool:
+    '''
+    Whether a unit's normal attacks hit ground enemies (Skybreakers' only
+    hit aerial enemies).
+    '''
+    return sub_profession not in AERIAL_ONLY_SUB_PROFESSIONS
 
 
 def skill_targets(max_target: float | None, description: str, basic: Targets) -> Targets:

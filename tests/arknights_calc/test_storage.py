@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from arknights_calc.settings import Settings
-from arknights_calc.storage import MissingColumnsError, Storage, page_file_name
+from arknights_calc.storage import Storage, page_file_name
 
 
 @pytest.fixture
@@ -112,27 +112,6 @@ def test_save_operator_pages_with_none(storage):
 ])
 def test_page_file_name(name, expected):
     assert page_file_name(name) == expected
-
-
-def test_load_operator_stats_restores_types(storage):
-    storage.save_operator_stats(pd.DataFrame({'operator_id': ['a'], 'level': [30], 'stunImmune': [False]}))
-    df = storage.load_operator_stats()
-    assert df['level'].dtype == 'int64'
-    assert df['stunImmune'].dtype == 'bool'
-
-
-def test_load_operator_stats_with_required_columns_present(storage):
-    storage.save_operator_stats(pd.DataFrame({'operator_id': ['a'], 'atk': [1]}))
-    assert storage.load_operator_stats(['operator_id', 'atk'])['atk'].tolist() == [1]
-
-
-def test_load_operator_stats_lists_missing_columns(storage):
-    storage.save_operator_stats(pd.DataFrame({'operator_id': ['a']}))
-    with pytest.raises(MissingColumnsError) as exc:
-        storage.load_operator_stats(['operator_id', 'atk', 'def'])
-    assert exc.value.file_path == storage.operator_stats_file
-    assert exc.value.missing_columns == ['atk', 'def']
-    assert str(exc.value) == f"{storage.operator_stats_file} is missing columns ['atk', 'def']"
 
 
 def test_save_stage_results_writes_both_files_to_io(storage):

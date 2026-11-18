@@ -744,6 +744,57 @@ owner's skill N is (noted as assumed). Some summons list their skills as null (M
 - `build_summon_profiles(operator_value, deployables, ...)` builds every summon an operator has from a {deployable id:
 value} mapping, logging and skipping missing ones (SilverAsh the Reignfrost's token_10057_svash2_eagle).
 
+### Matchups
+
+src/arkdata/calculations/matchups.py works out how each operator (and summon) does against each of a stage's enemies,
+one operator against one enemy (other operators' buffs and debuffs aren't counted). Decided by the owner 2026-11-09.
+- Enemies (src/arkdata/calculations/enemy_stats.py, EnemyStats): besides their stats, `tags` (enemyData.enemyTags, e.g.
+sarkaz, drone), `level_type` (NORMAL, ELITE or BOSS; `elite` is ELITE or BOSS), `weight` (massLevel), `flying` (motion
+FLY) and `min_block`, the block an operator needs to block the enemy, read from its ability text (blockCnt doesn't
+say: it's 0 for every enemy but one, checked 2026-11-09): None for "Unblockable"/"Cannot be blocked", N for "Can only
+be blocked by Operators with N or more Block" (or "units with at least N Block"), otherwise 1. Unblockable only for a
+while ("cannot be blocked for a period of time", "when Invisible", "while on Nethersea Brand") counts as blockable.
+`blockable_by(block)` also needs the enemy to walk.
+- Damage per hit (Arknights Terra Wiki, Damage/Physical and Arts damage), using 4a's Hits:
+> enemy DEF = (DEF + flat changes) × (1 + increases) × product of (1 - decreases), at least 0; the same for RES
+>
+> DEF used = (DEF - flat ignore) × product of (1 - % ignore); RES is kept within 0-100 before its ignore
+>
+> Physical = max(hit - DEF used, 5% of hit); Arts = max(hit × (1 - RES used / 100), 5% of hit); True = hit
+>
+> damage = that × talent damage multiplier × Fragile × hits / interval
+
+  The hit is ATK × the attack's multipliers (so the 5% minimum is of the hit, not plain ATK, an assumption). DEF/RES
+  ignore with a chance is averaged over whether it applies. The operator's own effects on enemies count against its
+  own damage: its talents' always, a skill's while it's active, and an instant skill's only on its strike. A Fragile of
+  m with chance/stacks f raises damage taken by 1 + (m - 1) × f; only the highest of each kind counts. "Fragile" raises
+  all damage, "Arts Fragility" (or "Arts damage taken") Arts, "+16% Physical damage" Physical, and "Elemental Fragility"
+  nothing modelled (TalentEffect.affects). Totals take each enemy hit's share (Targets.target_scales) as if every
+  target were this enemy.
+- Who can attack whom: aerial enemies can only be hit by ranged attacks (Terra Wiki, Aerial unit), so melee units can't
+attack them (aerial_attack_scale is None), except Lords' ranged attacks at their trait's 80% ATK, Sentinel Protectors
+and Hookmasters; Agents and Fortresses only hit ground enemies, as do Flingers. Skills that say "Takes Off" or "can hit
+aerial units" (Skill.hits_aerial: Contrail, Kirin R Yato) let a melee unit hit them while active. Skybreakers' normal
+attacks only hit aerial enemies; ground enemies only during their skills (attacks_ground). Summons that aren't melee
+(devices, "ALL") count as ranged. Melee enemies only hit an operator that's blocking them: never a ranged operator, and
+an unblockable melee enemy hits no one; ranged and "ALL" enemies hit anyone.
+- Per-enemy talents: each PER_ENEMY talent effect (TalentEffect, from a talent that isn't otherwise applied) applies
+when its condition holds (condition_met), by rebuilding the profile with it (build_operator_profile's extra_effects;
+ProfileBuilder keeps one profile per set). aerial: the enemy flies; elite: ELITE or BOSS (negated: not); weight:
+within the limits; enemy type: the tag is one of the enemy's tags, "ranged" is applyWay RANGED or ALL, "ground" is
+walking; other types (e.g. Sleeping) and enemy status conditions aren't applied and are noted. Blocking takes the best
+case for each figure (Scenario): ranged operators count as both blocking and not; a melee operator can't block flying
+or unblockable enemies or ones needing more block than it has, and otherwise is blocking or not, whichever helps; "2
+or more blocked" holds with that much block. Enemy HP conditions split the fight at their limits (hp_segments, e.g.
+Necrass's ATK boost covers the last 60% of HP) and DPS over the fight is enemy HP / total kill time; a "full HP" bonus
+(Puzzle) adds one attack's extra damage to the per-target figures.
+- Each operator and enemy gets (matchup_row, MATCHUP_COLUMNS): min DPS (no skill), average DPS (the best skill rotation
+against this enemy, SkillRotation.average_dps with these figures) and max DPS (the best lasting skill), per target and
+total, with the skill names; kill times (enemy HP / per-target DPS, infinity at 0); can_attack; the enemy's DPS against
+the operator's min DEF/RES (no skill) and max DEF/RES (the lasting skill, or none, it hurts least, with that skill's
+ATK/ASPD debuffs on the enemy; ASPD kept within 20-600) in the blocking case where it reaches the operator, and the
+time it takes to defeat it; the per-enemy talents applied; and notes.
+
 
 ## Project Structure
 
@@ -759,7 +810,8 @@ arkdata is a generic Arknights library that any Arknights tool could use. It kno
 files, or its command line, and must never import from arknights_calc (tests/arknights_calc/test_package_boundaries.py
 checks this).
 - calculations/: damage.py (DamageType, damage formulas), operator_stats.py, enemy_stats.py, trust.py, stage.py (enemies
-and spawn counts in a stage), matchups.py (operator vs. enemy DPS and kill times), and for skills (see Calculations):
+and spawn counts in a stage), matchups.py (operator vs. enemy damage and kill times, see Matchups), and for skills (see
+Calculations):
 blackboard.py (a skill's named values and readable text), skills.py (Skill, StatModifiers, DamagePart, and
 apply_stat_value(s), shared with talents), skill_rotation.py (SkillRotation), attack_targets.py (Targets), talents.py
 (Talent, TalentGroup, the talent override file) and operator_profile.py (OperatorProfile, ProfileSummary, summons).
@@ -779,8 +831,10 @@ ROSTER_MAX_AGE_DAYS (default 7).
 - storage.py: the Storage class reads and writes every file in ref/ and io/, so file names, formats and required columns
 are defined in one place. io/ copies are rounded to VIEW_DECIMALS (2).
 - reports.py: turns operator profiles into the stats step's table rows and readable operator pages.
-- flows/: one module per step of the program (roster.py, stats.py and matchups.py). Flows only orchestrate: they load
-inputs through Storage, call arkdata, save outputs through Storage, and print results.
+- flows/: one module per step of the program (roster.py, stats.py and matchups.py), plus profiles.py (roster_operators:
+every roster operator's profile and its summons', with ProfileBuilders for matchups; operators that fail are logged
+and skipped), shared by the stats and matchups steps. Flows only orchestrate: they load inputs through Storage, call
+arkdata, save outputs through Storage, and print results.
 
 ### Imports
 
@@ -814,6 +868,9 @@ tests/fixtures/operators trimmed whole operators and summons (Blaze, Exusiai, Pr
 Bagpipe, Siege and Eyjafjalla; Siege's and Eyjafjalla's files also keep their factions and position)
 for operator profiles, with their expected figures worked out by hand in the tests (each file names its source). They're
 loaded with load_skill_fixture, load_talent_fixture and load_operator_fixture; make_operator_value builds a fake operator.
+tests/fixtures/enemies holds trimmed real enemies (Monster Mk II, a drone; Sarkaz Lancer, a heavy elite Sarkaz; Freight
+Car, unblockable; Carnevale Snack Seller, needing 3 block; Nethersea Predator, unblockable only on Nethersea Brand),
+loaded as EnemyStats with load_enemy_fixture, for hand-worked matchups.
 
 ### Other
 
@@ -953,7 +1010,7 @@ and its summons' profiles. Summons that can't be fetched are logged and skipped.
 4. Save the results (src/arknights_calc/reports.py turns profiles into rows and pages; numbers in io/ files are rounded
 to 2 decimals, ref/ keeps full precision; the pages round numbers the same way as the tables, with numpy):
    - ref/operator_stats_output.csv and io/operator_stats_output.csv: one row per operator, with OperatorStats' columns
-   (the existing dps column is the basic attack with no talents, still used by the matchups step), then min_dps,
+   (the existing dps column is the basic attack with no talents), then min_dps,
    avg_dps, max_dps, the same three ending in _total, avg_dps_skill, avg_dps_total_skill, max_dps_skill,
    max_dps_total_skill, min/max def, res and hp, min/avg/max hps (healers only), modelled_status and summons (names).
    The ref copy keeps every stat in the game data; the io copy only has OPERATOR_STATS_VIEW_COLUMNS
@@ -975,16 +1032,19 @@ to 2 decimals, ref/ keeps full precision; the pages round numbers the same way a
 
 ### Matchups Step
 
-1. Read the operator stats from ref/operator_stats_output.csv. If the file doesn't exist yet, log an error asking for
-the stats step to be run first. If it is missing any of the columns the matchups
-need (REQUIRED_OPERATOR_COLUMNS in src/arkdata/calculations/matchups.py), log an error listing them and asking for the stats step
-to be rerun. The phase column is also required.
+1. Read the roster from ref/roster.csv. If there isn't one yet, log an error asking for the roster step to be run first.
 2. Keep only the Elite 2 (phase 2) operators, so the matchup tables stay a readable size. If there are none, log a
 warning and stop.
 3. Ask for a stage id if one wasn't given, retrieve the stage from the HellaAPI cache, and ask which variant to use if the stage
 has more than one.
 4. Retrieve the stats of each enemy in the stage's enemyDbRefs (from the HellaAPI cache) at its level (skipping stage-defined enemies) and count how
 many of each enemy the stage's waves spawn.
-5. For every operator and enemy pair, calculate the DPS each deals to the other and the time each takes to kill the other.
-6. Save the enemy stats and matchups to io/stage_{stage_id}_enemy_stats.csv and io/stage_{stage_id}_matchups.csv, and
-print the enemy stats and DPS tables.
+5. Build each operator's profile and its summons' (flows/profiles.py, from the HellaAPI cache; operators that fail are
+logged and skipped), and work out every operator (or summon) and enemy pair (see Matchups).
+6. Save the enemy stats (with tags, level type, weight and min_block) and matchups to
+io/stage_{stage_id}_enemy_stats.csv and io/stage_{stage_id}_matchups.csv (one row per operator or summon and enemy:
+ids and names, the owner for summons, damage types, the enemy's level, attack style, motion and spawn count,
+can_attack, min/avg/max DPS per target and total with skill names, kill times, the enemy's DPS against min/max
+DEF/RES with the skill used and its kill times, the per-enemy talents applied, and notes), and print the enemy stats,
+the average DPS of each operator against each enemy, and each enemy's DPS against each operator with no skill
+(summons are named with their owner, e.g. "Mon3tr (Kal'tsit)").
